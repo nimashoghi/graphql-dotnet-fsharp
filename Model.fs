@@ -1,0 +1,2 @@
+module GraphQL.FSharp.Model
+

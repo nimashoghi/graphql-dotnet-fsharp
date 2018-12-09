@@ -1,5 +1,145 @@
 module GraphQL.FSharp.Builder
 
+// TODO
+type 't res = FSharp.Validation.Result<'t>
+
+let (|||) lhs rhs =
+    Some <|
+        match lhs with
+        | Some value -> value
+        | None -> rhs
+
+module ArgumentEx =
+    open FSharp.Injection
+    open FSharp.Validation
+    open GraphQL.Types
+    open Iris.Option.Builders
+
+    [<AutoOpen>]
+    module internal rec Wrapper =
+        [<AutoOpen>]
+        module Optional =
+            type ITag = interface end
+            type IDefaultTag = inherit ITag
+            type IMandatoryTag = inherit ITag
+            type IOptionalTag = inherit ITag
+
+            let (|Mandatory|Optional|) tag =
+                if typeof<IOptionalTag>.IsAssignableFrom tag then Optional
+                else Mandatory
+
+            let changeOptionalStatus<'tag, 'input, 'output when 'tag :> ITag>
+                (argument: Argument<'input, 'output, IDefaultTag>)
+                : Argument<'input, 'output, 'tag> = {
+                    name = argument.name
+                    defaultValue = argument.defaultValue
+                    description = argument.description
+                    validator = argument.validator
+                }
+
+            let makeMandatory = changeOptionalStatus<IMandatoryTag, _, _>
+            let makeOptional = changeOptionalStatus<IOptionalTag, _, _>
+
+        [<AutoOpen>]
+        module Validator =
+            let defaultValidator x = box x :?> 'output |> retn
+
+        type Argument<'input, 'output, 'tag when 'tag :> ITag> = {
+            name: string
+            defaultValue: 'output option
+            description: string option
+            validator: ('input -> Result<'output>) option
+        }
+
+        let newArgument<'input, 'output> name : Argument<'input, 'output, IDefaultTag> = {
+            name = name
+            defaultValue = None
+            description = None
+            validator = None
+        }
+
+        let mergeValidators<'input, 'intermediary, 'output>
+            (x: 'input -> Result<'intermediary>)
+            (y: 'intermediary -> Result<'output>) =
+            fun input ->
+                match x input with
+                | Ok value -> y value
+                | Error err -> Error err
+
+        let extend
+            (argument: Argument<'input, 'intermediary, _>)
+            (validator: 'intermediary -> 'output res) : Argument<'input, 'output, _> =
+                match argument.validator with
+                | Some prev ->
+                    {
+                        name = argument.name
+                        defaultValue = None
+                        description = argument.description
+                        validator = Some (mergeValidators prev validator)
+                    }
+                // in this case, 'intermediary = 'input
+                | None ->
+                    {
+                        name = argument.name
+                        defaultValue = None
+                        description = argument.description
+                        validator = Some (fun x -> x |> box :?> 'intermediary |> validator)
+                    }
+
+        let wrapTag<'tag> t =
+            match typeof<'tag> with
+            | Mandatory -> NonNullGraphType t :> IGraphType
+            | Optional -> t
+
+    type ArgumentBuilder<'input, 'output>(name: string) =
+        member __.Yield _ = newArgument<'input, 'input> name
+
+        /// Sets the description of the argument
+        [<CustomOperation("description")>]
+        member __.Description (argument, description) = {argument with description = Some description}
+
+        /// Sets the default value of the argument
+        [<CustomOperation("defaultValue")>]
+        member __.DefaultValue (argument, defaultValue) = {argument with defaultValue = Some defaultValue}
+
+        /// Make the argument optional
+        [<CustomOperation("optional")>]
+        member __.Optional argument = makeOptional argument
+
+        /// Make the argument optional
+        [<CustomOperation("mandatory")>]
+        member __.Mandatory argument = makeMandatory argument
+
+        /// Validation operation with chaining capability
+        [<CustomOperation("validate")>]
+        member __.Validate (argument, validator) = extend argument validator
+
+        /// Converts the elevated wrapper type into a function that can be called on initialization
+        member __.Run (argument: Argument<'input, 'output, 'tag>) =
+            fun (Inject (lookup: GraphTypesLookup)) (field: FieldType) -> maybeUnit {
+                let queryArgument = QueryArgument (wrapTag<'tag> lookup.[typeof<'input>])
+
+                let name = argument.name
+                queryArgument.Name <- name
+
+                let! description = argument.description ||| ""
+                queryArgument.Description <- description
+
+                do! maybe {
+                    let! defaultValue = argument.defaultValue
+                    queryArgument.DefaultValue <- box defaultValue
+                }
+
+                do! maybe {
+                    let! validator = argument.validator
+                    field.Metadata.[name] <- validator
+                }
+
+                field.Arguments.Add queryArgument
+            }
+
+    let arg<'input, 'output> name = ArgumentBuilder<'input, 'output> name
+
 [<AutoOpen>]
 module Argument =
     open GraphQL.Types
@@ -54,8 +194,6 @@ module Argument =
             if Option.isSome argument.validator then failwith "There can only be one validator"
             let validator: Validator<obj> = (fun i -> i :?> 'ret) >> validator >> map box
             {argument with validator = Some validator}
-
-    let a<'graph, 'ret when 'graph :> IGraphType> = ArgumentBuilder<'graph, 'ret>()
 
 [<AutoOpen>]
 module Field =
@@ -155,7 +293,7 @@ module Field =
                 builder.FieldType.Type  <- unnullify builder.FieldType.Type
                 builder) state
 
-        [<CustomOperation("argument")>]
+        [<CustomOperation("arg")>]
         member __.Argument (state: FieldBuilderState<'source, 'retn>, argument: ArgumentDefinition<'argGraph, 'arg>) =
             let ret =
                 match argument.defaultValue with
@@ -190,8 +328,6 @@ module Field =
             wrap (fun builder this -> resolveObservable (builder this) f) state
         member __.Resolve<'a, 'retn when 'retn :> List<'a>> (state: FieldBuilderState<'source, List<'a>>, f: ResolveFieldContext<'source> -> 'a obs) =
             wrap (fun builder this -> resolveObservableList (builder this) f) state
-
-    let f<'graph, 'retn, 'source> = FieldMakerBuilder<'graph, 'retn, 'source>()
 
 [<AutoOpen>]
 module Object =
@@ -233,6 +369,31 @@ module Object =
                 builder arg
                 arg.Description <- description
 
+[<AutoOpen>]
+module Builders =
+    open GraphQL.Types
+
+    let a<'graph, 'ret when 'graph :> IGraphType> = ArgumentBuilder<'graph, 'ret>()
+    let f<'graph, 'retn, 'source> = FieldMakerBuilder<'graph, 'retn, 'source>()
     let complex<'source, 'graph when 'graph :> ComplexGraphType<'source>> = ObjectBuilder<'source, 'graph>()
     let object<'source, 'graph when 'graph :> ObjectGraphType<'source>> = ObjectBuilder<'source, 'graph>()
     let input<'source, 'graph when 'graph :> InputObjectGraphType<'source>> = ObjectBuilder<'source, 'graph>()
+
+[<AutoOpen>]
+module Arguments =
+    open FSharp.Control.Reactive
+    open GraphQL.Types
+    open Iris
+
+    open Validation
+
+    let private get<'t> name (ctx: ResolveFieldContext<_>) =
+        match getValidationValue<'t> ctx.UserContext (metadataValueName ctx.FieldName name) with
+        | Some value -> value
+        | None -> ctx.GetArgument<'t> name
+
+    type Arg<'t>() = member __.Item with get name = get<'t> name >> Observable.lift
+    type ArgSync<'t>() = member __.Item with get name = get<'t> name
+
+    let arg<'t> = Arg<'t>()
+    let argSync<'t> = ArgSync<'t>()
