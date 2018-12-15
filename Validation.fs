@@ -6,6 +6,7 @@ open GraphQL.Types
 open GraphQL.Validation
 open GraphQL.Language.AST
 open Iris.Option
+open Iris.Option.Builders
 
 open Util
 
@@ -58,6 +59,9 @@ type GenericValidationType() =
                     | OperationType.Mutation -> metadataOperation <- Some ctx.Schema.Mutation
                     | _ -> ())
                 let mutable currentField: Field option = None
+                listener.Match<Field>(enter = fun field ->
+                    let fieldType = ctx.TypeInfo.GetFieldDef ()
+                    fieldType.meta)
                 listener.Match<Field>(enter = fun field -> currentField <- Some field)
                 listener.Match<Argument>(enter = fun arg ->
                     ignore <| maybe {

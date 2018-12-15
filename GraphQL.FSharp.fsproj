@@ -1,22 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\Iris\Iris.fsproj" />
-        <ProjectReference Include="..\fsharp-injection\FSharp.Injection.fsproj" />
-        <ProjectReference Include="..\fsharp-validation\FSharp.Validation.fsproj" />
-    </ItemGroup>
-    <ItemGroup>
-        <Compile Include="Model.fs" />
-        <Compile Include="Util.fs" />
-        <Compile Include="Validation.fs" />
-        <Compile Include="Builder.fs" />
-        <Compile Include="Library.fs" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="GraphQL" Version="2.4.0" />
-        <PackageReference Include="GraphQL.Authorization" Version="2.0.27" />
-        <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
-    </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Iris\Iris.fsproj" />
+    <ProjectReference Include="..\fsharp-injection\FSharp.Injection.fsproj" />
+    <ProjectReference Include="..\fsharp-validation\FSharp.Validation.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Model.fs" />
+    <Compile Include="Builder.fs" />
+    <Compile Include="Util.fs" />
+    <Compile Include="Validation.fs" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="GraphQL.Authorization" Version="2.0.27" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
+  </ItemGroup>
 </Project>
