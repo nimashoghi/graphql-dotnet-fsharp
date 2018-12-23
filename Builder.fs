@@ -1,112 +1,161 @@
 module GraphQL.FSharp.Builder
 
-// TODO:
-open System.Collections.Concurrent
-open Iris
-type ArgumentValidatorList = ConcurrentDictionary<string, obj -> obj res>
-
 [<AutoOpen>]
-module Arguments =
+module SchemaBuilder =
+    open System
+    open FSharp.Injection
+    open GraphQL
     open GraphQL.Types
+    open Iris.Option.Builders
 
-    open Validation
+    type IServiceProvider with
+        /// **Description**
+        ///   * Creates a new `IDependencyResolver` from this `IServiceProvider`.
+        member this.ToDependencyResolver () = {
+            new IDependencyResolver with
+                member __.Resolve<'t> () = this.GetService typeof<'t> :?> 't
+                member __.Resolve t = this.GetService t
+        }
 
-    type ArgumentHelper<'t>() =
-        member __.get name (ctx: #ResolveFieldContext<_>) =
-            let value =
-                match getValidationValue<'t> ctx.UserContext (metadataValueName ctx.FieldName name) with
-                | Some value -> value
-                | None -> ctx.GetArgument<'t> name
-            Observable.lift value
-    let arg<'t> = ArgumentHelper<'t>()
+    /// **Description**
+    ///  * Creates a new Schema from the provided IServiceProvider
+    let create (provider: IServiceProvider) = new Schema(provider.ToDependencyResolver())
 
-open GraphQL.Types
-open FSharp
-
-type ValidatedArgument(``type``: IGraphType) =
-    inherit QueryArgument(``type``)
-
-    member val Metadata = ConcurrentDictionary<string, obj>()
-
-    member val Validator: (obj -> obj res) option = None with get, set
-    member this.SetValidator (validator: 'input -> 'output res) =
-        let validator (input: obj) = input :?> 'input |> validator |> Validation.map box
-        this.Validator <- Some validator
-
-type ValidatedFieldType() =
-    inherit FieldType()
-
-    member val Validators: (obj -> obj res) list = [] with get, set
-    member this.AddValidator (validator: 'a -> 'a res) =
-        let validator (input: obj) = input :?> 'a |> validator |> Validation.map box
-        this.Validators <- validator :: this.Validators
-
-open System
-open GraphQL
-open GraphQL.Validation
-open GraphQL.Language.AST
-
-let validator (f: ValidationContext -> EnterLeaveListener -> unit) =
-    {
-        new IValidationRule with
-            member __.Validate ctx =
-                EnterLeaveListener(Action<EnterLeaveListener> (f ctx)) :> INodeVisitor
+    type SchemaInfo = {
+        Query: InjectionFunction<Schema, IObjectGraphType> option
+        Mutation: InjectionFunction<Schema, IObjectGraphType> option
+        Subscription: InjectionFunction<Schema, IObjectGraphType> option
+        Types: InjectionFunction<Schema, IGraphType> list
     }
 
-open Iris
-open Iris.Observable
 
-open FSharp.Control.Reactive
+    /// **Description**
+    ///   * Creates an empty SchemaInfo
+    let newSchema = {
+        Query = None
+        Mutation = None
+        Subscription = None
+        Types = []
+    }
 
-module Builders =
-    module Async =
-        let observableToAsync x = x |> Observable.toTask |> Async.AwaitTask
-        type AsyncBuilder with
-            member __.Bind (x: 'x Async, f: 'x -> 'y obs) = async {
-                let! x = x
-                return! observableToAsync <| f x
-            }
-            member __.ReturnFrom (x: 'x obs) = observableToAsync x
+    // TODO: find a good way to do this
+    // Probably add it to FSharp.Injection
+    // let internal convertInjectedObject<'injection, 'graph when 'graph :> IObjectGraphType>
+    //     (x: InjectionFunction<'injection, 'graph>) =
+    //     fun (i: obj) -> x (i :?> 'injection) :> IObjectGraphType
 
-exception InvalidGraphQLOperationException
+    // let internal convertInjected<'injection, 'graph when 'graph :> IGraphType>
+    //     (x: InjectionFunction<'injection, 'graph>) =
+    //     fun (i: obj) -> x (i :?> 'injection) :> IGraphType
 
-let getOperation (ctx: ValidationContext) (listener: EnterLeaveListener) =
-    Async.FromContinuations (fun (success, cancel, _) ->
-        ignore <| listener.Match<Operation> (fun operation ->
-            match operation.OperationType with
-            | OperationType.Query -> success ctx.Schema.Query
-            | OperationType.Mutation -> success ctx.Schema.Mutation
-            | _ -> cancel InvalidGraphQLOperationException
-        )
-    )
+    let internal convertInjectedObject<'injection, 'graph when 'graph :> IObjectGraphType>
+        (x: InjectionFunction<'injection, 'graph>) =
+        fun i -> x i :> IObjectGraphType
+
+    let internal convertInjected<'injection, 'graph when 'graph :> IGraphType>
+        (x: InjectionFunction<'injection, 'graph>) =
+        fun i -> x i :> IGraphType
 
 
-let processField (field: FieldType) =
-    match field with
-    | :? ValidatedFieldType as field -> ()
-    | _ -> ()
+    // TODO: This is a hack, should replace w/ something else.
+    let internal withSchema (schema: Schema) (provider: IServiceProvider) =
+        {
+            new IServiceProvider with
+                member __.GetService t =
+                    if t = typeof<Schema>
+                    then box schema
+                    else provider.GetService t
+        }
+
+    type SchemaBuilder() =
+        /// **Description**
+        ///   * Creates a new Schema
+        member __.Yield _ = newSchema
+
+        /// **Description**
+        ///   * Registers the provided `Query` object.
+        [<CustomOperation "query">]
+        member __.Query (schema, query) = {schema with Query = Some (convertInjectedObject query)}
+
+        /// **Description**
+        ///   * Registers the provided `Mutation` object.
+        [<CustomOperation "mutation">]
+        member __.Mutation (schema, mutation) = {schema with Mutation = Some (convertInjectedObject mutation)}
+
+        /// **Description**
+        ///   * Registers the provided `Subscription` object.
+        [<CustomOperation "subscription">]
+        member __.Subscription (schema, subscription) = {schema with Subscription = Some (convertInjectedObject subscription)}
+
+        /// **Description**
+        ///   * Registers the provided types.
+        [<CustomOperation "types">]
+        member __.Types (schema, types) = {schema with Types = schema.Types @ types}
+
+        /// **Description**
+        ///   * Processes the `schema` expressions' `SchemaInfo`.
+        member __.Run {Query = query; Mutation = mutation; Subscription = subscription; Types = types} =
+            fun (provider: IServiceProvider) ->
+                let schema = new Schema(provider.ToDependencyResolver())
+                let provider = withSchema schema provider
+
+                let mutable types =
+                    types
+                    |> List.map (inject provider)
+
+                maybeUnit {
+                    let! query = query
+                    let query = inject provider query
+                    schema.Query <- query
+                    types <- query :> IGraphType :: types
+                }
+
+                maybeUnit {
+                    let! mutation = mutation
+                    let mutation = inject provider mutation
+                    schema.Mutation <- mutation
+                    types <- mutation :> IGraphType :: types
+                }
+
+                maybeUnit {
+                    let! subscription = subscription
+                    let subscription = inject provider subscription
+                    schema.Subscription <- subscription
+                    types <- subscription :> IGraphType :: types
+                }
+
+                types
+                |> List.toArray
+                |> schema.RegisterTypes
+
+                schema
+
+    let schema = SchemaBuilder()
 
 [<AutoOpen>]
 module Optional =
+    open GraphQL.Types
+
     type IOptionalTag = interface end
     type IOptionalDefaultTag = inherit IOptionalTag
+    type IOptionalDefaultValueTag = inherit IOptionalTag
     type IOptionalMandatoryTag = inherit IOptionalTag
     type IOptionalOptionalTag = inherit IOptionalTag
 
-    let (|Mandatory|Optional|) tag =
+    let internal (|Mandatory|Optional|DefaultValue|) tag =
         if typeof<IOptionalOptionalTag>.IsAssignableFrom tag then Optional
+        elif typeof<IOptionalDefaultValueTag>.IsAssignableFrom tag then DefaultValue
         else Mandatory
 
-[<AutoOpen>]
-module Validator =
-    type IValidatorTag = interface end
-    type IValidatorDefaultTag = inherit IValidatorTag
-    type IValidatorHasValidatorTag = inherit IValidatorTag
+    let wrapTag<'tag> t =
+        match typeof<'tag> with
+        | Mandatory | DefaultValue -> NonNullGraphType t :> IGraphType
+        | Optional -> t
+
 
 [<AutoOpen>]
 module Argument =
-    open FSharp.Injection
-    open FSharp.Validation
+    open GraphQL.Types
     open Iris.Option.Builders
     open Iris.Option.Operators
 
@@ -114,73 +163,31 @@ module Argument =
     module rec Wrapper =
         [<AutoOpen>]
         module Optional =
-            let changeOptionalStatus<'tag, 'input, 'output, 'validatorTag when 'tag :> IOptionalTag and 'validatorTag :> IValidatorTag>
-                (argument: Argument<'input, 'output, IOptionalDefaultTag, 'validatorTag>)
-                : Argument<'input, 'output, 'tag, 'validatorTag> = {
+            let changeOptionalStatus<'tag, 'input, 'output when 'tag :> IOptionalTag>
+                (argument: Argument<'input, 'output, IOptionalDefaultTag>)
+                : Argument<'input, 'output, 'tag> = {
                     name = argument.name
                     defaultValue = argument.defaultValue
                     description = argument.description
                     validator = argument.validator
                 }
 
-            let makeMandatory = changeOptionalStatus<IOptionalMandatoryTag, _, _, _>
-            let makeOptional = changeOptionalStatus<IOptionalOptionalTag, _, _, _>
+            let makeMandatory = changeOptionalStatus<IOptionalMandatoryTag, _, _>
+            let makeOptional = changeOptionalStatus<IOptionalOptionalTag, _, _>
 
-        type Argument<'input, 'output, 'tag, 'validator when 'tag :> IOptionalTag and 'validator :> IValidatorTag> = {
+        type Argument<'input, 'output, 'tag when 'tag :> IOptionalTag> = {
             name: string option
             defaultValue: 'output option
             description: string option
-            validator: ('input -> 'output res) option
+            validator: Validator<'input, 'output> option
         }
 
-        let newArgument<'input, 'output> : Argument<'input, 'output, IOptionalDefaultTag, IValidatorDefaultTag> = {
+        let newArgument<'input, 'output> : Argument<'input, 'output, IOptionalDefaultTag> = {
             name = None
             defaultValue = None
             description = None
             validator = None
         }
-
-        let mergeValidators<'input, 'intermediary, 'output>
-            (x: 'input -> 'intermediary res)
-            (y: 'intermediary -> 'output res) =
-            fun input ->
-                match x input with
-                | Ok value -> y value
-                | Error err -> Error err
-
-        let extend
-            (argument: Argument<'input, 'intermediary, _, _>)
-            (validator: 'intermediary -> 'output res) : Argument<'input, 'output, _, _> =
-                match argument.validator with
-                | Some prev ->
-                    {
-                        name = argument.name
-                        defaultValue = None
-                        description = argument.description
-                        validator = Some (mergeValidators prev validator)
-                    }
-                // in this case, 'intermediary = 'input
-                | None ->
-                    {
-                        name = argument.name
-                        defaultValue = None
-                        description = argument.description
-                        validator = Some (fun x -> x |> box :?> 'intermediary |> validator)
-                    }
-
-        let wrapTag<'tag> t =
-            match typeof<'tag> with
-            | Mandatory -> NonNullGraphType t :> IGraphType
-            | Optional -> t
-
-        let withValidators (field: FieldType) (f: ArgumentValidatorList -> unit) =
-            if not (field.HasMetadata "ArgumentValidators") then
-                field.Metadata.["ArgumentValidators"] <- ArgumentValidatorList()
-            f <| field.GetMetadata<ArgumentValidatorList> "ArgumentValidators"
-
-        let addValidator (field: FieldType) name (validator: 'input -> 'output res) =
-            let validator (input: obj) = input :?> 'input |> validator |> FSharp.Validation.map box
-            withValidators field (fun validators -> validators.[name] <- validator)
 
     type ArgumentBuilder<'input>() =
         member __.Yield _ = newArgument<'input, 'input>
@@ -196,8 +203,7 @@ module Argument =
         /// Sets the default value of the argument
         /// Fails if we have set optional or mandatory
         [<CustomOperation "defaultValue">]
-        member __.DefaultValue (argument: Argument<_, _, IOptionalDefaultTag, _>, defaultValue) =
-            {argument with defaultValue = Some defaultValue}
+        member __.DefaultValue (argument: Argument<_, _, IOptionalDefaultTag>, defaultValue) = {argument with defaultValue = Some defaultValue}
 
         /// Make the argument optional
         [<CustomOperation "optional">]
@@ -209,12 +215,18 @@ module Argument =
 
         /// Validation operation with chaining capability
         [<CustomOperation "validate">]
-        member __.Validate (argument, validator) = extend argument validator
+        member __.Validate (argument: Argument<_, _, _>, validator) : Argument<_, _, _> =
+            {
+                name = argument.name
+                defaultValue = argument.defaultValue
+                description = argument.description
+                validator = Some validator
+            }
 
         /// Converts the elevated wrapper type into a function that can be called on initialization
-        member __.Run (argument: Argument<'input, 'output, 'optionalTag, 'validatorTag>) =
-            fun (Inject (lookup: GraphTypesLookup)) (field: FieldType) -> maybeUnit {
-                let queryArgument = ValidatedArgument (wrapTag<'optionalTag> lookup.[typeof<'input>])
+        member __.Run (argument: Argument<'input, 'output, 'tag>) =
+            fun (schema: Schema) (field: FieldType) -> maybeUnit {
+                let queryArgument = ValidatedArgument(wrapTag<'tag> (schema.FindType typeof<'input>.Name), field)
 
                 let! name = argument.name
                 queryArgument.Name <- name
@@ -241,9 +253,10 @@ module Argument =
 [<AutoOpen>]
 module Field =
     open System
+    open Apollo
     open FSharp.Linq.RuntimeHelpers
-    open FSharp.Injection
     open FSharp.Quotations
+    open GraphQL
     open GraphQL.Types
     open GraphQL.Resolvers
     open Iris
@@ -264,26 +277,20 @@ module Field =
                     getterType = field.getterType
                     name = field.name
                     resolver = field.resolver
-                    validators = field.validators
                 }
 
             let makeMandatory = changeOptionalStatus<IOptionalMandatoryTag, _, _, _>
             let makeOptional = changeOptionalStatus<IOptionalOptionalTag, _, _, _>
 
-            let wrapTag<'tag> t =
-                match typeof<'tag> with
-                | Mandatory -> NonNullGraphType t :> IGraphType
-                | Optional -> t
 
         type FieldWrapper<'source, 'graph, 'value, 'tag when 'tag :> IOptionalTag> = {
-            arguments: (Inject<GraphTypesLookup> -> ValidatedFieldType -> unit) list
+            arguments: (Schema -> FieldType -> unit) list
             defaultValue: 'value option
             description: string option
             getter: Expr<'source -> 'value> option
             getterType: Type option
             name: string option
             resolver: (ResolveFieldContext<'source> -> 'value obs) option
-            validators: ('value -> 'value res) list
         }
 
         let defaultFieldWrapper<'source, 'graph, 'value> : FieldWrapper<'source, 'graph, 'value, IOptionalDefaultTag> = {
@@ -294,7 +301,6 @@ module Field =
             getterType = None
             name = None
             resolver = None
-            validators = []
         }
 
         let checkFieldGetter (field: FieldWrapper<_, _, _, _>) =
@@ -312,14 +318,19 @@ module Field =
         [<CustomOperation "description">]
         member __.Description (field: FieldWrapper<_, _, _, _>, description) = {field with description = Some description}
 
-        /// Validation operation with chaining capability
-        [<CustomOperation "validate">]
-        member __.Validate (field, validator) = {field with validators = validator :: field.validators}
-
         /// Sets the description of this field
         /// Fails if we have set optional or mandatory
         [<CustomOperation "defaultValue">]
-        member __.DefaultValue (field: FieldWrapper<_, _, _, IOptionalDefaultTag>, defaultValue) = {field with defaultValue = Some defaultValue}
+        member __.DefaultValue (field: FieldWrapper<_, _, _, IOptionalDefaultTag>, defaultValue) : FieldWrapper<_, _, _, IOptionalDefaultValueTag> =
+            {
+                arguments = field.arguments
+                description = field.description
+                getter = field.getter
+                getterType = field.getterType
+                name = field.name
+                resolver = field.resolver
+                defaultValue = Some defaultValue
+             }
 
         /// Make the argument optional
         [<CustomOperation "optional">]
@@ -351,8 +362,8 @@ module Field =
 
         /// Converts the elevated wrapper type into a function that can be called on initialization
         member __.Run (field: FieldWrapper<'source, 'graph, 'value, 'tag>) =
-            fun (Inject (lookup: GraphTypesLookup)) (graph: ComplexGraphType<'source>) -> maybeUnit {
-                let fieldType = ValidatedFieldType()
+            fun (schema: Schema) (graph: ComplexGraphType<'source>) -> maybeOrThrow {
+                let fieldType = FieldType()
 
                 let! type' = field.getterType ||| typeof<'graph>
                 fieldType.Type <- type'
@@ -360,27 +371,41 @@ module Field =
                 let! name = field.name
                 fieldType.Name <- name
 
-                let! description = field.description ||| ""
-                fieldType.Description <- description
+                maybeUnit {
+                    let! description = field.description ||| ""
+                    fieldType.Description <- description
+                }
 
                 // throw if both getter and resovler are set
                 checkFieldGetter field
 
-                do! maybe {
+                maybeUnit {
                     let! expression = field.getter
                     let expression = LeafExpressionConverter.QuotationToLambdaExpression <@ Func.from %expression @>
                     fieldType.Resolver <- ExpressionFieldResolver<'source, 'value> expression
                 }
 
-                do! maybe {
+                maybeUnit {
                     let! resolver = field.resolver
                     let resolver = Func.from (resolver >> Observable.toTask)
                     fieldType.Resolver <- AsyncFieldResolver<'source, 'value> resolver
+                    fieldType.Type <- typeof<'value>.GetGraphTypeFromType()
                 }
 
-                fieldType.Metadata.["validators"] <- field.validators
+                List.iter (fun argument -> argument schema fieldType) field.arguments
 
-                List.iter (fun argument -> argument (Inject lookup) fieldType) field.arguments
+                // check if optional
+                do
+                    match typeof<'tag> with
+                    | DefaultValue ->
+                        maybeUnit {
+                            let! defaultValue = field.defaultValue
+                            fieldType.DefaultValue <- box defaultValue
+                        }
+                    | Optional ->
+                        // TODO: look at this
+                        fieldType.DefaultValue <- null
+                    | _ -> ()
 
                 ignore <| graph.AddField fieldType
             }
@@ -389,7 +414,6 @@ module Field =
 
 [<AutoOpen>]
 module Object =
-    open FSharp.Injection
     open GraphQL.Types
     open Iris.Option.Builders
 
@@ -398,7 +422,7 @@ module Object =
         type ObjectWrapper<'source> = {
             name: string option
             description: string option
-            fields: (Inject<GraphTypesLookup> -> ComplexGraphType<'source> -> unit) list
+            fields: (Schema -> ComplexGraphType<'source> -> unit) list
         }
 
         let defaultObjectWrapper<'source> : ObjectWrapper<'source> = {
@@ -436,16 +460,20 @@ module Object =
         inherit ComplexObjectBuilder<'source>()
 
         member __.Run (object: ObjectWrapper<'source>) =
-            fun (Inject (lookup: GraphTypesLookup)) -> maybeOrThrow {
+            fun (schema: Schema) -> maybeOrThrow {
                 let graph = ObjectGraphType<'source>()
 
                 let! name = object.name
                 graph.Name <- name
 
-                let! description = object.description
-                graph.Description <- description
+                maybeUnit {
+                    let! description = object.description
+                    graph.Description <- description
+                }
 
-                List.iter (fun object -> object (Inject lookup) (graph :> ComplexGraphType<'source>)) object.fields
+                List.iter (fun object ->
+                    object schema (graph :> ComplexGraphType<'source>))
+                    object.fields
 
                 return graph
             }
@@ -454,7 +482,7 @@ module Object =
         inherit ComplexObjectBuilder<'source>()
 
         member __.Run (object: ObjectWrapper<'source>) =
-            fun (Inject (lookup: GraphTypesLookup)) -> maybeOrThrow {
+            fun (schema: Schema) -> maybeOrThrow {
                 let graph = InputObjectGraphType<'source>()
 
                 let! name = object.name
@@ -463,11 +491,25 @@ module Object =
                 let! description = object.description
                 graph.Description <- description
 
-                List.iter (fun object -> object (Inject lookup) (graph :> ComplexGraphType<'source>)) object.fields
+                List.iter (fun object -> object schema (graph :> ComplexGraphType<'source>)) object.fields
 
                 return graph
             }
 
+    type QueryBuilder() =
+        inherit ObjectBuilder<obj>()
+
+    type MutationBuilder() =
+        inherit ObjectBuilder<obj>()
+
+    type SubscriptionBuilder() =
+        inherit ObjectBuilder<obj>()
+
+
     let complex<'source> = ComplexObjectBuilder<'source> ()
     let object<'source> = ObjectBuilder<'source> ()
     let input<'source> = InputObjectBuilder<'source> ()
+
+    let query = QueryBuilder()
+    let mutation = MutationBuilder()
+    let subscription = SubscriptionBuilder()

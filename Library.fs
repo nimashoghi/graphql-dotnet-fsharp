@@ -2,52 +2,90 @@
 module GraphQL.FSharp.Main
 
 open System
-open FSharp.Reflection
+open Apollo
+open FSharp.Injection
 open GraphQL
+open GraphQL.Language.AST
+open GraphQL.Server
+open GraphQL.Server.Ui.GraphiQL
+open GraphQL.Server.Ui.Playground
+open GraphQL.Server.Ui.Voyager
 open GraphQL.Types
+open GraphQL.Validation
+open Iris
+open Iris.Option.Builders
+open Microsoft.Extensions.DependencyInjection
+open Microsoft.AspNetCore.Builder
 
-let internal resolveObj (provider: IServiceProvider) x = provider.GetService x
-let internal resolve<'t> provider = resolveObj provider typeof<'t> :?> 't
+type Arg<'t> =
+    /// **Description**
+    ///   * Gets the value of the argument with the name `name`.
+    static member get name =
+        fun (fieldCtx: ResolveFieldContext<_>) ->
+            match fieldCtx.UserContext with
+            | :? UserContext as ctx ->
+                match ctx.GetArgumentValue name with
+                | Some x ->
+                    x
+                    |> Observable.catch (fun exn ->
+                        fieldCtx.Errors.Add (ExecutionError("Validation error", ``exception`` = exn))
+                        Observable.empty)
+                    |> Observable.flatMap (function
+                        | :? 't as x -> Observable.unit x
+                        // TODO: Failwithf should be properly reported
+                        | _ -> failwithf "Could not cast arg to type %s" typeof<'t>.Name)
+                | None -> Observable.unit (fieldCtx.GetArgument<'t> name)
+            | _ -> Observable.unit (fieldCtx.GetArgument<'t> name)
 
-let internal make<'graph when 'graph :> IGraphType> (f: 'graph -> unit) =
-    let graph =
-        f.GetType ()
-        |> FSharpType.GetFunctionElements
-        |> fst
-        |> Activator.CreateInstance
-        :?> 'graph
-    f graph
-    graph
 
-let schema (definitions: #seq<IServiceProvider -> #IGraphType -> unit>) provider =
-    let schema = resolve<Schema> provider
-    for definition in definitions do
-        definition provider
-        |> make
-        |> schema.RegisterType
+let private makeValidator (f: ValidationContext -> EnterLeaveListener -> unit) =
+    {
+        new IValidationRule with
+            member __.Validate ctx =
+                let visitor = EnterLeaveListener(Action<EnterLeaveListener> (f ctx)) :> INodeVisitor
+                {
+                    new INodeVisitor with
+                        member __.Enter node = visitor.Enter node
+                        member __.Leave node = visitor.Leave node
+                }
+    }
 
-module Schema =
-    let create (provider: IServiceProvider) =
-        let dependencyResolver = {
-            new IDependencyResolver with
-                member __.Resolve<'t> () = provider.GetService typeof<'t> :?> 't
-                member __.Resolve t = provider.GetService t
-        }
 
-        new Schema(dependencyResolver)
+let validator (_: IServiceProvider) = makeValidator (fun ctx listener ->
+    match ctx.UserContext with
+    | UserContext userCtx ->
+        listener.Match<Argument>(fun argument ->
+            match ctx.TypeInfo.GetArgument () with
+            | ValidatedArg argDef ->
+                maybeUnit {
+                    let! validator = argDef.Validator
+                    argument.Value.Value
+                    |> validator
+                    |> userCtx.SetArgumentValue argDef.Field.Name argDef.Name
+                }
+            | _ -> ()
+        )
+    | _ -> ()
+)
 
-    let withQuery query (schema: ISchema) =
-        schema.Query <- query
-        schema
+type IServiceCollection with
+    member this.AddGraphQLFS<'injection, 'schema when 'schema : not struct and 'schema :> Schema> (f: 'injection -> 'schema) =
+        this
+            .AddTransient<IValidationRule>(Func.from validator)
+            .AddSingleton<Schema>(Func.from (fun provider -> inject provider f :> Schema))
+            .AddGraphQL(fun options ->
+                options.EnableMetrics <- true
+                options.ExposeExceptions <- true)
+            .AddWebSockets()
+            .AddDataLoader()
+            .AddUserContextBuilder(fun _ -> UserContext())
 
-    let withMutation mutation (schema: ISchema) =
-        schema.Mutation <- mutation
-        schema
-
-    let withSubscription subscription (schema: ISchema) =
-        schema.Subscription <- subscription
-        schema
-
-    let register<'t when 't :> IGraphType> (schema: ISchema) =
-        schema.RegisterType<'t> ()
-        schema
+type IApplicationBuilder with
+    member this.UseGraphQLFS<'injection, 'schema when 'schema :> Schema> (_: 'injection -> 'schema) =
+        this
+            .UseWebSockets()
+            .UseGraphQL<Schema>()
+            .UseGraphQLWebSockets<Schema>()
+            .UseGraphiQLServer(GraphiQLOptions())
+            .UseGraphQLPlayground(GraphQLPlaygroundOptions())
+            .UseGraphQLVoyager(GraphQLVoyagerOptions())
