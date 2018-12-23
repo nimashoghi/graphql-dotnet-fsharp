@@ -1,5 +1,10 @@
 module GraphQL.FSharp.Builder
 
+type ValueType<'t> =
+| Optional
+| Mandatory
+| DefaultValue of 't
+
 [<AutoOpen>]
 module SchemaBuilder =
     open System
@@ -102,27 +107,6 @@ module SchemaBuilder =
     let schema = SchemaBuilder()
 
 [<AutoOpen>]
-module Optional =
-    open GraphQL.Types
-
-    type IOptionalTag = interface end
-    type IOptionalDefaultTag = inherit IOptionalTag
-    type IOptionalDefaultValueTag = inherit IOptionalTag
-    type IOptionalMandatoryTag = inherit IOptionalTag
-    type IOptionalOptionalTag = inherit IOptionalTag
-
-    let internal (|Mandatory|Optional|DefaultValue|) tag =
-        if typeof<IOptionalOptionalTag>.IsAssignableFrom tag then Optional
-        elif typeof<IOptionalDefaultValueTag>.IsAssignableFrom tag then DefaultValue
-        else Mandatory
-
-    let wrapTag<'tag> t =
-        match typeof<'tag> with
-        | Mandatory | DefaultValue -> NonNullGraphType t :> IGraphType
-        | Optional -> t
-
-
-[<AutoOpen>]
 module Argument =
     open GraphQL.Types
     open Iris.Option.Builders
@@ -130,33 +114,24 @@ module Argument =
 
     [<AutoOpen>]
     module rec Wrapper =
-        [<AutoOpen>]
-        module Optional =
-            let changeOptionalStatus<'tag, 'input, 'output when 'tag :> IOptionalTag>
-                (argument: Argument<'input, 'output, IOptionalDefaultTag>)
-                : Argument<'input, 'output, 'tag> = {
-                    name = argument.name
-                    defaultValue = argument.defaultValue
-                    description = argument.description
-                    validator = argument.validator
-                }
-
-            let makeMandatory = changeOptionalStatus<IOptionalMandatoryTag, _, _>
-            let makeOptional = changeOptionalStatus<IOptionalOptionalTag, _, _>
-
-        type Argument<'input, 'output, 'tag when 'tag :> IOptionalTag> = {
+        type Argument<'input, 'output> = {
             name: string option
-            defaultValue: 'output option
+            value: ValueType<'output>
             description: string option
             validator: Validator<'input, 'output> option
         }
 
-        let newArgument<'input, 'output> : Argument<'input, 'output, IOptionalDefaultTag> = {
+        let newArgument<'input, 'output> : Argument<'input, 'output> = {
             name = None
-            defaultValue = None
+            value = Mandatory
             description = None
             validator = None
         }
+
+        let wrapTag (value: ValueType<'a>) (t: #IGraphType) =
+            match value with
+            | Optional -> t :> IGraphType
+            | Mandatory | DefaultValue _ -> NonNullGraphType t :> IGraphType
 
     type ArgumentBuilder<'input>() =
         member __.Yield _ = newArgument<'input, 'input>
@@ -172,30 +147,30 @@ module Argument =
         /// Sets the default value of the argument
         /// Fails if we have set optional or mandatory
         [<CustomOperation "defaultValue">]
-        member __.DefaultValue (argument: Argument<_, _, IOptionalDefaultTag>, defaultValue) = {argument with defaultValue = Some defaultValue}
+        member __.DefaultValue (argument, defaultValue) = {argument with value = DefaultValue defaultValue}
 
         /// Make the argument optional
         [<CustomOperation "optional">]
-        member __.Optional argument = makeOptional argument
+        member __.Optional argument = {argument with value = Optional}
 
         /// Make the argument optional
         [<CustomOperation "mandatory">]
-        member __.Mandatory argument = makeMandatory argument
+        member __.Mandatory argument = {argument with value = Mandatory}
 
-        /// Validation operation with chaining capability
+        /// Validate the argument
         [<CustomOperation "validate">]
-        member __.Validate (argument: Argument<_, _, _>, validator) : Argument<_, _, _> =
+        member __.Validate (argument, validator) =
             {
                 name = argument.name
-                defaultValue = argument.defaultValue
+                value = argument.value
                 description = argument.description
                 validator = Some validator
             }
 
         /// Converts the elevated wrapper type into a function that can be called on initialization
-        member __.Run (argument: Argument<'input, 'output, 'tag>) =
+        member __.Run (argument: Argument<'input, 'output>) =
             fun (schema: Schema) (field: FieldType) -> maybeUnit {
-                let queryArgument = ValidatedArgument(wrapTag<'tag> (schema.FindType typeof<'input>.Name), field)
+                let queryArgument = ValidatedArgument(wrapTag argument.value (schema.FindType typeof<'input>.Name), field)
 
                 let! name = argument.name
                 queryArgument.Name <- name
@@ -204,7 +179,12 @@ module Argument =
                 queryArgument.Description <- description
 
                 do! maybe {
-                    let! defaultValue = argument.defaultValue
+                    let defaultValue =
+                        match argument.value with
+                        | DefaultValue value -> Some value
+                        | _ -> None
+
+                    let! defaultValue = defaultValue
                     queryArgument.DefaultValue <- box defaultValue
                 }
 
@@ -234,27 +214,9 @@ module Field =
 
     [<AutoOpen>]
     module rec Wrapper =
-        [<AutoOpen>]
-        module Optional =
-            let changeOptionalStatus<'tag, 'source, 'graph, 'value when 'tag :> IOptionalTag>
-                (field: FieldWrapper<'source, 'graph, 'value, IOptionalDefaultTag>)
-                : FieldWrapper<'source, 'graph, 'value, 'tag> = {
-                    arguments = field.arguments
-                    defaultValue = field.defaultValue
-                    description = field.description
-                    getter = field.getter
-                    getterType = field.getterType
-                    name = field.name
-                    resolver = field.resolver
-                }
-
-            let makeMandatory = changeOptionalStatus<IOptionalMandatoryTag, _, _, _>
-            let makeOptional = changeOptionalStatus<IOptionalOptionalTag, _, _, _>
-
-
-        type FieldWrapper<'source, 'graph, 'value, 'tag when 'tag :> IOptionalTag> = {
+        type FieldWrapper<'source, 'graph, 'value> = {
             arguments: (Schema -> FieldType -> unit) list
-            defaultValue: 'value option
+            value: ValueType<'value>
             description: string option
             getter: Expr<'source -> 'value> option
             getterType: Type option
@@ -262,9 +224,9 @@ module Field =
             resolver: (ResolveFieldContext<'source> -> 'value obs) option
         }
 
-        let defaultFieldWrapper<'source, 'graph, 'value> : FieldWrapper<'source, 'graph, 'value, IOptionalDefaultTag> = {
+        let defaultFieldWrapper<'source, 'graph, 'value> : FieldWrapper<'source, 'graph, 'value> = {
             arguments = []
-            defaultValue = None
+            value = Mandatory
             description = None
             getter = None
             getterType = None
@@ -272,50 +234,43 @@ module Field =
             resolver = None
         }
 
-        let checkFieldGetter (field: FieldWrapper<_, _, _, _>) =
+        let checkFieldGetter field =
             if Option.isSome field.getter && Option.isSome field.resolver then
                 failwith "Field cannot have both a getter and a resolver"
+
+    let private get (field: FieldWrapper<_, _, _>) = field
 
     type FieldBuilder<'graph when 'graph :> IGraphType>() =
         member __.Yield _ = defaultFieldWrapper<'source, 'graph, 'value>
 
         /// Sets the name of this field
         [<CustomOperation "name">]
-        member __.Name (field: FieldWrapper<_, _, _, _>, name) = {field with name = Some name}
+        member __.Name (field, name) = {get field with name = Some name}
 
         /// Sets the description of this field
         [<CustomOperation "description">]
-        member __.Description (field: FieldWrapper<_, _, _, _>, description) = {field with description = Some description}
+        member __.Description (field, description) = {get field with description = Some description}
 
         /// Sets the description of this field
         /// Fails if we have set optional or mandatory
         [<CustomOperation "defaultValue">]
-        member __.DefaultValue (field: FieldWrapper<_, _, _, IOptionalDefaultTag>, defaultValue) : FieldWrapper<_, _, _, IOptionalDefaultValueTag> =
-            {
-                arguments = field.arguments
-                description = field.description
-                getter = field.getter
-                getterType = field.getterType
-                name = field.name
-                resolver = field.resolver
-                defaultValue = Some defaultValue
-             }
+        member __.DefaultValue (field, defaultValue) = {get field with value = DefaultValue defaultValue}
 
-        /// Make the argument optional
+        /// Make the field optional
         [<CustomOperation "optional">]
-        member __.Optional argument = makeOptional argument
+        member __.Optional field = {get field with value = Optional}
 
-        /// Make the argument optional
+        /// Make the field optional
         [<CustomOperation "mandatory">]
-        member __.Mandatory argument = makeMandatory argument
+        member __.Mandatory field = {get field with value = Mandatory}
 
         /// Sets the arguments of this fields
         [<CustomOperation "arguments">]
-        member __.Arguments (field, arguments) = {field with arguments = field.arguments @ arguments}
+        member __.Arguments (field, arguments) = {get field with arguments = field.arguments @ arguments}
 
         /// Gets a specific field
         [<CustomOperation "get">]
-        member __.Get (field, [<ReflectedDefinition>] getter) = {field with getter = Some getter}
+        member __.Get (field, [<ReflectedDefinition>] getter) = {get field with getter = Some getter}
 
         /// Gets a specific field
         [<CustomOperation "getWithType">]
@@ -330,7 +285,7 @@ module Field =
         member __.Resolve (field, resolver) = {field with resolver = Some resolver}
 
         /// Converts the elevated wrapper type into a function that can be called on initialization
-        member __.Run (field: FieldWrapper<'source, 'graph, 'value, 'tag>) =
+        member __.Run (field: FieldWrapper<'source, 'graph, 'value>) =
             fun (schema: Schema) (graph: ComplexGraphType<'source>) -> maybeOrThrow {
                 let fieldType = FieldType()
 
@@ -365,12 +320,9 @@ module Field =
 
                 // check if optional
                 do
-                    match typeof<'tag> with
-                    | DefaultValue ->
-                        maybeUnit {
-                            let! defaultValue = field.defaultValue
-                            fieldType.DefaultValue <- box defaultValue
-                        }
+                    match field.value with
+                    | DefaultValue value ->
+                        fieldType.DefaultValue <- box value
                     | Optional ->
                         // TODO: look at this
                         fieldType.DefaultValue <- null

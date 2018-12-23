@@ -48,8 +48,8 @@ task Clean-Test {
     begin {
         Push-Location "$PSScriptRoot\GraphQL.FSharp.Test"
     } process {
-        Remove-Item -Recurse -Force bin
-        Remove-Item -Recurse -Force obj
+        Remove-Item -ErrorAction Ignore -Recurse -Force bin
+        Remove-Item -ErrorAction Ignore -Recurse -Force obj
         dotnet clean
     } end {
         Pop-Location
