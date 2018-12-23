@@ -38,34 +38,7 @@ module SchemaBuilder =
         Types = []
     }
 
-    // TODO: find a good way to do this
-    // Probably add it to FSharp.Injection
-    // let internal convertInjectedObject<'injection, 'graph when 'graph :> IObjectGraphType>
-    //     (x: InjectionFunction<'injection, 'graph>) =
-    //     fun (i: obj) -> x (i :?> 'injection) :> IObjectGraphType
-
-    // let internal convertInjected<'injection, 'graph when 'graph :> IGraphType>
-    //     (x: InjectionFunction<'injection, 'graph>) =
-    //     fun (i: obj) -> x (i :?> 'injection) :> IGraphType
-
-    let internal convertInjectedObject<'injection, 'graph when 'graph :> IObjectGraphType>
-        (x: InjectionFunction<'injection, 'graph>) =
-        fun i -> x i :> IObjectGraphType
-
-    let internal convertInjected<'injection, 'graph when 'graph :> IGraphType>
-        (x: InjectionFunction<'injection, 'graph>) =
-        fun i -> x i :> IGraphType
-
-
-    // TODO: This is a hack, should replace w/ something else.
-    let internal withSchema (schema: Schema) (provider: IServiceProvider) =
-        {
-            new IServiceProvider with
-                member __.GetService t =
-                    if t = typeof<Schema>
-                    then box schema
-                    else provider.GetService t
-        }
+    let internal composeObjectGraphType (x: #IObjectGraphType) = x :> IObjectGraphType
 
     type SchemaBuilder() =
         /// **Description**
@@ -75,17 +48,17 @@ module SchemaBuilder =
         /// **Description**
         ///   * Registers the provided `Query` object.
         [<CustomOperation "query">]
-        member __.Query (schema, query) = {schema with Query = Some (convertInjectedObject query)}
+        member __.Query (schema, query) = {schema with Query = Some (query >> composeObjectGraphType)}
 
         /// **Description**
         ///   * Registers the provided `Mutation` object.
         [<CustomOperation "mutation">]
-        member __.Mutation (schema, mutation) = {schema with Mutation = Some (convertInjectedObject mutation)}
+        member __.Mutation (schema, mutation) = {schema with Mutation = Some (mutation >> composeObjectGraphType)}
 
         /// **Description**
         ///   * Registers the provided `Subscription` object.
         [<CustomOperation "subscription">]
-        member __.Subscription (schema, subscription) = {schema with Subscription = Some (convertInjectedObject subscription)}
+        member __.Subscription (schema, subscription) = {schema with Subscription = Some (subscription >> composeObjectGraphType)}
 
         /// **Description**
         ///   * Registers the provided types.
@@ -97,29 +70,25 @@ module SchemaBuilder =
         member __.Run {Query = query; Mutation = mutation; Subscription = subscription; Types = types} =
             fun (provider: IServiceProvider) ->
                 let schema = new Schema(provider.ToDependencyResolver())
-                let provider = withSchema schema provider
-
-                let mutable types =
-                    types
-                    |> List.map (inject provider)
+                let mutable types = List.map (fun ``type`` -> ``type`` schema) types
 
                 maybeUnit {
                     let! query = query
-                    let query = inject provider query
+                    let query = query schema
                     schema.Query <- query
                     types <- query :> IGraphType :: types
                 }
 
                 maybeUnit {
                     let! mutation = mutation
-                    let mutation = inject provider mutation
+                    let mutation = mutation schema
                     schema.Mutation <- mutation
                     types <- mutation :> IGraphType :: types
                 }
 
                 maybeUnit {
                     let! subscription = subscription
-                    let subscription = inject provider subscription
+                    let subscription = subscription schema
                     schema.Subscription <- subscription
                     types <- subscription :> IGraphType :: types
                 }
