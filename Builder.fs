@@ -68,7 +68,7 @@ module SchemaBuilder =
         /// **Description**
         ///   * Registers the provided types.
         [<CustomOperation "types">]
-        member __.Types (schema, types) = {schema with Types = schema.Types @ types}
+        member __.Types (schema, types: list<InjectionFunction<Schema, #IGraphType>>) = {schema with Types = schema.Types @ List.map (fun i -> i >> (fun j -> j :> IGraphType)) types}
 
         /// **Description**
         ///   * Processes the `schema` expressions' `SchemaInfo`.
@@ -108,9 +108,9 @@ module SchemaBuilder =
 
 [<AutoOpen>]
 module Argument =
+    open GraphQL
     open GraphQL.Types
     open Iris.Option.Builders
-    open Iris.Option.Operators
 
     [<AutoOpen>]
     module rec Wrapper =
@@ -127,11 +127,6 @@ module Argument =
             description = None
             validator = None
         }
-
-        let wrapTag (value: ValueType<'a>) (t: #IGraphType) =
-            match value with
-            | Optional -> t :> IGraphType
-            | Mandatory | DefaultValue _ -> NonNullGraphType t :> IGraphType
 
     type ArgumentBuilder<'input>() =
         member __.Yield _ = newArgument<'input, 'input>
@@ -169,26 +164,32 @@ module Argument =
 
         /// Converts the elevated wrapper type into a function that can be called on initialization
         member __.Run (argument: Argument<'input, 'output>) =
-            fun (schema: Schema) (field: FieldType) -> maybeUnit {
-                let queryArgument = ValidatedArgument(wrapTag argument.value (schema.FindType typeof<'input>.Name), field)
+            fun (schema: Schema) (field: FieldType) -> maybeOrThrow {
+                let isNullable =
+                    match argument.value with
+                    | Mandatory _ -> false
+                    | Optional | DefaultValue _ -> true
+                let schemaType = typeof<'input>.GetGraphTypeFromType isNullable
+
+                let queryArgument = ValidatedArgument(schemaType, field)
 
                 let! name = argument.name
                 queryArgument.Name <- name
 
-                let! description = argument.description ||| ""
-                queryArgument.Description <- description
+                maybeUnit {
+                    let! description = argument.description
+                    queryArgument.Description <- description
+                }
 
-                do! maybe {
-                    let defaultValue =
+                maybeUnit {
+                    let! defaultValue =
                         match argument.value with
                         | DefaultValue value -> Some value
                         | _ -> None
-
-                    let! defaultValue = defaultValue
                     queryArgument.DefaultValue <- box defaultValue
                 }
 
-                do! maybe {
+                maybeUnit {
                     let! validator = argument.validator
                     queryArgument.SetValidator validator
                 }
@@ -305,7 +306,7 @@ module Field =
 
                 maybeUnit {
                     let! expression = field.getter
-                    let expression = LeafExpressionConverter.QuotationToLambdaExpression <@ Func.from %expression @>
+                    let expression = LeafExpressionConverter.QuotationToLambdaExpression <@ Func<'source, 'value> %expression  @>
                     fieldType.Resolver <- ExpressionFieldResolver<'source, 'value> expression
                 }
 
@@ -316,6 +317,7 @@ module Field =
                     fieldType.Type <- typeof<'value>.GetGraphTypeFromType()
                 }
 
+                fieldType.Arguments <- QueryArguments()
                 List.iter (fun argument -> argument schema fieldType) field.arguments
 
                 // check if optional
@@ -358,20 +360,24 @@ module Object =
             fields = lhs.fields @ rhs.fields
         }
 
+    let inline private get (x: ObjectWrapper<_>) = x
+
     type ComplexObjectBuilder<'source>() =
-        member __.Yield _ = defaultObjectWrapper<'source>
+        // TODO: Is there a cleaner way to do this?
+        abstract member Yield: _ -> ObjectWrapper<'source>
+        default __.Yield _ = defaultObjectWrapper<'source>
 
         /// Sets the name of this object
         [<CustomOperation "name">]
-        member __.Name (object: ObjectWrapper<_>, name) = {object with name = Some name}
+        member __.Name (object, name) = {get object with name = Some name}
 
         /// Sets the description of this object
         [<CustomOperation "description">]
-        member __.Description (object: ObjectWrapper<_>, description) = {object with description = Some description}
+        member __.Description (object, description) = {get object with description = Some description}
 
         /// Adds fields to the object
         [<CustomOperation "fields">]
-        member __.Fields (object: ObjectWrapper<'source>, fields) = {object with fields = object.fields @ fields}
+        member __.Fields (object, fields) = {get object with fields = object.fields @ fields}
 
         /// Imports another complex object type into the current object type
         [<CustomOperation "import">]
@@ -420,12 +426,17 @@ module Object =
     type QueryBuilder() =
         inherit ObjectBuilder<obj>()
 
+        override __.Yield _ = {defaultObjectWrapper<obj> with name = Some "Query"}
+
     type MutationBuilder() =
         inherit ObjectBuilder<obj>()
+
+        override __.Yield _ = {defaultObjectWrapper<obj> with name = Some "Mutation"}
 
     type SubscriptionBuilder() =
         inherit ObjectBuilder<obj>()
 
+        override __.Yield _ = {defaultObjectWrapper<obj> with name = Some "Subscription"}
 
     let complex<'source> = ComplexObjectBuilder<'source> ()
     let object<'source> = ObjectBuilder<'source> ()

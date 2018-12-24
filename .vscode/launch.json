@@ -18,7 +18,7 @@
             "justMyCode": false,
             "symbolOptions": {
                 "searchMicrosoftSymbolServer": true,
-                "searchPaths": ["https://nugetsymbols.org/download/symbols/"]
+                "searchPaths": ["https://symbols.nuget.org/download/symbols"]
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"

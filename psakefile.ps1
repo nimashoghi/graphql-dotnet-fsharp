@@ -16,6 +16,7 @@ task Test -depends Check-Todos-Test, Restore-Test {
 
 task Check-Todos-Test -depends Check-Todos {
     if ($IgnoreTodo) { return }
+
     begin {
         Push-Location "$PSScriptRoot\GraphQL.FSharp.Test"
     } process {
@@ -29,6 +30,7 @@ task Check-Todos-Test -depends Check-Todos {
 
 task Check-Todos {
     if ($IgnoreTodo) { return }
+
     exec {
         todo-checker.cmd "$PSScriptRoot\GraphQL.FSharp.fsproj"
     }

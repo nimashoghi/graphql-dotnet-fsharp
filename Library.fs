@@ -23,8 +23,8 @@ type Arg<'t> =
     static member get name =
         fun (fieldCtx: ResolveFieldContext<_>) ->
             match fieldCtx.UserContext with
-            | :? UserContext as ctx ->
-                match ctx.GetArgumentValue name with
+            | :? UserContext as userCtx ->
+                match userCtx.GetArgumentValue fieldCtx.FieldName name with
                 | Some x ->
                     x
                     |> Observable.catch (fun exn ->
