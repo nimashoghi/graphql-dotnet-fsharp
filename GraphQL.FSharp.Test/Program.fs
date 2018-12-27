@@ -7,16 +7,26 @@ open GraphQL.FSharp.Builder
 open Apollo
 
 [<CLIMutable>]
+type MyTesterino = {
+    name: string
+    friends: int
+    hello: float
+}
+let myTesterino = record<MyTesterino> {
+    description "my testerino"
+}
+
+[<CLIMutable>]
 type Record = {
     s: string
 }
-let record = object {
+let myRec = object {
     name "Record"
     description "Some Record"
     fields [
         field {
             name "s"
-            get (fun record -> record.s)
+            get (fun myRec -> myRec.s)
         }
     ]
 }
@@ -51,6 +61,10 @@ let q = query {
             name "getSomethingElse"
             resolve (fun _ -> Observable.unit {s = "sdfs"})
         }
+        field {
+            name "getTesterino"
+            resolve (fun _ -> Observable.unit {name = "sup"; friends = 2; hello = 2.4})
+        }
     ]
 }
 
@@ -71,7 +85,7 @@ let m = mutation {
                 }
             ]
             resolve (fun ctx ->
-                Arg<int>.["k"] ctx
+                arg<int>.["k"] ctx
                 |> Observable.map (fun i -> k <- k + i; k))
         }
 
@@ -82,7 +96,7 @@ let m = mutation {
                     name "input"
                 }
             ]
-            resolve (fun ctx -> Arg<Input>.["input"] ctx |> Observable.map (fun i -> i.j))
+            resolve (fun ctx -> arg<Input>.["input"] ctx |> Observable.map (fun i -> i.j))
         }
     ]
 }
@@ -91,8 +105,9 @@ let schema = schema {
     query q
     mutation m
     types [
-        record >> (fun i -> i :> GraphQL.Types.IGraphType)
-        someInput >> (fun i -> i :> GraphQL.Types.IGraphType)
+        myRec
+        someInput
+        myTesterino
     ]
 }
 

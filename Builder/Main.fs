@@ -15,6 +15,8 @@ let field<'value> = FieldBuilder<'value>()
 let complex<'source when 'source : not struct and 'source : (new: unit -> 'source)> = ComplexObjectBuilder<'source> ()
 let object<'source when 'source : not struct and 'source : (new: unit -> 'source)> = ObjectBuilder<'source> ()
 let input<'source when 'source : not struct and 'source : (new: unit -> 'source)> = InputObjectBuilder<'source> ()
+let record<'source when 'source : not struct and 'source : (new: unit -> 'source)> = RecordBuilder<'source> ()
+// TODO: Add Union and Interface
 
 let query = QueryBuilder()
 let mutation = MutationBuilder()

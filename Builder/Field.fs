@@ -50,6 +50,10 @@ type FieldBuilder<'source>() =
     [<CustomOperation "description">]
     member __.Description (field, description) = {get field with description = Some description}
 
+    /// Sets the type of this field
+    [<CustomOperation "type">]
+    member __.Type (field, ``type``) = {field with getterType = Some ``type``}
+
     /// Sets the description of this field
     /// Fails if we have set optional or mandatory
     [<CustomOperation "defaultValue">]
@@ -106,14 +110,15 @@ type FieldBuilder<'source>() =
                 let! expression = field.getter
                 let expression = LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %expression @>
                 fieldType.Resolver <- ExpressionFieldResolver<'source, 'value> expression
-                setType schema typeof<'value> (isNullable field.value) fieldType
+                // TODO: Check this
+                if Option.isNone field.getterType then setType schema typeof<'value> (isNullable field.value) fieldType
             }
 
             maybeUnit {
                 let! resolver = field.resolver
                 let resolver = Func.from (resolver >> Observable.toTask)
                 fieldType.Resolver <- AsyncFieldResolver<'source, 'value> resolver
-                setType schema typeof<'value> (isNullable field.value) fieldType
+                if Option.isNone field.getterType then setType schema typeof<'value> (isNullable field.value) fieldType
             }
 
             fieldType.Arguments <- QueryArguments()

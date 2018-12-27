@@ -37,7 +37,7 @@ type ArgBuilder<'t>() =
                     | None -> Observable.unit (fieldCtx.GetArgument<'t> name)
                 | _ -> Observable.unit (fieldCtx.GetArgument<'t> name)
 
-let Arg<'t> = ArgBuilder<'t>()
+let arg<'t> = ArgBuilder<'t>()
 
 let private makeValidator (f: ValidationContext -> EnterLeaveListener -> unit) =
     {
@@ -70,6 +70,8 @@ let validator (_: IServiceProvider) = makeValidator (fun ctx listener ->
 )
 
 type IServiceCollection with
+    // TODO: Better naming
+    // TODO: More configurability
     member this.AddGraphQLFS<'injection, 'schema when 'schema : not struct and 'schema :> Schema> (f: 'injection -> 'schema) =
         this
             .AddTransient<IValidationRule>(Func.from validator)
@@ -82,6 +84,8 @@ type IServiceCollection with
             .AddUserContextBuilder(fun _ -> UserContext())
 
 type IApplicationBuilder with
+    // TODO: Better naming
+    // TODO: More configurability
     member this.UseGraphQLFS<'injection, 'schema when 'schema :> Schema> (_: 'injection -> 'schema) =
         this
             .UseWebSockets()

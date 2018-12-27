@@ -36,7 +36,8 @@ let newSchema = {
     Types = []
 }
 
-let internal composeObjectGraphType (x: #IObjectGraphType) = x :> IObjectGraphType
+// TODO: This is a hack, fix
+let internal composeObjectGraphType (x: IGraphType) = x :?> IObjectGraphType
 
 type SchemaBuilder() =
     /// **Description**

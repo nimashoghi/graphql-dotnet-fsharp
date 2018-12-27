@@ -1,9 +1,15 @@
 module GraphQL.FSharp.Builder.Object
 
+open System
+open Apollo
+open FSharp.Reflection
+open GraphQL.Resolvers
 open GraphQL.Types
 open Iris.Option.Builders
 
 open GraphQL.FSharp.Model
+open GraphQL.FSharp.Builder.Field
+open GraphQL.FSharp.Builder.Helpers
 
 type ObjectWrapper<'source> = {
     name: string option
@@ -64,7 +70,7 @@ type ObjectBuilder<'source when 'source : not struct and 'source : (new: unit ->
                 object schema (graph :> ComplexGraphType<'source>))
                 object.fields
 
-            return graph
+            return graph :> IGraphType // TODO: Should we do this?
         }
 
 type InputObjectBuilder<'source when 'source : not struct and 'source : (new: unit -> 'source)>() =
@@ -82,7 +88,43 @@ type InputObjectBuilder<'source when 'source : not struct and 'source : (new: un
 
             List.iter (fun object -> object schema (graph :> ComplexGraphType<'source>)) object.fields
 
-            return graph
+            return graph :> IGraphType // TODO: Should we do this?
+        }
+
+exception NotRecordException of Type
+
+let internal throwIfNotRecord ``type`` =
+    if not (FSharpType.IsRecord ``type``)
+    then raise (NotRecordException ``type``)
+
+let internal field<'value> = FieldBuilder<'value>()
+
+let internal getRecordElements<'source> =
+    let fields = FSharpType.GetRecordFields typeof<'source>
+    fields
+    |> Array.map (fun f ->
+        fun (schema: SchemaInfo) (graphType: ComplexGraphType<'source>) ->
+            let fieldType = FieldType()
+            fieldType.Name <- f.Name
+            // TODO: Set nullable based on option types
+            setType schema f.PropertyType false fieldType
+            fieldType.Resolver <- FuncFieldResolver<'source, obj>(fun ctx -> f.GetValue ctx.Source)
+            graphType.AddField fieldType |> ignore
+            ())
+    |> Array.toList
+
+// TODO: Implement
+type RecordBuilder<'source when 'source : not struct and 'source : (new: unit -> 'source)>() =
+    inherit ObjectBuilder<'source>()
+
+    do throwIfNotRecord typeof<'source>
+
+    override __.Yield _ =
+        let wrapper = newObject<'source>
+        {
+            wrapper with
+                name = Some typeof<'source>.Name
+                fields = wrapper.fields @ getRecordElements<'source>
         }
 
 type QueryBuilder() =

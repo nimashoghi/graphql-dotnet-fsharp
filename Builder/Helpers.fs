@@ -11,6 +11,7 @@ let isNullable = function
 | Mandatory -> false
 | _ -> true
 
+// TODO: Handle option types
 let setType (schema: SchemaInfo) (``type``: Type) nullable (field: FieldType) =
     try field.Type <- ``type``.GetGraphTypeFromType nullable
     with
