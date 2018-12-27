@@ -17,8 +17,8 @@
             "internalConsoleOptions": "openOnSessionStart",
             "justMyCode": false,
             "symbolOptions": {
-                "searchMicrosoftSymbolServer": true,
-                "searchPaths": ["https://symbols.nuget.org/download/symbols"]
+                "searchMicrosoftSymbolServer": true
+                // "searchPaths": ["https://symbols.nuget.org/download/symbols"]
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"

@@ -6,6 +6,7 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Builder
 open Apollo
 
+[<CLIMutable>]
 type Record = {
     s: string
 }
@@ -20,11 +21,31 @@ let record = object {
     ]
 }
 
+[<CLIMutable>]
+type Input = {
+    w: string
+    j: int
+}
+let someInput = input {
+    name "Input"
+    description "Some Input"
+    fields [
+        field {
+            name "w"
+            get (fun input -> input.w)
+        }
+        field {
+            name "j"
+            get (fun input -> input.j)
+        }
+    ]
+}
+
 let q = query {
     fields [
         field {
             name "getSomething"
-            resolve (fun _ -> Observable.unit [1;2;3;4;5])
+            resolve (fun _ -> Observable.unit [1; 2; 3; 4; 5])
         }
         field {
             name "getSomethingElse"
@@ -50,8 +71,18 @@ let m = mutation {
                 }
             ]
             resolve (fun ctx ->
-                Arg<int>.get "k" ctx
+                Arg<int>.["k"] ctx
                 |> Observable.map (fun i -> k <- k + i; k))
+        }
+
+        field {
+            name "mutateCustom"
+            arguments [
+                argument<Input> {
+                    name "input"
+                }
+            ]
+            resolve (fun ctx -> Arg<Input>.["input"] ctx |> Observable.map (fun i -> i.j))
         }
     ]
 }
@@ -60,7 +91,8 @@ let schema = schema {
     query q
     mutation m
     types [
-        record
+        record >> (fun i -> i :> GraphQL.Types.IGraphType)
+        someInput >> (fun i -> i :> GraphQL.Types.IGraphType)
     ]
 }
 

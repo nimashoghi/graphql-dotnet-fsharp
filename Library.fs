@@ -3,7 +3,6 @@ module GraphQL.FSharp.Main
 
 open System
 open Apollo
-open FSharp.Injection
 open GraphQL
 open GraphQL.Language.AST
 open GraphQL.Server
@@ -17,26 +16,28 @@ open Iris.Option.Builders
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.AspNetCore.Builder
 
-type Arg<'t> =
+type ArgBuilder<'t>() =
     /// **Description**
     ///   * Gets the value of the argument with the name `name`.
-    static member get name =
-        fun (fieldCtx: ResolveFieldContext<_>) ->
-            match fieldCtx.UserContext with
-            | :? UserContext as userCtx ->
-                match userCtx.GetArgumentValue fieldCtx.FieldName name with
-                | Some x ->
-                    x
-                    |> Observable.catch (fun exn ->
-                        fieldCtx.Errors.Add (ExecutionError("Validation error", ``exception`` = exn))
-                        Observable.empty)
-                    |> Observable.flatMap (function
-                        | :? 't as x -> Observable.unit x
-                        // TODO: Failwithf should be properly reported
-                        | _ -> failwithf "Could not cast arg to type %s" typeof<'t>.Name)
-                | None -> Observable.unit (fieldCtx.GetArgument<'t> name)
-            | _ -> Observable.unit (fieldCtx.GetArgument<'t> name)
+    member __.Item
+        with get name =
+            fun (fieldCtx: ResolveFieldContext<_>) ->
+                match fieldCtx.UserContext with
+                | :? UserContext as userCtx ->
+                    match userCtx.GetArgumentValue fieldCtx.FieldName name with
+                    | Some x ->
+                        x
+                        |> Observable.catch (fun exn ->
+                            fieldCtx.Errors.Add (ExecutionError("Validation error", ``exception`` = exn))
+                            Observable.empty)
+                        |> Observable.flatMap (function
+                            | :? 't as x -> Observable.unit x
+                            // TODO: Failwithf should be properly reported
+                            | _ -> failwithf "Could not cast arg to type %s" typeof<'t>.Name)
+                    | None -> Observable.unit (fieldCtx.GetArgument<'t> name)
+                | _ -> Observable.unit (fieldCtx.GetArgument<'t> name)
 
+let Arg<'t> = ArgBuilder<'t>()
 
 let private makeValidator (f: ValidationContext -> EnterLeaveListener -> unit) =
     {
@@ -72,7 +73,7 @@ type IServiceCollection with
     member this.AddGraphQLFS<'injection, 'schema when 'schema : not struct and 'schema :> Schema> (f: 'injection -> 'schema) =
         this
             .AddTransient<IValidationRule>(Func.from validator)
-            .AddSingleton<Schema>(Func.from (fun provider -> inject provider f :> Schema))
+            .AddSingleton<Schema>(Func.from (fun (provider: IServiceProvider) -> f (provider.GetService typeof<'injection> :?> 'injection) :> Schema))
             .AddGraphQL(fun options ->
                 options.EnableMetrics <- true
                 options.ExposeExceptions <- true)

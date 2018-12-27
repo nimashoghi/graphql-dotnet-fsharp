@@ -4,12 +4,15 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Iris\Iris.fsproj" />
-    <ProjectReference Include="..\fsharp-injection\FSharp.Injection.fsproj" />
     <ProjectReference Include="..\Apollo\Apollo.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Model.fs" />
-    <Compile Include="Builder.fs" />
+    <Compile Include="Builder/Helpers.fs" />
+    <Compile Include="Builder/Argument.fs" />
+    <Compile Include="Builder/Field.fs" />
+    <Compile Include="Builder/Object.fs" />
+    <Compile Include="Builder/Schema.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
