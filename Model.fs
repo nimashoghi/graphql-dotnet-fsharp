@@ -79,7 +79,7 @@ let internal getTypeParam (typeDef: Type) (x: IGraphType) =
 let internal (|Input|_|) (x: IGraphType) = getTypeParam typedefof<InputObjectGraphType<_>> x
 let internal (|Object|_|) (x: IGraphType) = getTypeParam typedefof<ObjectGraphType<_>> x
 
-type SchemaImplementation(resolver) =
+type SchemaInfo(resolver) =
     inherit Schema(dependencyResolver = resolver)
 
     let objects = Dictionary<Type, IGraphType> ()

@@ -1,27 +1,24 @@
 module GraphQL.FSharp.Builder.Argument
 
-open GraphQL
 open GraphQL.Types
 open Iris.Option.Builders
 
 open GraphQL.FSharp.Model
 open GraphQL.FSharp.Builder.Helpers
 
-[<AutoOpen>]
-module rec Wrapper =
-    type Argument<'input, 'output> = {
-        name: string option
-        value: ValueType<'output>
-        description: string option
-        validator: Validator<'input, 'output> option
-    }
+type ArgumentWrapper<'input, 'output> = {
+    name: string option
+    value: ValueType<'output>
+    description: string option
+    validator: Validator<'input, 'output> option
+}
 
-    let newArgument<'input, 'output> : Argument<'input, 'output> = {
-        name = None
-        value = Mandatory
-        description = None
-        validator = None
-    }
+let newArgument<'input, 'output> : ArgumentWrapper<'input, 'output> = {
+    name = None
+    value = Mandatory
+    description = None
+    validator = None
+}
 
 type ArgumentBuilder<'input>() =
     member __.Yield _ = newArgument<'input, 'input>
@@ -58,8 +55,8 @@ type ArgumentBuilder<'input>() =
         }
 
     /// Converts the elevated wrapper type into a function that can be called on initialization
-    member __.Run (argument: Argument<'input, 'output>) =
-        fun (schema: SchemaImplementation) (field: FieldType) -> maybeOrThrow {
+    member __.Run (argument: ArgumentWrapper<'input, 'output>) =
+        fun (schema: SchemaInfo) (field: FieldType) -> maybeOrThrow {
             let schemaType = getType schema typeof<'input> (isNullable argument.value)
             let queryArgument = ValidatedArgument(schemaType, field)
 
@@ -86,5 +83,3 @@ type ArgumentBuilder<'input>() =
 
             field.Arguments.Add queryArgument
         }
-
-let argument<'input> = ArgumentBuilder<'input> ()

@@ -1,8 +1,6 @@
 module GraphQL.FSharp.Builder.Helpers
 
 open System
-open System.Collections.Generic
-open Apollo
 open Iris.Option.Builders
 open GraphQL
 open GraphQL.Types
@@ -13,7 +11,7 @@ let isNullable = function
 | Mandatory -> false
 | _ -> true
 
-let setType (schema: SchemaImplementation) (``type``: Type) nullable (field: FieldType) =
+let setType (schema: SchemaInfo) (``type``: Type) nullable (field: FieldType) =
     try field.Type <- ``type``.GetGraphTypeFromType nullable
     with
     | :? ArgumentOutOfRangeException ->
@@ -22,7 +20,7 @@ let setType (schema: SchemaImplementation) (``type``: Type) nullable (field: Fie
             field.ResolvedType <- graphType
         }
 
-let getType (schema: SchemaImplementation) (``type``: Type) nullable =
+let getType (schema: SchemaInfo) (``type``: Type) nullable =
     try ``type``.GetGraphTypeFromType nullable |> Activator.CreateInstance :?> IGraphType
     with
     | :? ArgumentOutOfRangeException -> Option.get (schema.GetObject ``type`` nullable)

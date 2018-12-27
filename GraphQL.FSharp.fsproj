@@ -13,6 +13,7 @@
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Schema.fs" />
+    <Compile Include="Builder/Main.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
