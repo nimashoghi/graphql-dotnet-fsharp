@@ -1,27 +1,42 @@
 module GraphQL.FSharp.Builder.Union
 
 open System
+open System.Reflection
 open FSharp.Reflection
 open GraphQL.Types
+open GraphQL.Resolvers
 open Iris.Option.Builders
 
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder.Helpers
-open GraphQL.FSharp.Model
 
 exception NotUnionException of Type
 
-// TODO: nullable based off of option type
-let internal createUnionType<'t> (schema: SchemaInfo) (case: UnionCaseInfo) =
-    let field = case.GetFields().[0]
-    // TODO: Check unsafe cast
-    // TODO: nullable is true here, should it be?
-    let result =
-        getType schema field.PropertyType true
-        |> Option.get
-        :?> IObjectGraphType
+let internal unionFieldResolver<'t> (case: UnionCaseInfo) =
+    let resolveHelper (ctx: ResolveFieldContext) = maybe {
+        let! source = Option.ofObj ctx.Source
+        let unionCase, fields = FSharpValue.GetUnionFields(source, typeof<'t>)
 
-    result
+        if case <> unionCase then return! None else
+        // TODO: Look at this -- unsafe
+        return fields.[0]
+    }
+
+    { new IFieldResolver with member __.Resolve ctx = Option.toObj (resolveHelper ctx) }
+
+let internal createUnionType<'t> (schema: SchemaInfo) (case: UnionCaseInfo) =
+    let object = ObjectGraphType()
+    object.Name <- case.Name
+
+    for field in case.GetFields() do
+        // TODO: nullable based off of option type
+        let fieldType = FieldType()
+        // TODO: should this name be `field.Name` or `case.Name` or just "Value"
+        fieldType.Name <- field.Name
+        fieldType.Resolver <- unionFieldResolver<'t> case
+        setType schema field.PropertyType false fieldType
+        object.AddField fieldType |> ignore
+    object :> IObjectGraphType
 
 let internal getUnionCases<'t> (schema: SchemaInfo) =
     FSharpType.GetUnionCases typeof<'t>
