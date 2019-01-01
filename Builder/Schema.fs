@@ -72,9 +72,8 @@ type SchemaBuilder() =
         fun (provider: IServiceProvider) ->
             let schema = new SchemaInfo(provider.ToDependencyResolver())
 
-            types
-            |> List.map (fun ``type`` -> ``type`` schema)
-            |> schema.WithTypes
+            for ``type`` in types do
+                schema.WithType (``type`` schema)
 
             let mutable types = []
 

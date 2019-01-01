@@ -15,18 +15,21 @@ type ObjectWrapper<'source> = {
     name: string option
     description: string option
     fields: (SchemaInfo -> ComplexGraphType<'source> -> unit) list
+    effects: (SchemaInfo -> unit) list
 }
 
 let newObject<'source> : ObjectWrapper<'source> = {
     name = None
     description = None
     fields = []
+    effects = []
 }
 
 let merge lhs rhs = {
     name = Option.orElse lhs.name rhs.name
     description = Option.orElse lhs.description rhs.description
     fields = lhs.fields @ rhs.fields
+    effects = lhs.effects @ rhs.effects
 }
 
 let inline private get (x: ObjectWrapper<_>) = x
@@ -46,6 +49,11 @@ type ComplexObjectBuilder<'source when 'source : not struct and 'source : (new: 
     /// Adds fields to the object
     [<CustomOperation "fields">]
     member __.Fields (object, fields) = {get object with fields = object.fields @ fields}
+
+    /// **Description**
+    ///   * Registers the provided effects.
+    [<CustomOperation "effects">]
+    member __.Effects (object, effects) = {get object with effects = object.effects @ effects}
 
     /// Imports another complex object type into the current object type
     [<CustomOperation "import">]

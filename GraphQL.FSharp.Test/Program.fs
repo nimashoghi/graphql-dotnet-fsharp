@@ -6,6 +6,7 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Builder
 open Apollo
 
+
 [<CLIMutable>]
 type MyTesterino = {
     name: string
@@ -20,6 +21,7 @@ let myTesterino = record<MyTesterino> {
 type Record = {
     s: string
 }
+
 let myRec = object {
     name "Record"
     description "Some Record"
@@ -29,6 +31,18 @@ let myRec = object {
             get (fun myRec -> myRec.s)
         }
     ]
+}
+
+type MyUnion =
+| First of Record
+| Second of MyTesterino
+
+let myOtherUnion = Builder.Union.wrapUnion<MyUnion>
+
+let myUnion = union {
+    name "myUnion"
+    case myTesterino
+    case myRec
 }
 
 [<CLIMutable>]
@@ -64,6 +78,16 @@ let q = query {
         field {
             name "getTesterino"
             resolve (fun _ -> Observable.unit {name = "sup"; friends = 2; hello = 2.4})
+        }
+        field {
+            name "unionTest"
+            setType myUnion
+            resolve (fun _ -> Observable.unit {s = "sdfs union"})
+        }
+        field {
+            name "otherUnionTest"
+            setType myOtherUnion
+            resolve (fun _ -> Observable.unit <| Second {name = "sup"; friends = 2; hello = 2.4})
         }
     ]
 }
@@ -108,6 +132,8 @@ let schema = schema {
         myRec
         someInput
         myTesterino
+        myUnion
+        myOtherUnion
     ]
 }
 

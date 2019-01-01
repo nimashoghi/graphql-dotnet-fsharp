@@ -22,6 +22,9 @@ let setType (schema: SchemaInfo) (``type``: Type) nullable (field: FieldType) =
         }
 
 let getType (schema: SchemaInfo) (``type``: Type) nullable =
-    try ``type``.GetGraphTypeFromType nullable |> Activator.CreateInstance :?> IGraphType
+    try
+        ``type``.GetGraphTypeFromType nullable
+        |> Activator.CreateInstance
+        :?> IGraphType
     with
-    | :? ArgumentOutOfRangeException -> Option.get (schema.GetObject ``type`` nullable)
+    | :? ArgumentOutOfRangeException -> Option.toObj (schema.GetObject ``type`` nullable)

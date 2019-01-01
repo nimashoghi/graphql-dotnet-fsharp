@@ -12,6 +12,7 @@
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Object.fs" />
+    <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Builder/Main.fs" />
     <Compile Include="Library.fs" />

@@ -71,18 +71,32 @@ let internal (|Field|) name (x: Dictionary<string, FieldInfo>) =
 let internal getTypeParam (typeDef: Type) (x: IGraphType) =
     if not typeDef.IsGenericTypeDefinition then failwith "typeDef must be a generic type definition!"
     let xType = x.GetType()
-    let xTypeDef = xType.GetGenericTypeDefinition()
-    if typeDef = xTypeDef
-    then Some (xType.GetGenericArguments().[0])
+    if xType.IsGenericType
+    then
+        let xTypeDef = xType.GetGenericTypeDefinition()
+        if typeDef = xTypeDef
+        then Some (xType.GetGenericArguments().[0])
+        else None
     else None
 
 let internal (|Input|_|) (x: IGraphType) = getTypeParam typedefof<InputObjectGraphType<_>> x
 let internal (|Object|_|) (x: IGraphType) = getTypeParam typedefof<ObjectGraphType<_>> x
+let internal (|Union|_|) (x: IGraphType) =
+    match x with
+    | :? UnionGraphType as union -> Some (Union union)
+    | _ -> None
 
 type SchemaInfo(resolver) =
     inherit Schema(dependencyResolver = resolver)
 
     let objects = Dictionary<Type, IGraphType> ()
+
+    member this.WithType ``type`` =
+        this.RegisterType ``type``
+
+        match ``type`` with
+        | Object object | Input object -> objects.[object] <- ``type``
+        | _ -> () // TODO: Warn/error?
 
     member this.WithTypes (types: #seq<IGraphType>) =
         types
