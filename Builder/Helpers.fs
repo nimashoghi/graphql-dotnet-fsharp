@@ -13,7 +13,8 @@ let isNullable = function
 
 // TODO: Handle option types
 let setType (schema: SchemaInfo) (``type``: Type) nullable (field: FieldType) =
-    try field.Type <- ``type``.GetGraphTypeFromType nullable
+    try
+        field.Type <- ``type``.GetGraphTypeFromType nullable
     with
     | :? ArgumentOutOfRangeException ->
         maybeUnit {
@@ -26,5 +27,6 @@ let getType (schema: SchemaInfo) (``type``: Type) nullable =
         ``type``.GetGraphTypeFromType nullable
         |> Activator.CreateInstance
         :?> IGraphType
+        |> Some
     with
-    | :? ArgumentOutOfRangeException -> Option.toObj (schema.GetObject ``type`` nullable)
+    | :? ArgumentOutOfRangeException -> schema.GetObject ``type`` nullable

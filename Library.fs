@@ -2,7 +2,7 @@
 module GraphQL.FSharp.Main
 
 open System
-open Apollo
+open FSharp.Control.Reactive
 open GraphQL
 open GraphQL.Language.AST
 open GraphQL.Server
@@ -15,31 +15,37 @@ open Iris
 open Iris.Option.Builders
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.AspNetCore.Builder
+open Rx
+open Rx.Builders
 
-type ArgBuilder<'t>() =
+/// **Description**
+///   * Details:
+///     * Try to parse the user context as our custom `UserContext` type.
+///     * Try to get custom argument value override from our new context.
+///     * If this doesn't work, use `ctx.GetArgument` instead.
+let getArg<'arg, 'source> name (ctx: ResolveFieldContext<'source>) =
+    Option.orElse
+        (ctx.GetArgument<'arg> name |> Observable.single |> Some)
+        (maybe {
+            let! userCtx = (|UserContext|_|) ctx.UserContext
+            let! argument = userCtx.GetArgumentValue ctx.FieldName name
+            return rx {
+                for value in argument do
+                    map (value :?> 'arg)
+            }
+        })
+    |> Option.get
+
+type ArgBuilder<'arg>() =
+    member __.Get<'source> name = getArg<'arg, 'source> name
+
     /// **Description**
     ///   * Gets the value of the argument with the name `name`.
-    member __.Item
-        with get name =
-            fun (fieldCtx: ResolveFieldContext<_>) ->
-                match fieldCtx.UserContext with
-                | :? UserContext as userCtx ->
-                    match userCtx.GetArgumentValue fieldCtx.FieldName name with
-                    | Some x ->
-                        x
-                        |> Observable.catch (fun exn ->
-                            fieldCtx.Errors.Add (ExecutionError("Validation error", ``exception`` = exn))
-                            Observable.empty)
-                        |> Observable.flatMap (function
-                            | :? 't as x -> Observable.unit x
-                            // TODO: Failwithf should be properly reported
-                            | _ -> failwithf "Could not cast arg to type %s" typeof<'t>.Name)
-                    | None -> Observable.unit (fieldCtx.GetArgument<'t> name)
-                | _ -> Observable.unit (fieldCtx.GetArgument<'t> name)
+    member this.Item with get name = this.Get name
 
-let arg<'t> = ArgBuilder<'t>()
+let arg<'arg> = ArgBuilder<'arg>()
 
-let private makeValidator (f: ValidationContext -> EnterLeaveListener -> unit) =
+let private makeValidator f =
     {
         new IValidationRule with
             member __.Validate ctx =

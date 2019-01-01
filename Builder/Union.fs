@@ -3,82 +3,87 @@ module GraphQL.FSharp.Builder.Union
 open System
 open FSharp.Reflection
 open GraphQL.Types
+open Iris.Option.Builders
 
+open GraphQL.FSharp
+open GraphQL.FSharp.Builder.Helpers
 open GraphQL.FSharp.Model
 
 exception NotUnionException of Type
 
-
-open GraphQL.Resolvers
-open System.Reflection
-open Iris.Option.Builders
-
-let internal unionFieldResolver<'t> (case: UnionCaseInfo) (field: PropertyInfo) =
-    let resolveHelper (ctx: ResolveFieldContext) = maybe {
-        let! ast = Option.ofObj ctx.FieldAst
-        let! name = Option.ofObj ast.Name
-        let! source = Option.ofObj ctx.Source
-
-        let unionCase, fields = FSharpValue.GetUnionFields(source, typeof<'t>)
-
-        if case <> unionCase then return! None else
-        // TODO: Look at this -- unsafe
-        return fields.[0]
-    }
-
-    { new IFieldResolver with member __.Resolve ctx = Option.toObj (resolveHelper ctx) }
-
-open GraphQL.FSharp.Builder.Helpers
-
+// TODO: nullable based off of option type
 let internal createUnionType<'t> (schema: SchemaInfo) (case: UnionCaseInfo) =
-    let object = ObjectGraphType()
-    object.Name <- case.Name
-    object.Metadata.["unionCaseInfo"] <- Some case
+    let field = case.GetFields().[0]
+    // TODO: Check unsafe cast
+    // TODO: nullable is true here, should it be?
+    let result =
+        getType schema field.PropertyType true
+        |> Option.get
+        :?> IObjectGraphType
 
-    for field in case.GetFields() do
-        // TODO: nullable based off of option type
-        let fieldType = FieldType()
-        fieldType.Name <- field.Name
-        fieldType.Resolver <- unionFieldResolver<'t> case field
-        setType schema field.PropertyType false fieldType
-        object.AddField fieldType |> ignore
-    object
-
+    result
 
 let internal getUnionCases<'t> (schema: SchemaInfo) =
     FSharpType.GetUnionCases typeof<'t>
-    |> Array.map (createUnionType<'t> schema)
+    |> Array.map (fun case -> case, createUnionType<'t> schema case)
 
-let internal throwIfNotUnion<'t> () =
+// Currently, we only support unions with only 1 field.
+// TODO: come up with a better solution in the future
+let internal checkUnionValidity<'t> () =
+    let ``type`` = typeof<'t>
+
+    FSharpType.GetUnionCases ``type``
+    |> Array.tryPick (fun case ->
+        let invalid =
+            case.GetFields()
+            |> Array.length
+            |> (<>) 1
+        if invalid then Some case else None)
+    |> Option.iter (fun case ->
+        failwithf
+            "Union case \"%s.%s\" must have exactly 1 field."
+            ``type``.Name
+            case.Name)
+
+let internal throwIfInvalid<'t> () =
     let ``type`` = typeof<'t>
 
     if not (FSharpType.IsUnion ``type``)
     then raise (NotUnionException ``type``)
+    else checkUnionValidity<'t> ()
 
 let wrapUnion<'t> =
     let ``type`` = typeof<'t>
-    throwIfNotUnion<'t> ()
+    throwIfInvalid<'t> ()
 
     fun (schema: SchemaInfo) ->
-        let union = UnionGraphType()
+        let union = TypedUnionGraphType<'t>()
+
+        assert (``type``.Name <> null && ``type``.Name <> "")
         union.Name <- ``type``.Name
 
         let unionCases = getUnionCases<'t> schema
+        assert (Array.length unionCases <> 0)
+
         union.ResolveType <-
             fun object ->
-                if object :? 't then
-                    let unionCase, _ = FSharpValue.GetUnionFields(object, ``type``)
-                    let unionCaseGraphType =
-                        unionCases
-                        |> Array.tryPick (fun graphType ->
-                            graphType.GetMetadata<UnionCaseInfo option> "unionCaseInfo"
-                            |> Option.filter (fun unionCase' -> unionCase = unionCase')
-                            |> Option.map (fun _ -> graphType))
+                assert (object <> null)
 
-                    match unionCaseGraphType with
-                    | Some unionCaseGraphType -> unionCaseGraphType :> IObjectGraphType
-                    | _ -> null
-                else null
+                match object with
+                | :? 't as object ->
+                    let unionCase, _ = FSharpValue.GetUnionFields(object, ``type``)
+                    let unionCase =
+                        unionCases
+                        |> Array.filter (fst >> (=) unionCase)
+                        |> Array.map (fun (i, j) -> Trace.Log "unionCase is %A" (i, j); i, j)
+                        |> Array.map snd
+                        |> Array.tryHead
+                        |> Option.toObj
+
+                    unionCase
+                | _ -> null
+
+        let unionCases = Array.map snd unionCases
 
         unionCases
         |> Array.iter (fun graphType -> union.AddPossibleType graphType)
@@ -88,7 +93,6 @@ let wrapUnion<'t> =
         |> schema.RegisterTypes
 
         schema.RegisterType union
-
         union :> IGraphType
 
 type UnionWrapper = {

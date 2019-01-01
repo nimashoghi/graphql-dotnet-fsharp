@@ -1,7 +1,7 @@
 module GraphQL.FSharp.Builder.Field
 
 open System
-open Apollo
+open FSharp.Control.Reactive
 open FSharp.Linq.RuntimeHelpers
 open FSharp.Quotations
 open GraphQL.Types
@@ -9,6 +9,7 @@ open GraphQL.Resolvers
 open Iris
 open Iris.Option.Builders
 open Iris.Option.Operators
+open Rx
 
 open GraphQL.FSharp.Model
 open GraphQL.FSharp.Builder.Helpers
@@ -35,26 +36,23 @@ let newField<'source, 'graph, 'value> : FieldWrapper<'source, 'graph, 'value> = 
     resolver = None
 }
 
-// TODO: Relocate
-module Option =
-    let orElse3 x y z = Option.orElse (Option.orElse z y) x
-
 let checkFieldGetter field =
-    if Option.isSome field.getter && Option.isSome field.resolver then
-        failwith "Field cannot have both a getter and a resolver"
+    match field.getter, field.resolver with
+    | Some _, Some _ -> failwith "Field cannot have both a getter and a resolver"
+    | _, _ -> ()
 
-let private get (field: FieldWrapper<_, _, _>) = field
-
-type FieldBuilder<'source>() =
+// TODO: Sync up 'source with stuff below
+// TODO: Optional set up
+type FieldBuilder<'source, 'value>() =
     member __.Yield _ = newField<'source, 'graph, 'value>
 
     /// Sets the name of this field
     [<CustomOperation "name">]
-    member __.Name (field, name) = {get field with name = Some name}
+    member __.Name (field, name) = {field with name = Some name}
 
     /// Sets the description of this field
     [<CustomOperation "description">]
-    member __.Description (field, description) = {get field with description = Some description}
+    member __.Description (field, description) = {field with description = Some description}
 
     /// Sets the type of this field
     [<CustomOperation "type">]
@@ -63,23 +61,23 @@ type FieldBuilder<'source>() =
     /// Sets the description of this field
     /// Fails if we have set optional or mandatory
     [<CustomOperation "defaultValue">]
-    member __.DefaultValue (field, defaultValue) = {get field with value = DefaultValue defaultValue}
+    member __.DefaultValue (field, defaultValue) = {field with value = DefaultValue defaultValue}
 
     /// Make the field optional
     [<CustomOperation "optional">]
-    member __.Optional field = {get field with value = Optional}
+    member __.Optional field = {field with value = Optional}
 
     /// Make the field optional
     [<CustomOperation "mandatory">]
-    member __.Mandatory field = {get field with value = Mandatory}
+    member __.Mandatory field = {field with value = Mandatory}
 
     /// Sets the arguments of this fields
     [<CustomOperation "arguments">]
-    member __.Arguments (field, arguments) = {get field with arguments = field.arguments @ arguments}
+    member __.Arguments (field, arguments) = {field with arguments = field.arguments @ arguments}
 
     /// Gets a specific field
     [<CustomOperation "get">]
-    member __.Get (field, [<ReflectedDefinition>] getter) = {get field with getter = Some getter}
+    member __.Get (field, [<ReflectedDefinition>] getter) = {field with getter = Some getter}
 
     /// Sets the type of a field
     [<CustomOperation "setType">]

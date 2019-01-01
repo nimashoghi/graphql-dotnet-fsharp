@@ -4,9 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Iris\Iris.fsproj" />
-    <ProjectReference Include="..\Apollo\Apollo.fsproj" />
+    <ProjectReference Include="..\Rx\Rx.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logging.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Builder/Helpers.fs" />
     <Compile Include="Builder/Argument.fs" />

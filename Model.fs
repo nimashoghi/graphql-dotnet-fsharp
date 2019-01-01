@@ -3,9 +3,9 @@ module GraphQL.FSharp.Model
 
 open System
 open System.Collections.Generic
-open Apollo
 open FSharp.Control.Reactive
 open GraphQL.Types
+open Rx
 
 type ValueType<'t> =
 | Optional
@@ -47,6 +47,10 @@ type FieldInfo() =
     ///   * The arguments of this field.
     member val Arguments = Dictionary<string, ArgumentInfo>()
 
+// TODO: Document
+type TypedUnionGraphType<'t>() =
+    inherit UnionGraphType()
+
 /// **Description**
 ///   * Gets a specific argument from the argument dictionary.
 let internal (|Argument|) name (x: Dictionary<string, ArgumentInfo>) =
@@ -81,10 +85,7 @@ let internal getTypeParam (typeDef: Type) (x: IGraphType) =
 
 let internal (|Input|_|) (x: IGraphType) = getTypeParam typedefof<InputObjectGraphType<_>> x
 let internal (|Object|_|) (x: IGraphType) = getTypeParam typedefof<ObjectGraphType<_>> x
-let internal (|Union|_|) (x: IGraphType) =
-    match x with
-    | :? UnionGraphType as union -> Some (Union union)
-    | _ -> None
+let internal (|Union|_|) (x: IGraphType) = getTypeParam typedefof<TypedUnionGraphType<_>> x
 
 type SchemaInfo(resolver) =
     inherit Schema(dependencyResolver = resolver)
@@ -95,7 +96,7 @@ type SchemaInfo(resolver) =
         this.RegisterType ``type``
 
         match ``type`` with
-        | Object object | Input object -> objects.[object] <- ``type``
+        | Object object | Input object | Union object -> objects.[object] <- ``type``
         | _ -> () // TODO: Warn/error?
 
     member this.WithTypes (types: #seq<IGraphType>) =

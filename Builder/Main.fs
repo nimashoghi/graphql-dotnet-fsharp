@@ -9,9 +9,9 @@ open GraphQL.FSharp.Builder.Object
 open GraphQL.FSharp.Builder.Schema
 open GraphQL.FSharp.Builder.Union
 
-let argument<'input> = ArgumentBuilder<'input> ()
+let argument<'input> = ArgumentBuilder<'input>()
 
-let field<'value> = FieldBuilder<'value>()
+let field<'source, 'value> = FieldBuilder<'source, 'value>()
 
 let complex<'source when 'source : not struct and 'source : (new: unit -> 'source)> = ComplexObjectBuilder<'source> ()
 let object<'source when 'source : not struct and 'source : (new: unit -> 'source)> = ObjectBuilder<'source> ()

@@ -1,10 +1,10 @@
 ﻿open System
+open FSharp.Control.Reactive
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
-open Apollo
 
 
 [<CLIMutable>]
@@ -69,25 +69,30 @@ let q = query {
     fields [
         field {
             name "getSomething"
-            resolve (fun _ -> Observable.unit [1; 2; 3; 4; 5])
+            resolve (fun _ -> Observable.single [1; 2; 3; 4; 5])
         }
         field {
             name "getSomethingElse"
-            resolve (fun _ -> Observable.unit {s = "sdfs"})
+            resolve (fun _ -> Observable.single {s = "sdfs"})
         }
         field {
             name "getTesterino"
-            resolve (fun _ -> Observable.unit {name = "sup"; friends = 2; hello = 2.4})
+            resolve (fun _ -> Observable.single {name = "sup"; friends = 2; hello = 2.4})
         }
         field {
             name "unionTest"
             setType myUnion
-            resolve (fun _ -> Observable.unit {s = "sdfs union"})
+            resolve (fun _ -> Observable.single {s = "sdfs union"})
         }
         field {
             name "otherUnionTest"
             setType myOtherUnion
-            resolve (fun _ -> Observable.unit <| Second {name = "sup"; friends = 2; hello = 2.4})
+            resolve (fun _ -> Observable.single <| Second {name = "sup"; friends = 2; hello = 2.4})
+        }
+        field {
+            name "otherUnionTestCaseTwo"
+            setType myOtherUnion
+            resolve (fun _ -> Observable.single <| First {s = "sup"})
         }
     ]
 }

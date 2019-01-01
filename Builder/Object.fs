@@ -1,14 +1,12 @@
 module GraphQL.FSharp.Builder.Object
 
 open System
-open Apollo
 open FSharp.Reflection
 open GraphQL.Resolvers
 open GraphQL.Types
 open Iris.Option.Builders
 
 open GraphQL.FSharp.Model
-open GraphQL.FSharp.Builder.Field
 open GraphQL.FSharp.Builder.Helpers
 
 type ObjectWrapper<'source> = {
@@ -32,28 +30,26 @@ let merge lhs rhs = {
     effects = lhs.effects @ rhs.effects
 }
 
-let inline private get (x: ObjectWrapper<_>) = x
-
 type ComplexObjectBuilder<'source when 'source : not struct and 'source : (new: unit -> 'source)>() =
     abstract member Yield: _ -> ObjectWrapper<'source>
     default __.Yield _ = newObject<'source>
 
     /// Sets the name of this object
     [<CustomOperation "name">]
-    member __.Name (object, name) = {get object with name = Some name}
+    member __.Name (object, name) = {object with name = Some name}
 
     /// Sets the description of this object
     [<CustomOperation "description">]
-    member __.Description (object, description) = {get object with description = Some description}
+    member __.Description (object, description) = {object with description = Some description}
 
     /// Adds fields to the object
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) = {get object with fields = object.fields @ fields}
+    member __.Fields (object, fields) = {object with fields = object.fields @ fields}
 
     /// **Description**
     ///   * Registers the provided effects.
     [<CustomOperation "effects">]
-    member __.Effects (object, effects) = {get object with effects = object.effects @ effects}
+    member __.Effects (object, effects) = {object with effects = object.effects @ effects}
 
     /// Imports another complex object type into the current object type
     [<CustomOperation "import">]
@@ -91,8 +87,10 @@ type InputObjectBuilder<'source when 'source : not struct and 'source : (new: un
             let! name = object.name
             graph.Name <- name
 
-            let! description = object.description
-            graph.Description <- description
+            maybeUnit {
+                let! description = object.description
+                graph.Description <- description
+            }
 
             List.iter (fun object -> object schema (graph :> ComplexGraphType<'source>)) object.fields
 
@@ -104,8 +102,6 @@ exception NotRecordException of Type
 let internal throwIfNotRecord ``type`` =
     if not (FSharpType.IsRecord ``type``)
     then raise (NotRecordException ``type``)
-
-let internal field<'value> = FieldBuilder<'value>()
 
 let internal getRecordElements<'source> =
     let fields = FSharpType.GetRecordFields typeof<'source>

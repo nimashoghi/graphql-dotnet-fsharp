@@ -57,7 +57,7 @@ type ArgumentBuilder<'input>() =
     /// Converts the elevated wrapper type into a function that can be called on initialization
     member __.Run (argument: ArgumentWrapper<'input, 'output>) =
         fun (schema: SchemaInfo) (field: FieldType) -> maybeOrThrow {
-            let schemaType = getType schema typeof<'input> (isNullable argument.value)
+            let! schemaType = getType schema typeof<'input> (isNullable argument.value)
             let queryArgument = ValidatedArgument(schemaType, field)
 
             let! name = argument.name
