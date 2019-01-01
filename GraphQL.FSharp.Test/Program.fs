@@ -36,6 +36,7 @@ let myRec = object {
 type MyUnion =
 | First of Record
 | Second of MyTesterino
+| Third of record: Record * testerino: MyTesterino
 
 let myOtherUnion = Builder.Union.wrapUnion<MyUnion>
 
@@ -65,6 +66,11 @@ let someInput = input {
     ]
 }
 
+let mutable iBacking = 0
+let i () =
+    iBacking <- iBacking + 1
+    iBacking
+
 let q = query {
     fields [
         field {
@@ -81,18 +87,24 @@ let q = query {
         }
         field {
             name "unionTest"
-            setType myUnion
+            setType ((myUnion >> (fun i -> GraphQL.Types.NonNullGraphType i :> GraphQL.Types.IGraphType)))
             resolve (fun _ -> Observable.single {s = "sdfs union"})
         }
         field {
             name "otherUnionTest"
-            setType myOtherUnion
             resolve (fun _ -> Observable.single <| Second {name = "sup"; friends = 2; hello = 2.4})
         }
         field {
             name "otherUnionTestCaseTwo"
-            setType myOtherUnion
-            resolve (fun _ -> Observable.single <| First {s = "sup"})
+            resolve (fun _ ->
+                if i () % 2 = 0 then
+                    Observable.single <| First {s = "sup"}
+                else
+                    Observable.single <| Second {name = "sup"; friends = 2; hello = 2.4})
+        }
+        field {
+            name "otherUnionTestCaseThree"
+            resolve (fun _ -> Observable.single (Third ({s = "sup"}, {name = "sup"; friends = 2; hello = 2.4})))
         }
     ]
 }
