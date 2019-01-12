@@ -7,13 +7,7 @@ open GraphQL.Resolvers
 let inline private set f (x: FieldType) = f x; x
 
 type FieldBuilder() =
-    member __.Yield _ = FieldType()
-
-    [<CustomOperation "name">]
-    member __.Name (field, name) = set (fun x -> x.Name <- name) field
-
-    [<CustomOperation "description">]
-    member __.Description (field, description) = set (fun x -> x.Description <- description) field
+    inherit BuilderBase<FieldType>()
 
     [<CustomOperation "type">]
     member __.Type (field, ``type``) = set (fun x -> x.Type <- ``type``) field
@@ -29,3 +23,5 @@ type FieldBuilder() =
     member __.Resolve (field, resolver) =
         let resolver = FuncFieldResolver<_, _> (Func<_, _> resolver)
         set (fun x -> x.Resolver <- resolver) field
+
+let field = FieldBuilder()

@@ -16,13 +16,12 @@
     <Compile Include="Types/Object.fs" />
     <Compile Include="Types/Interface.fs" />
     <Compile Include="Types/Union.fs" />
-    <Compile Include="Builder/Helpers.fs" />
+    <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
-    <Compile Include="Builder/Main.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
