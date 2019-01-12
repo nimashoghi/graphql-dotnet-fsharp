@@ -1,8 +1,6 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Main
 
-open GraphQL.Types
-
 open GraphQL.FSharp.Builder.Argument
 open GraphQL.FSharp.Builder.Field
 open GraphQL.FSharp.Builder.Object
@@ -20,7 +18,7 @@ let input<'source when 'source : not struct and 'source : (new: unit -> 'source)
 let record<'source when 'source : not struct and 'source : (new: unit -> 'source)> = RecordBuilder<'source> ()
 
 let union = UnionBuilder()
-// TODO: Add Union and Interface
+// TODO: Add Interface later
 
 let query = QueryBuilder()
 let mutation = MutationBuilder()

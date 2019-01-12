@@ -9,6 +9,13 @@
   <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Model.fs" />
+    <Compile Include="Types/Define.fs" />
+    <Compile Include="Types/Field.fs" />
+    <Compile Include="Types/Scalar.fs" />
+    <Compile Include="Types/Enum.fs" />
+    <Compile Include="Types/Object.fs" />
+    <Compile Include="Types/Interface.fs" />
+    <Compile Include="Types/Union.fs" />
     <Compile Include="Builder/Helpers.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />

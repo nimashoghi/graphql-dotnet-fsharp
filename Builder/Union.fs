@@ -1,7 +1,6 @@
 module GraphQL.FSharp.Builder.Union
 
 open System
-open System.Reflection
 open FSharp.Reflection
 open GraphQL.Types
 open GraphQL.Resolvers
@@ -66,7 +65,6 @@ let internal throwIfInvalid<'t> () =
 
     if not (FSharpType.IsUnion ``type``)
     then raise (NotUnionException ``type``)
-    // else checkUnionValidity<'t> ()
 
 let wrapUnion<'t> =
     let ``type`` = typeof<'t>
@@ -88,15 +86,11 @@ let wrapUnion<'t> =
                 match object with
                 | :? 't as object ->
                     let unionCase, _ = FSharpValue.GetUnionFields(object, ``type``)
-                    let unionCase =
-                        unionCases
-                        |> Array.filter (fst >> (=) unionCase)
-                        |> Array.map (fun (i, j) -> Trace.Log "unionCase is %A" (i, j); i, j)
-                        |> Array.map snd
-                        |> Array.tryHead
-                        |> Option.toObj
-
-                    unionCase
+                    unionCases
+                    |> Array.filter (fst >> (=) unionCase)
+                    |> Array.map snd
+                    |> Array.tryHead
+                    |> Option.toObj
                 | _ -> null
 
         let unionCases = Array.map snd unionCases

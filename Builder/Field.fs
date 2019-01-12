@@ -16,24 +16,24 @@ open GraphQL.FSharp.Builder.Helpers
 
 type FieldWrapper<'source, 'graph, 'value> = {
     arguments: (SchemaInfo -> FieldType -> unit) list
-    value: ValueType<'value>
     description: string option
     getter: Expr<'source -> 'value> option
     getterType: Type option
     getterGraphType: (SchemaInfo -> IGraphType) option
     name: string option
     resolver: (ResolveFieldContext<'source> -> 'value obs) option
+    value: ValueType<'value>
 }
 
 let newField<'source, 'graph, 'value> : FieldWrapper<'source, 'graph, 'value> = {
     arguments = []
-    value = Mandatory
     description = None
     getter = None
     getterType = None
     getterGraphType = None
     name = None
     resolver = None
+    value = Mandatory
 }
 
 let checkFieldGetter field =
