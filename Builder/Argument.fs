@@ -1,85 +1,17 @@
 module GraphQL.FSharp.Builder.Argument
 
 open GraphQL.Types
-open Iris.Option.Builders
 
-open GraphQL.FSharp.Model
-open GraphQL.FSharp.Builder.Helpers
+let inline private set f (x: QueryArgument<_>) = f x; x
 
-type ArgumentWrapper<'input, 'output> = {
-    name: string option
-    value: ValueType<'output>
-    description: string option
-    validator: Validator<'input, 'output> option
-}
+type ArgumentBuilder<'input when 'input :> IGraphType>() =
+    member __.Yield _ = QueryArgument<'input>()
 
-let newArgument<'input, 'output> : ArgumentWrapper<'input, 'output> = {
-    name = None
-    value = Mandatory
-    description = None
-    validator = None
-}
-
-type ArgumentBuilder<'input>() =
-    member __.Yield _ = newArgument<'input, 'input>
-
-    /// Sets the name of the argument
     [<CustomOperation "name">]
-    member __.Name (argument, name) = {argument with name = Some name}
+    member __.Name (argument, name) = set (fun x -> x.Name <- name) argument
 
-    /// Sets the description of the argument
     [<CustomOperation "description">]
-    member __.Description (argument, description) = {argument with description = Some description}
+    member __.Description (argument, description) = set (fun x -> x.Description <- description) argument
 
-    /// Sets the default value of the argument
-    /// Fails if we have set optional or mandatory
     [<CustomOperation "defaultValue">]
-    member __.DefaultValue (argument, defaultValue) = {argument with value = DefaultValue defaultValue}
-
-    /// Make the argument optional
-    [<CustomOperation "optional">]
-    member __.Optional argument = {argument with value = Optional}
-
-    /// Make the argument optional
-    [<CustomOperation "mandatory">]
-    member __.Mandatory argument = {argument with value = Mandatory}
-
-    /// Validate the argument
-    [<CustomOperation "validate">]
-    member __.Validate (argument, validator) =
-        {
-            name = argument.name
-            value = argument.value
-            description = argument.description
-            validator = Some validator
-        }
-
-    /// Converts the elevated wrapper type into a function that can be called on initialization
-    member __.Run (argument: ArgumentWrapper<'input, 'output>) =
-        fun (schema: SchemaInfo) (field: FieldType) -> maybeOrThrow {
-            let! schemaType = getType schema typeof<'input> (isNullable argument.value)
-            let queryArgument = ValidatedArgument(schemaType, field)
-
-            let! name = argument.name
-            queryArgument.Name <- name
-
-            maybeUnit {
-                let! description = argument.description
-                queryArgument.Description <- description
-            }
-
-            maybeUnit {
-                let! defaultValue =
-                    match argument.value with
-                    | DefaultValue value -> Some value
-                    | _ -> None
-                queryArgument.DefaultValue <- box defaultValue
-            }
-
-            maybeUnit {
-                let! validator = argument.validator
-                queryArgument.SetValidator validator
-            }
-
-            field.Arguments.Add queryArgument
-        }
+    member __.DefaultValue (argument, ``default``) = set (fun x -> x.DefaultValue <- ``default``) argument
