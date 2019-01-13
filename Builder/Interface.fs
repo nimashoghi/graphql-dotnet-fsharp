@@ -1,3 +1,4 @@
+[<AutoOpen>]
 module GraphQL.FSharp.Builder.Interface
 
 open GraphQL.Types

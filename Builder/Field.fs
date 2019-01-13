@@ -1,3 +1,4 @@
+[<AutoOpen>]
 module GraphQL.FSharp.Builder.Field
 
 open System

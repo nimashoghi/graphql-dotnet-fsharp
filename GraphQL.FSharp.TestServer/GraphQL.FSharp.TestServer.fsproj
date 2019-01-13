@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Startup.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="GraphQL.Authorization" Version="2.0.27" />
+    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.GraphiQL" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.Voyager" Version="3.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GraphQL.FSharp.fsproj" />
+  </ItemGroup>
+
+</Project>
