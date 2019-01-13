@@ -3,26 +3,19 @@ module GraphQL.FSharp.Types.Define
 
 open GraphQL.Types
 
-// TODO: Move this
-[<AutoOpen>]
-module Util =
-    let optionList lst =
-        match lst with
-        | Some value -> value
-        | None -> []
-
 let inline setNameDescription name description (``type``: ^t) =
-    (^t : (member Name: string) ``type``) <- name
+    (^t : (member set_Name: string -> unit) ``type``, name)
     Option.iter
-        (fun description -> (^t : (member Description: string) ``type``) <- description)
+        (fun description ->
+            (^t : (member set_Description: string -> unit) ``type``, description))
         description
     ``type``
 
 let inline setBasicProps name description deprecationReason (``type``: ^t) =
-    (^t : (member Name: string) ``type``) <- name
     let ``type`` = setNameDescription name description ``type``
     Option.iter
-        (fun deprecationReason -> (^t : (member DeprecationReason: string) ``type``) <- deprecationReason)
+        (fun deprecationReason ->
+            (^t : (member set_DeprecationReason: string -> unit) ``type`` ,deprecationReason))
         deprecationReason
     ``type``
 
@@ -32,4 +25,3 @@ type IGraphType with
         and set value = this.Metadata.["Nullable"] <- value
 
 type Define private () = class end
-type Convert private () = class end

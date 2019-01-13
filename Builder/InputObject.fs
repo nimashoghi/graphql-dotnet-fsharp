@@ -8,6 +8,9 @@ type InputObjectBuilder() =
     inherit BuilderMetadataBase<InputObjectGraphType>()
 
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) = set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
+    member __.Fields (object, fields) =
+        set (fun x ->
+            fields
+            |> List.iter (x.AddField >> ignore)) object
 
 let input = InputObjectBuilder ()

@@ -12,7 +12,8 @@ type LoggerExtensions() =
     static member Log (this: #ILogger, format, [<CallerMemberName>] ?memberName: string) =
         let ``type`` = this.GetType()
         assert (FSharpType.IsUnion ``type``)
-        let case, fields = FSharpValue.GetUnionFields(this, ``type``)
+
+        let case, fields = FSharpValue.GetUnionFields (this, ``type``)
         assert (Array.isEmpty fields)
 
         let memberName = Option.get memberName

@@ -3,10 +3,6 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Iris\Iris.fsproj" />
-    <ProjectReference Include="..\Rx\Rx.fsproj" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Operators.fs" />
     <Compile Include="Types/Define.fs" />
@@ -19,24 +15,23 @@
     <Compile Include="Types/InputObject.fs" />
     <Compile Include="Types/Union.fs" />
     <Compile Include="Builder/Base.fs" />
-    <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Enum.fs" />
+    <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Interface.fs" />
     <Compile Include="Builder/InputObject.fs" />
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
-    <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL" Version="2.4.0" />
     <PackageReference Include="GraphQL.Authorization" Version="2.0.27" />
-    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.2.0" />
-    <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.2.0" />
-    <PackageReference Include="GraphQL.Server.Ui.GraphiQL" Version="3.2.0" />
-    <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.2.0" />
-    <PackageReference Include="GraphQL.Server.Ui.Voyager" Version="3.2.0" />
+    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.GraphiQL" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.3.0" />
+    <PackageReference Include="GraphQL.Server.Ui.Voyager" Version="3.3.0" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
   </ItemGroup>
