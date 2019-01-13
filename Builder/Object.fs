@@ -9,7 +9,9 @@ type ObjectBuilder(?initial) =
 
     [<CustomOperation "fields">]
     member __.Fields (object, fields) =
-        set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
+        set (fun x ->
+            fields
+            |> List.iter (x.AddField >> ignore)) object
 
     [<CustomOperation "implement">]
     member __.Implement (object, ``interface``) =

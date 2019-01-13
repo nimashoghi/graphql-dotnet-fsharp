@@ -11,11 +11,16 @@ module Util =
         | Some value -> value
         | None -> []
 
-let inline setBasicProps name description deprecationReason (``type``: ^t) =
+let inline setNameDescription name description (``type``: ^t) =
     (^t : (member Name: string) ``type``) <- name
     Option.iter
         (fun description -> (^t : (member Description: string) ``type``) <- description)
         description
+    ``type``
+
+let inline setBasicProps name description deprecationReason (``type``: ^t) =
+    (^t : (member Name: string) ``type``) <- name
+    let ``type`` = setNameDescription name description ``type``
     Option.iter
         (fun deprecationReason -> (^t : (member DeprecationReason: string) ``type``) <- deprecationReason)
         deprecationReason

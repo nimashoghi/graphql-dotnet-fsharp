@@ -8,7 +8,10 @@ type InterfaceBuilder() =
     inherit BuilderMetadataBase<InterfaceGraphType>()
 
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) = set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
+    member __.Fields (object, fields) =
+        set (fun x ->
+            fields
+            |> List.iter (x.AddField >> ignore)) object
 
 // TODO: rename?
 let ``interface`` = InterfaceBuilder ()

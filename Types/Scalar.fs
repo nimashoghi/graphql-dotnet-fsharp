@@ -4,7 +4,7 @@ module GraphQL.FSharp.Types.Scalar
 open GraphQL.Types
 open GraphQL.Language.AST
 
-let createScalar
+let private createScalar
     (serialize: 'value -> obj)
     (parseValue: obj -> 'value)
     (parseLiteral: IValue -> 'value) =
@@ -17,12 +17,7 @@ let createScalar
 
 type Define with
     // TODO: Write tests
-    static member Scalar<'t when 't : null>
-        (name: string,
-         coerceInput: obj -> 't option,
-         coerceValue: IValue -> 't option,
-         ?description: string,
-         ?deprecationReason: string) =
+    static member Scalar (name, coerceInput, coerceValue, ?description, ?deprecationReason) =
         // TODO: Should this be `box`?
         let ``type`` =
             createScalar
