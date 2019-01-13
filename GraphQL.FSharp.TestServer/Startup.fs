@@ -18,7 +18,7 @@ module GQL =
             field {
                 name "myQuery"
                 // ``type`` typeof<IntGraphType>
-                resolve (fun ctx -> 1)
+                resolve (fun ctx -> [1;2;3;4;5])
             }
         ]
     }

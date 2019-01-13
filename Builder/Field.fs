@@ -89,7 +89,9 @@ type FieldBuilder<'source>() =
 
     [<CustomOperation "get">]
     member __.Get (field, [<ReflectedDefinition>] getter: Expr<'source -> 'property>) =
-        let resolver = ExpressionFieldResolver (LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %getter @>)
+        let resolver =
+            LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %getter @>
+            |> ExpressionFieldResolver
         set (fun x -> x.Resolver <- resolver) field
 
     [<CustomOperation "resolve">]
@@ -97,13 +99,18 @@ type FieldBuilder<'source>() =
         let resolver = FuncFieldResolver<_, _> (Func<_, _> resolver)
         set (fun x -> x.Resolver <- resolver) field
 
+    member __.Resolve (field, resolver: ResolveFieldContext<'source> -> _) =
+        let resolver = AsyncFieldResolver<_, _> (Func<_, _> resolver)
+        set (fun x -> x.Resolver <- resolver) field
+
     [<CustomOperation "subscribe">]
     member __.Subscribe (field, subscribe: ResolveEventStreamContext<'source> -> _) =
         let subscriber = EventStreamResolver<_, _> (Func<_, _> subscribe)
         set (fun x -> x.Subscriber <- subscriber) field
 
-    [<CustomOperation "subscribeAsync">]
-    member __.SubscribeAsync (field, subscribeAsync: ResolveEventStreamContext<'source> -> _) =
+    // TODO: Should there be subscribe and subscribeAsync?
+    // [<CustomOperation "subscribeAsync">]
+    member __.Subscribe (field, subscribeAsync: ResolveEventStreamContext<'source> -> _) =
         let asyncSubscriber = AsyncEventStreamResolver<_, _> (Func<_, _> subscribeAsync)
         set (fun x -> x.AsyncSubscriber <- asyncSubscriber) field
 
