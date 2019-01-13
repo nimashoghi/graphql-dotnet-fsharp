@@ -8,7 +8,7 @@
             "command": "dotnet build",
             "type": "shell",
             "options": {
-                "cwd": "${workspaceFolder}/GraphQL.FSharp.Test"
+                "cwd": "${workspaceFolder}/GraphQL.FSharp.TestServer"
             },
             "group": "build",
             "presentation": {
