@@ -18,6 +18,7 @@
     <Compile Include="Types/Union.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Argument.fs" />
+    <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Interface.fs" />
     <Compile Include="Builder/InputObject.fs" />

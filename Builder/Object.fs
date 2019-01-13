@@ -5,7 +5,7 @@ open GraphQL.Types
 let inline private set f (x: ObjectGraphType) = f x; x
 
 type ObjectBuilder(?initial) =
-    inherit BuilderBase<ObjectGraphType>(?initial = initial)
+    inherit BuilderMetadataBase<ObjectGraphType>(?initial = initial)
 
     [<CustomOperation "fields">]
     member __.Fields (object, fields) =
@@ -15,10 +15,10 @@ type ObjectBuilder(?initial) =
     member __.Implement (object, ``interface``) =
         set (fun x -> x.AddResolvedInterface ``interface``) object
 
-let object = ObjectBuilder()
+let object = ObjectBuilder ()
 
 let private objectWithName name =
-    let object = ObjectGraphType()
+    let object = ObjectGraphType ()
     object.Name <- name
     object
 

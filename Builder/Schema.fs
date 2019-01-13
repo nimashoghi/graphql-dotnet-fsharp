@@ -21,6 +21,9 @@ type SchemaBuilder() =
 
     [<CustomOperation "types">]
     member __.Types (schema, types: IGraphType list) =
-        set (fun schema -> types |> List.toArray |> schema.RegisterTypes) schema
+        set (fun schema ->
+            types
+            |> List.toArray
+            |> schema.RegisterTypes) schema
 
-let schema = SchemaBuilder()
+let schema = SchemaBuilder ()

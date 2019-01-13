@@ -62,6 +62,6 @@ type Define with
          cases: EnumValueDefinition list,
          ?description: string,
          ?deprecationReason: string) =
-        let ``type`` = EnumerationGraphType() |> setBasicProps name description deprecationReason
+        let ``type`` = EnumerationGraphType () |> setBasicProps name description deprecationReason
         for case in cases do ``type``.AddValue case
         ``type``
