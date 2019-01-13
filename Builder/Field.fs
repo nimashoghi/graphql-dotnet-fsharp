@@ -4,10 +4,10 @@ open System
 open GraphQL.Types
 open GraphQL.Resolvers
 
-let inline private set f (x: FieldType) = f x; x
+let inline private set f (x: EventStreamFieldType) = f x; x
 
 type FieldBuilder() =
-    inherit BuilderBase<FieldType>()
+    inherit BuilderBase<EventStreamFieldType>()
 
     [<CustomOperation "type">]
     member __.Type (field, ``type``) = set (fun x -> x.Type <- ``type``) field
@@ -23,5 +23,15 @@ type FieldBuilder() =
     member __.Resolve (field, resolver) =
         let resolver = FuncFieldResolver<_, _> (Func<_, _> resolver)
         set (fun x -> x.Resolver <- resolver) field
+
+    [<CustomOperation "subscribe">]
+    member __.Subscribe (field, subscribe) =
+        let subscriber = EventStreamResolver<_, _> (Func<_, _> subscribe)
+        set (fun x -> x.Subscriber <- subscriber) field
+
+    [<CustomOperation "subscribeAsync">]
+    member __.SubscribeAsync (field, subscribeAsync) =
+        let asyncSubscriber = AsyncEventStreamResolver<_, _> (Func<_, _> subscribeAsync)
+        set (fun x -> x.AsyncSubscriber <- asyncSubscriber) field
 
 let field = FieldBuilder()

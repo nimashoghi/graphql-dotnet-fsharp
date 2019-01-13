@@ -8,7 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
-    <Compile Include="Model.fs" />
+    <Compile Include="Operators.fs" />
     <Compile Include="Types/Define.fs" />
     <Compile Include="Types/Field.fs" />
     <Compile Include="Types/Scalar.fs" />
@@ -19,6 +19,8 @@
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
+    <Compile Include="Builder/Interface.fs" />
+    <Compile Include="Builder/InputObject.fs" />
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />

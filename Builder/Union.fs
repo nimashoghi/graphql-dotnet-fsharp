@@ -9,3 +9,5 @@ type UnionBuilder() =
 
     [<CustomOperation "cases">]
     member __.Cases (union, cases: IObjectGraphType list) = set (fun union -> union.PossibleTypes <- cases) union
+
+let union = UnionBuilder()

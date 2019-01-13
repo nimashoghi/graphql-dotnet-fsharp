@@ -4,28 +4,24 @@ open GraphQL.Types
 
 let inline private set f (x: ObjectGraphType) = f x; x
 
-// TODO: add DeprecationReason
-type ObjectBuilder() =
-    inherit BuilderBase<ObjectGraphType>()
+type ObjectBuilder(?initial) =
+    inherit BuilderBase<ObjectGraphType>(?initial = initial)
 
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) = set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
+    member __.Fields (object, fields) =
+        set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
 
     [<CustomOperation "implement">]
-    member __.Implement (object, ``interface``) = set (fun x -> x.AddResolvedInterface ``interface``) object
+    member __.Implement (object, ``interface``) =
+        set (fun x -> x.AddResolvedInterface ``interface``) object
 
-let inline private set f (x: InterfaceGraphType) = f x; x
+let object = ObjectBuilder()
 
-type InterfaceBuilder() =
-    inherit BuilderBase<InterfaceGraphType>()
+let private objectWithName name =
+    let object = ObjectGraphType()
+    object.Name <- name
+    object
 
-    [<CustomOperation "fields">]
-    member __.Fields (object, fields) = set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
-
-let inline private set f (x: InputObjectGraphType) = f x; x
-
-type InputObjectBuilder() =
-    inherit BuilderBase<InputObjectGraphType>()
-
-    [<CustomOperation "fields">]
-    member __.Fields (object, fields) = set (fun x -> fields |> List.iter (x.AddField >> ignore)) object
+let query = objectWithName "Query"
+let mutation = objectWithName "Mutation"
+let subscription = objectWithName "Subscription"

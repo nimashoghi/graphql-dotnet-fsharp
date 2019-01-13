@@ -1,4 +1,4 @@
-namespace GraphQL.FSharp
+module GraphQL.FSharp.Logging
 
 open System
 open System.Runtime.CompilerServices
