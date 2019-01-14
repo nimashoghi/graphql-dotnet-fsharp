@@ -34,12 +34,15 @@ let (|Enumerable|_|) (``type``: Type) =
     | _ -> None
 
 // TODO: Check nullable stuff
-let rec infer (``type``: Type) =
+let rec infer get (``type``: Type) =
     match ``type`` with
-    | Nullable underlyingType -> infer underlyingType
-    | Enumerable underlyingType -> ListGraphType (infer underlyingType) :> IGraphType
+    | Nullable underlyingType -> infer get underlyingType
+    | Enumerable underlyingType -> ListGraphType (infer get underlyingType) :> IGraphType
     // TODO: clean up
-    | underlyingType -> Option.toObj (TypeRegistry.get underlyingType)
+    | underlyingType -> Option.toObj (get underlyingType)
+
+let inferObject ``type`` = infer Object.get ``type``
+let inferInput ``type`` = infer InputObject.get ``type``
 
 let getReturnType (resolver: IFieldResolver) =
     resolver
@@ -61,6 +64,6 @@ let shouldInferField (field: TypedFieldType<'source>) = field.Type = null && fie
 let inferField (field: TypedFieldType<'source>) =
     match field.Resolver with
     | TypedResolver retn ->
-        field.ResolvedType <- infer retn
+        field.ResolvedType <- inferObject retn
         field
     | _ -> field

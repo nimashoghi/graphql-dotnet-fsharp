@@ -5,12 +5,6 @@ open GraphQL.Types
 
 let inline private set f (x: EnumerationGraphType) = f x; x
 
-let makeEnumValue name value =
-    let enumValue = EnumValueDefinition ()
-    enumValue.Name <- name
-    enumValue.Value <- box value
-    enumValue
-
 type EnumBuilder() =
     inherit BuilderMetadataBase<EnumerationGraphType>()
 
@@ -18,7 +12,6 @@ type EnumBuilder() =
     member __.Cases (enum, values: _ list) =
         set (fun enum ->
             values
-            |> List.map (fun (name, value) -> makeEnumValue name value)
-            |> List.iter enum.AddValue) enum
+            |> List.iter (fun (name, value) -> enum.AddValue (name, null, box value))) enum
 
 let enum = EnumBuilder ()

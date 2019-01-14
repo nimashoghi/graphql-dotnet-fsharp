@@ -2,15 +2,35 @@
 module GraphQL.FSharp.Util.TypeRegistry
 
 open System
-open GraphQL.Types
 open GraphQL.Utilities
+open GraphQL.Types
 
-let private registry = GraphTypeInstanceRegistry()
-
-let get ``type`` =
-    match registry.Get ``type`` with
+// TODO: Refactor this
+let private tryGet ``type`` =
+    match GraphTypeTypeRegistry.Get ``type`` with
     | null -> None
-    | ``type`` -> Some ``type``
+    | ``type`` -> Some (Activator.CreateInstance ``type`` :?> IGraphType)
 
-let register (sys, gql) =
-    registry.Register (sys, gql)
+module Object =
+    let private registry = GraphTypeInstanceRegistry ()
+
+    let get ``type`` =
+        match tryGet ``type``, registry.Get ``type`` with
+        | Some ``type``, _ -> Some ``type``
+        | _, null -> None
+        | _, ``type`` -> Some ``type``
+
+    let register (sys, gql) =
+        registry.Register (sys, gql)
+
+module InputObject =
+    let private registry = GraphTypeInstanceRegistry ()
+
+    let get ``type`` =
+        match tryGet ``type``, registry.Get ``type`` with
+        | Some ``type``, _ -> Some ``type``
+        | _, null -> None
+        | _, ``type`` -> Some ``type``
+
+    let register (sys, gql) =
+        registry.Register (sys, gql)

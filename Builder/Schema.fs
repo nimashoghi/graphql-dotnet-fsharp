@@ -9,15 +9,15 @@ type SchemaBuilder() =
     member __.Yield _ = new Schema()
 
     [<CustomOperation "query">]
-    member __.Query (schema, query: ObjectGraphType<unit>) =
+    member __.Query (schema, query: ObjectGraphType<obj>) =
         set (fun schema -> schema.Query <- query) schema
 
     [<CustomOperation "mutation">]
-    member __.Mutation (schema, mutation: ObjectGraphType<unit>) =
+    member __.Mutation (schema, mutation: ObjectGraphType<obj>) =
         set (fun schema -> schema.Mutation <- mutation) schema
 
     [<CustomOperation "subscription">]
-    member __.Subscription (schema, subscription: ObjectGraphType<unit>) =
+    member __.Subscription (schema, subscription: ObjectGraphType<obj>) =
         set (fun schema -> schema.Subscription <- subscription) schema
 
     [<CustomOperation "types">]
@@ -27,10 +27,4 @@ type SchemaBuilder() =
             |> List.toArray
             |> schema.RegisterTypes) schema
 
-    member __.Delay (f: unit -> _) = f
-
 let schema = SchemaBuilder ()
-
-let g = schema {
-    query null
-}

@@ -3,6 +3,7 @@ module GraphQL.FSharp.Builder.InputObject
 
 open GraphQL.Types
 
+open GraphQL.FSharp
 open GraphQL.FSharp.Util
 
 let inline private set f (x: InputObjectGraphType<_>) = f x; x

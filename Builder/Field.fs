@@ -22,19 +22,21 @@ let getFieldName expr =
         | _ -> None
     | _ -> None
 
-type FieldBuilder<'source>() =
+type FieldBuilder<'source>(?ofType) =
     inherit BuilderMetadataBase<TypedFieldType<'source>>()
 
     [<CustomOperation "ofType">]
     member __.Type (field: TypedFieldType<'source>, ``type``) =
         set (fun x -> x.Type <- ``type``) field
+    member __.Type (field: TypedFieldType<'source>, ``type``) =
+        set (fun x -> x.ResolvedType <- ``type``) field
 
     [<CustomOperation "defaultValue">]
     member __.DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
         set (fun x -> x.DefaultValue <- ``default``) field
 
-    [<CustomOperation "arguments">]
-    member __.Arguments (field: TypedFieldType<'source>, arguments: _ list) =
+    [<CustomOperation "args">]
+    member __.Args (field: TypedFieldType<'source>, arguments: _ list) =
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]
@@ -68,8 +70,11 @@ type FieldBuilder<'source>() =
         set (fun x -> x.AsyncSubscriber <- subscriber) field
 
     member __.Run (field: TypedFieldType<'source>) =
+        Option.iter (fun ofType -> field.ResolvedType <- ofType) ofType
+
         if shouldInferField field
         then inferField field
         else field
 
 let field<'source> = FieldBuilder<'source> ()
+let fieldOf ofType = FieldBuilder<obj> ofType

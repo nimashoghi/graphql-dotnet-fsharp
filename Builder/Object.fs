@@ -3,6 +3,7 @@ module GraphQL.FSharp.Builder.Object
 
 open GraphQL.Types
 
+open GraphQL.FSharp
 open GraphQL.FSharp.Util
 
 let inline private set f (x: ObjectGraphType<_>) = f x; x
@@ -18,17 +19,11 @@ type ObjectBuilder<'source>(?name) =
 
     [<CustomOperation "implement">]
     member __.Implement (object: ObjectGraphType<'source>, ``interface``) =
-        set (fun x -> x.AddResolvedInterface ``interface``) object
-
-    member __.Run (object: ObjectGraphType<'source>) =
-        match name with
-        | Some name ->
-            set (fun x -> x.Name <- name) object
-        | None when typeof<'source> <> typeof<unit> ->
-            set (fun x -> x.Name <- typeof<'source>.Name) object
-        | None -> object
+        set (fun x ->
+            ``interface``
+            |> List.iter x.AddResolvedInterface) object
 
 let object<'source> = ObjectBuilder<'source> ()
-let query = ObjectBuilder<unit> "Query"
-let mutation = ObjectBuilder<unit> "Mutation"
-let subscription = ObjectBuilder<unit> "Subscription"
+let query = ObjectBuilder<obj> "Query"
+let mutation = ObjectBuilder<obj> "Mutation"
+let subscription = ObjectBuilder<obj> "Subscription"

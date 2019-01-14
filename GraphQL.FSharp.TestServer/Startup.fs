@@ -15,17 +15,45 @@ open GraphQL.FSharp.Builder
 open System.Threading.Tasks
 
 module GQL =
+    [<CLIMutable>]
     type MyType = {
         name: string
     }
 
     let myType = object {
+        name "myTypeManual"
         fields [
             field {
                 get (fun x -> x.name)
             }
         ]
     }
+
+    let myInferredType = Auto.Object<MyType>
+    myInferredType.Name <- "inferredMyType"
+    let myInferredInputType = Auto.InputObject<MyType>
+    myInferredInputType.Name <- "myInferredInputType"
+
+    let myEnum = enum {
+        name "myEnum"
+        cases [
+            "MyFirstCase" => "MyFirstCase"
+        ]
+    }
+
+    type MySecondEnum =
+    | First
+    | Second
+
+    let mySecondEnum = Auto.Enum<MySecondEnum>
+
+    type IMyInterface =
+        abstract member Name: string
+
+    // type MyUnion =
+    // | FirstUnion of Name: string * Age: int
+
+    // let myAutoUnion = Auto.Union<MyUnion>
 
     let myQuery = query {
         fields [
@@ -35,27 +63,44 @@ module GQL =
             }
             field {
                 name "myQuery"
-                resolve (fun ctx -> argument<int>.Get "myArg" ctx :: [1; 2; 3; 4; 5])
-                arguments [
-                    argument<int>.New ("myArg", 1)
+                resolve (fun ctx -> arg<int>.Get "myArg" ctx :: [1; 2; 3; 4; 5])
+                args [
+                    arg<int>.New ("myArg", 1)
                 ]
             }
+            fieldOf myEnum {
+                name "myEnum"
+                resolve (fun _ -> "MyFirstCase")
+                ofType myEnum
+            }
+            fieldOf mySecondEnum {
+                name "mySecondEnum"
+                resolve (fun _ -> First)
+            }
+            field {
+                name "withInput"
+                args [
+                    arg<MyType>.New "myArg"
+                ]
+                resolve (fun ctx -> ctx.GetArgument<MyType> "myArg")
+            }
+            // field {
+            //     name "myAutoUnion"
+            //     resolve (fun _ -> FirstUnion ("sup", 12))
+            // }
         ]
     }
 
     let mySchema = schema {
         query myQuery
-        types [
-            myType
-        ]
     }
 
 type Startup() =
     member this.ConfigureServices(services: IServiceCollection) =
         services
+            .AddSingleton(GQL.mySchema)
             .AddGraphQL(fun options ->
                 options.ExposeExceptions <- true)
-            .AddFSharp GQL.mySchema
             |> ignore
         ()
 
