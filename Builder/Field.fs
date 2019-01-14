@@ -2,119 +2,72 @@
 module GraphQL.FSharp.Builder.Field
 
 open System
+open System.Threading.Tasks
 open FSharp.Quotations
+open FSharp.Quotations.Patterns
 open FSharp.Linq.RuntimeHelpers
 open GraphQL.Types
 open GraphQL.Subscription
 open GraphQL.Resolvers
 
-let inline private set f (x: EventStreamFieldType) = f x; x
+open GraphQL.FSharp.Util
 
-[<AutoOpen>]
-module private TypeInference =
-    open System.Collections.Generic
-    open GraphQL.Utilities
+let inline private set f (x: TypedFieldType<_>) = f x; x
 
-    let (|Nullable|_|) (``type``: Type) =
-        if ``type``.IsGenericType && ``type``.GetGenericTypeDefinition() = typedefof<Nullable<_>>
-        then Some``type``.GenericTypeArguments.[0]
-        else None
-
-    let (|ArrayType|_|) (``type``: Type) =
-        if ``type``.IsArray
-        then Some (``type``.GetElementType ())
-        else None
-
-    let (|EnumerableType|_|) (``type``: Type) =
-        ``type``
-            .GetInterfaces()
-            |> Array.tryFind (fun ``interface`` ->
-                ``interface``.IsGenericType &&
-                ``interface``.GetGenericTypeDefinition () = typedefof<IEnumerable<_>>)
-            |> Option.map (fun ``interface`` -> ``interface``.GenericTypeArguments.[0])
-
-    let (|Enumerable|_|) (``type``: Type) =
-        match ``type`` with
-        | ArrayType underlyingType
-        | EnumerableType underlyingType -> Some underlyingType
+let getFieldName expr =
+    match expr with
+    | Lambda (lambdaVar, expr) ->
+        match expr with
+        | PropertyGet (Some (Var soruceVar), prop, []) when soruceVar = lambdaVar -> Some prop.Name
         | _ -> None
-
-    // TODO: Check nullable stuff
-    let rec infer (``type``: Type) =
-        match ``type`` with
-        | Nullable underlyingType -> infer underlyingType
-        | Enumerable underlyingType -> ListGraphType (infer underlyingType) :> IGraphType
-        // TODO: clean up
-        | underlyingType -> GraphTypeInstanceRegistry().Get underlyingType
-
-    let getReturnType (resolver: IFieldResolver) =
-        resolver
-            .GetType()
-            .GetInterfaces()
-            |> Array.tryFind (fun ``interface`` ->
-                ``interface``.IsGenericType &&
-                ``interface``.GetGenericTypeDefinition() = typedefof<IFieldResolver<_>>)
-            |> Option.map (fun ``interface`` -> ``interface``.GenericTypeArguments.[0])
-
-    let (|TypedResolver|_|) resolver =
-        if resolver = null
-        then None
-        else getReturnType resolver
-
-    let shouldInferField (field: FieldType) = field.Type = null && field.ResolvedType = null
-
-    let inferField (field: FieldType) =
-        match field.Resolver with
-        | TypedResolver retn ->
-            field.ResolvedType <- infer retn
-            field
-        | _ -> field
+    | _ -> None
 
 type FieldBuilder<'source>() =
-    inherit BuilderMetadataBase<EventStreamFieldType>()
+    inherit BuilderMetadataBase<TypedFieldType<'source>>()
 
-    [<CustomOperation "type">]
-    member __.Type (field, ``type``) =
+    [<CustomOperation "ofType">]
+    member __.Type (field: TypedFieldType<'source>, ``type``) =
         set (fun x -> x.Type <- ``type``) field
-    member __.Type (field, ``type``) =
-        set (fun x -> x.ResolvedType <- ``type``) field
 
     [<CustomOperation "defaultValue">]
-    member __.DefaultValue (field, ``default``) =
+    member __.DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
         set (fun x -> x.DefaultValue <- ``default``) field
 
     [<CustomOperation "arguments">]
-    member __.Arguments (field, arguments: _ list) =
+    member __.Arguments (field: TypedFieldType<'source>, arguments: _ list) =
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]
-    member __.Get (field, [<ReflectedDefinition>] getter: Expr<'source -> 'property>) =
+    // Should i not set name here?
+    member __.Get (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field>) =
         let resolver =
             LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %getter @>
             |> ExpressionFieldResolver
-        set (fun x -> x.Resolver <- resolver) field
+        set (fun x ->
+            x.Name <- Option.get (getFieldName getter)
+            x.Resolver <- resolver) field
 
     [<CustomOperation "resolve">]
-    member __.Resolve (field, resolver: ResolveFieldContext<'source> -> _) =
+    member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
         let resolver = FuncFieldResolver<_, _> (Func<_, _> resolver)
         set (fun x -> x.Resolver <- resolver) field
 
-    member __.Resolve (field, resolver: ResolveFieldContext<'source> -> _) =
+    member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field Task) =
         let resolver = AsyncFieldResolver<_, _> (Func<_, _> resolver)
         set (fun x -> x.Resolver <- resolver) field
 
     [<CustomOperation "subscribe">]
-    member __.Subscribe (field, subscribe: ResolveEventStreamContext<'source> -> _) =
+    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable) =
         let subscriber = EventStreamResolver<_, _> (Func<_, _> subscribe)
         set (fun x -> x.Subscriber <- subscriber) field
 
     // TODO: Should there be subscribe and subscribeAsync?
     // [<CustomOperation "subscribeAsync">]
-    member __.Subscribe (field, subscribeAsync: ResolveEventStreamContext<'source> -> _) =
-        let asyncSubscriber = AsyncEventStreamResolver<_, _> (Func<_, _> subscribeAsync)
-        set (fun x -> x.AsyncSubscriber <- asyncSubscriber) field
+    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) =
+        let subscriber = AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
+        set (fun x -> x.AsyncSubscriber <- subscriber) field
 
-    member __.Run (field: FieldType) =
+    member __.Run (field: TypedFieldType<'source>) =
         if shouldInferField field
         then inferField field
         else field

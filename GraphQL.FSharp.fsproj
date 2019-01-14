@@ -4,16 +4,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
+    <Compile Include="Util/Types.fs" />
+    <Compile Include="Util/TypeRegistry.fs" />
+    <Compile Include="Util/Inference.fs" />
     <Compile Include="Operators.fs" />
-    <Compile Include="Types/Define.fs" />
-    <Compile Include="Types/Argument.fs" />
-    <Compile Include="Types/Field.fs" />
-    <Compile Include="Types/Scalar.fs" />
-    <Compile Include="Types/Enum.fs" />
-    <Compile Include="Types/Interface.fs" />
-    <Compile Include="Types/Object.fs" />
-    <Compile Include="Types/InputObject.fs" />
-    <Compile Include="Types/Union.fs" />
+    <Compile Include="Register.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Argument.fs" />

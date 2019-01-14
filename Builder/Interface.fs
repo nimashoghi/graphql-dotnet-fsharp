@@ -3,16 +3,18 @@ module GraphQL.FSharp.Builder.Interface
 
 open GraphQL.Types
 
-let inline private set f (x: InterfaceGraphType) = f x; x
+open GraphQL.FSharp.Util
 
-type InterfaceBuilder() =
-    inherit BuilderMetadataBase<InterfaceGraphType>()
+let inline private set f (x: InterfaceGraphType<_>) = f x; x
+
+type InterfaceBuilder<'source>() =
+    inherit BuilderMetadataBase<InterfaceGraphType<'source>>()
 
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) =
+    member __.Fields (object: InterfaceGraphType<'source>, fields: TypedFieldType<'source> list) =
         set (fun x ->
             fields
             |> List.iter (x.AddField >> ignore)) object
 
 // TODO: rename?
-let ``interface`` = InterfaceBuilder ()
+let ``interface``<'source> = InterfaceBuilder<'source> ()

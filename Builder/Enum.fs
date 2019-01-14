@@ -4,16 +4,6 @@ module GraphQL.FSharp.Builder.Enum
 open GraphQL.Types
 
 let inline private set f (x: EnumerationGraphType) = f x; x
-// let inline private set f (x: EnumValueDefinition) = f x; x
-
-// type EnumValueBuilder() =
-//     inherit BuilderDeprecationReasonBase<EnumValueDefinition>()
-
-//     [<CustomOperation "value">]
-//     member __.Value (enum, value) =
-//         set (fun enum -> enum.Value <- box value) enum
-
-// let enumValue = EnumValueBuilder ()
 
 let makeEnumValue name value =
     let enumValue = EnumValueDefinition ()

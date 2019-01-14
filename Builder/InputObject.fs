@@ -3,15 +3,17 @@ module GraphQL.FSharp.Builder.InputObject
 
 open GraphQL.Types
 
-let inline private set f (x: InputObjectGraphType) = f x; x
+open GraphQL.FSharp.Util
 
-type InputObjectBuilder() =
-    inherit BuilderMetadataBase<InputObjectGraphType>()
+let inline private set f (x: InputObjectGraphType<_>) = f x; x
+
+type InputObjectBuilder<'source>() =
+    inherit BuilderMetadataBase<InputObjectGraphType<'source>>()
 
     [<CustomOperation "fields">]
-    member __.Fields (object, fields) =
+    member __.Fields (object: InputObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
         set (fun x ->
             fields
             |> List.iter (x.AddField >> ignore)) object
 
-let input = InputObjectBuilder ()
+let input<'source> = InputObjectBuilder<'source> ()
