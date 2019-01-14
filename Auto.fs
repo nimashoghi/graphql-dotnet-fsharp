@@ -1,5 +1,6 @@
 module GraphQL.FSharp.Auto
 
+open System
 open FSharp.Reflection
 open GraphQL.Types
 open GraphQL.Resolvers
@@ -7,7 +8,15 @@ open GraphQL.Resolvers
 open GraphQL.FSharp
 open GraphQL.FSharp.Util
 
+// TODO: Add runtime checking for proper types
+// TODO: Add decorators for setting type descriptions
+
 // TODO: clean this up
+module Array =
+    let some array =
+        array
+        |> Array.filter Option.isSome
+        |> Array.map Option.get
 
 let isValidEnum<'enum> =
     FSharpType.IsUnion typeof<'enum> &&
@@ -19,7 +28,7 @@ let isValidEnum<'enum> =
 let isValidUnion<'union> =
     FSharpType.IsUnion typeof<'union>
 
-let isValidRecord<'record> = FSharpType.IsRecord typeof<'record>
+let isValidRecord<'object> = FSharpType.IsRecord typeof<'object>
 
 let Enum<'enum> =
     assert isValidEnum<'enum>
@@ -67,38 +76,61 @@ let Union<'union> =
 
     union
 
-let Object<'record> =
-    assert isValidRecord<'record>
+let private allProps<'object> () = [|
+    yield! typeof<'object>.GetProperties ()
+    for ``interface`` in typeof<'object>.GetInterfaces () do
+        yield! ``interface``.GetProperties ()
+|]
 
-    let object = ObjectGraphType<'record> ()
-    object.Name <- typeof<'record>.Name
-    FSharpType.GetRecordFields typeof<'record>
+// TODO: Refactor into a pipeline
+let private addFields infer (object: #ComplexGraphType<'object>) =
+    allProps<'object> ()
     |> Array.map (fun prop ->
         let field = FieldType ()
         field.Name <- prop.Name
-        field.Resolver <- FuncFieldResolver<'record, _> (fun ctx -> prop.GetValue ctx.Source)
-        field.ResolvedType <- inferObject prop.PropertyType
+        field.Resolver <- FuncFieldResolver<'object, _> (fun ctx -> prop.GetValue ctx.Source)
+        field.ResolvedType <- infer prop.PropertyType
         field)
     |> Array.iter (object.AddField >> ignore)
 
-    Object.register (typeof<'record> => object)
+let private addInterfaces (object: ObjectGraphType<'object>) =
+    typeof<'object>.GetInterfaces ()
+    |> Array.map (fun ``interface`` -> inferObject ``interface`` |> Option.ofObj)
+    |> Array.some
+    |> Array.filter (fun ``interface`` -> ``interface`` :? IInterfaceGraphType)
+    |> Array.map (fun ``interface`` -> ``interface`` :?> IInterfaceGraphType)
+    |> Array.iter (fun ``interface`` -> object.AddResolvedInterface ``interface``)
 
+    object.IsTypeOf <- fun x -> x :? 'object
+
+let Object<'object> =
+    assert (not typeof<'object>.IsInterface)
+
+    let object = ObjectGraphType<'object> ()
+    object.Name <- typeof<'object>.Name
+    addFields inferObject object
+    addInterfaces object
+    TypeRegistry.Object.register (typeof<'object> => object)
     object
 
-let InputObject<'record> =
-    assert isValidRecord<'record>
+let InputObject<'object> =
+    assert (not typeof<'object>.IsInterface)
 
-    let object = InputObjectGraphType<'record> ()
-    object.Name <- typeof<'record>.Name
-    FSharpType.GetRecordFields typeof<'record>
-    |> Array.map (fun prop ->
-        let field = FieldType ()
-        field.Name <- prop.Name
-        field.Resolver <- FuncFieldResolver<'record, _> (fun ctx -> prop.GetValue ctx.Source)
-        field.ResolvedType <- inferObject prop.PropertyType
-        field)
-    |> Array.iter (object.AddField >> ignore)
-
-    InputObject.register (typeof<'record> => object)
-
+    let object = InputObjectGraphType<'object> ()
+    object.Name <- typeof<'object>.Name
+    addFields inferInput object
+    TypeRegistry.InputObject.register (typeof<'object> => object)
     object
+
+let Interface<'object> =
+    assert typeof<'object>.IsInterface
+
+    let ``interface`` = InterfaceGraphType<'object> ()
+    ``interface``.Name <- typeof<'object>.Name
+    addFields inferObject ``interface``
+    TypeRegistry.Object.register (typeof<'object> => ``interface``)
+    ``interface``
+
+let List (input: #IGraphType) = ListGraphType input
+// TODO: Automatic explicit handling of nullable types using option
+let NonNull (input: #IGraphType) = NonNullGraphType input

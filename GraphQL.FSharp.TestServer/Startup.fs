@@ -15,6 +15,25 @@ open GraphQL.FSharp.Builder
 open System.Threading.Tasks
 
 module GQL =
+    type IMyInterface =
+        abstract member SomeName: string
+
+    type MyImplementation() =
+        member val SomeOtherName = ""
+
+        interface IMyInterface with
+            member val SomeName = ""
+
+    type MyImplementationNum2() =
+        member val SomeThirdName = ""
+
+        interface IMyInterface with
+            member val SomeName = ""
+
+    let myInterface = Auto.Interface<IMyInterface>
+    let myImplementation = Auto.Object<MyImplementation>
+    let myImplementationNum2 = Auto.Object<MyImplementationNum2>
+
     [<CLIMutable>]
     type MyType = {
         name: string
@@ -47,13 +66,11 @@ module GQL =
 
     let mySecondEnum = Auto.Enum<MySecondEnum>
 
-    type IMyInterface =
-        abstract member Name: string
+    type MyUnion =
+    | FirstUnion of Name: string * Age: int
+    | SecondUnion of Something: float * Id: System.Guid
 
-    // type MyUnion =
-    // | FirstUnion of Name: string * Age: int
-
-    // let myAutoUnion = Auto.Union<MyUnion>
+    let myAutoUnion = Auto.Union<MyUnion>
 
     let myQuery = query {
         fields [
@@ -84,10 +101,36 @@ module GQL =
                 ]
                 resolve (fun ctx -> ctx.GetArgument<MyType> "myArg")
             }
-            // field {
-            //     name "myAutoUnion"
-            //     resolve (fun _ -> FirstUnion ("sup", 12))
-            // }
+            field {
+                name "myAutoUnion"
+                resolve (fun _ -> FirstUnion ("sup", 12))
+            }
+            field {
+                name "myAutoUnionList"
+                resolve (fun _ -> [
+                    FirstUnion ("sup", 12)
+                    FirstUnion ("dfsjiosh", 122)
+                    SecondUnion (1.2, Guid.NewGuid())
+                    SecondUnion (1.5, Guid.NewGuid())
+                    SecondUnion (1.3, Guid.NewGuid())
+                ])
+            }
+            field {
+                name "myImpl"
+                resolve (fun _ -> MyImplementation())
+            }
+            field {
+                name "myImplList"
+                resolve (fun _ -> [
+                    MyImplementation() :> IMyInterface
+                    MyImplementationNum2() :> IMyInterface
+                    MyImplementation() :> IMyInterface
+                ])
+            }
+            field {
+                name "myInterface"
+                resolve (fun _ -> MyImplementation() :> IMyInterface)
+            }
         ]
     }
 
@@ -100,7 +143,9 @@ type Startup() =
         services
             .AddSingleton(GQL.mySchema)
             .AddGraphQL(fun options ->
-                options.ExposeExceptions <- true)
+                options.ExposeExceptions <- true
+                options.EnableMetrics <- true)
+            .AddDataLoader()
             |> ignore
         ()
 
@@ -109,6 +154,7 @@ type Startup() =
             app.UseDeveloperExceptionPage() |> ignore
 
         app.UseGraphQL<Schema> "/graphql" |> ignore
+        app.UseGraphQLWebSockets<Schema> "/graphql" |> ignore
         GraphQLPlaygroundOptions () |> app.UseGraphQLPlayground |> ignore
 
         app.Run(fun context -> context.Response.WriteAsync("Hello World!")) |> ignore

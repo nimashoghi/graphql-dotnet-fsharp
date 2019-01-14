@@ -12,6 +12,7 @@ let private tryGet ``type`` =
     | ``type`` -> Some (Activator.CreateInstance ``type`` :?> IGraphType)
 
 module Object =
+    let mutable typesToRegister: IGraphType list = []
     let private registry = GraphTypeInstanceRegistry ()
 
     let get ``type`` =
@@ -21,6 +22,7 @@ module Object =
         | _, ``type`` -> Some ``type``
 
     let register (sys, gql) =
+        typesToRegister <- gql :: typesToRegister
         registry.Register (sys, gql)
 
 module InputObject =

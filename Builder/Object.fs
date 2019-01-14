@@ -17,8 +17,8 @@ type ObjectBuilder<'source>(?name) =
             fields
             |> List.iter (x.AddField >> ignore)) object
 
-    [<CustomOperation "implement">]
-    member __.Implement (object: ObjectGraphType<'source>, ``interface``) =
+    [<CustomOperation "interfaces">]
+    member __.Interfaces (object: ObjectGraphType<'source>, ``interface``) =
         set (fun x ->
             ``interface``
             |> List.iter x.AddResolvedInterface) object

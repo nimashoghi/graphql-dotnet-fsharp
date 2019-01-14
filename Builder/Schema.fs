@@ -2,6 +2,7 @@
 module GraphQL.FSharp.Builder.Schema
 
 open GraphQL.Types
+open GraphQL.FSharp.Util
 
 let inline private set f (x: Schema) = f x; x
 
@@ -26,5 +27,13 @@ type SchemaBuilder() =
             types
             |> List.toArray
             |> schema.RegisterTypes) schema
+
+    member __.Run (schema: Schema) =
+        // TODO: Does this need to be cleaned up?
+        Object.typesToRegister
+        |> List.toArray
+        |> schema.RegisterTypes
+
+        schema
 
 let schema = SchemaBuilder ()
