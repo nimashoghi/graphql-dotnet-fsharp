@@ -19,6 +19,7 @@
     <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.3.0" />
     <PackageReference Include="GraphQL.Server.Ui.Voyager" Version="3.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Taskbuilder.fs" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -33,7 +33,7 @@ type ArgumentBuilder<'arg when 'arg : (new: unit -> 'arg)>(?``type``: IGraphType
         // TODO: Proper error message
         | _ -> failwith "Argument not found."
 
-    // TODO: Remove this
+    // TODO: Move this to Auto namespace
     member __.New (name, ?``default``) =
         let arg = QueryArgument (inferInput typeof<'arg>)
         arg.Name <- name

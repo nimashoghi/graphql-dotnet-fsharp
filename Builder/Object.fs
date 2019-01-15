@@ -23,6 +23,10 @@ type ObjectBuilder<'source>(?name) =
             ``interface``
             |> List.iter x.AddResolvedInterface) object
 
+    member __.Run (object: ObjectGraphType<'source>) =
+        Option.iter (fun name -> object.Name <- name) name
+        object
+
 let object<'source> = ObjectBuilder<'source> ()
 let query = ObjectBuilder<obj> "Query"
 let mutation = ObjectBuilder<obj> "Mutation"

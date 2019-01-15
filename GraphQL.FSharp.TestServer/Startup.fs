@@ -9,6 +9,7 @@ open Microsoft.Extensions.DependencyInjection
 open GraphQL
 open GraphQL.Types
 open GraphQL.Server
+open GraphQL.Server.Ui.GraphiQL
 open GraphQL.Server.Ui.Playground
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
@@ -134,8 +135,15 @@ module GQL =
         ]
     }
 
+    type MyMutation() as this =
+        inherit ObjectGraphType()
+
+        do
+            this.Field("setSomething", fun ctx -> "something")|>ignore
+
     let mySchema = schema {
         query myQuery
+        mutation (MyMutation())
     }
 
 type Startup() =
@@ -145,7 +153,7 @@ type Startup() =
             .AddGraphQL(fun options ->
                 options.ExposeExceptions <- true
                 options.EnableMetrics <- true)
-            .AddDataLoader()
+            .AddWebSockets()
             |> ignore
         ()
 
@@ -153,8 +161,11 @@ type Startup() =
         if env.IsDevelopment() then
             app.UseDeveloperExceptionPage() |> ignore
 
+        app.UseWebSockets() |> ignore
+
         app.UseGraphQL<Schema> "/graphql" |> ignore
         app.UseGraphQLWebSockets<Schema> "/graphql" |> ignore
         GraphQLPlaygroundOptions () |> app.UseGraphQLPlayground |> ignore
+        GraphiQLOptions () |> app.UseGraphiQLServer |> ignore
 
         app.Run(fun context -> context.Response.WriteAsync("Hello World!")) |> ignore

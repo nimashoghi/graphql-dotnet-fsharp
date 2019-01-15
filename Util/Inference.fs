@@ -6,6 +6,12 @@ open System.Collections.Generic
 open GraphQL.Resolvers
 open GraphQL.Types
 
+let (|Option|_|) (``type``: Type) =
+    if ``type``.IsGenericType &&
+        ``type``.GetGenericTypeDefinition () = typedefof<option<_>>
+    then Some ``type``.GenericTypeArguments.[0]
+    else None
+
 let (|Nullable|_|) (``type``: Type) =
     if ``type``.IsGenericType && ``type``.GetGenericTypeDefinition() = typedefof<Nullable<_>>
     then Some``type``.GenericTypeArguments.[0]
@@ -36,10 +42,29 @@ let (|Enumerable|_|) (``type``: Type) =
 // TODO: Check nullable stuff
 let rec infer get (``type``: Type) =
     match ``type`` with
-    | Nullable underlyingType -> infer get underlyingType
-    | Enumerable underlyingType -> ListGraphType (infer get underlyingType) :> IGraphType
+    | Nullable underlyingType
+    | Option underlyingType ->
+        infer get underlyingType
+        // TODO: Review this. Kind of hacky
+        // let resolved: IGraphType = infer checkNullable get underlyingType
+        // if not checkNullable then resolved else
+        // match resolved with
+        // // if the inner type was resolved to be a NonNullGraphType of something, then we can unwrap it
+        // | :? NonNullGraphType as graphType -> graphType.ResolvedType
+        // | _ -> resolved
+    | Enumerable underlyingType ->
+        infer get underlyingType
+        |> ListGraphType
+        :> IGraphType
     // TODO: clean up
-    | underlyingType -> Option.toObj (get underlyingType)
+    | underlyingType ->
+        // let graphType =
+            // if checkNullable then
+            //     get underlyingType
+            // else
+            //     get underlyingType
+            //     |> Option.map (fun graphType -> NonNullGraphType graphType :> IGraphType)
+        get underlyingType |> Option.toObj
 
 let inferObject ``type`` = infer Object.get ``type``
 let inferInput ``type`` = infer InputObject.get ``type``
@@ -67,3 +92,10 @@ let inferField (field: TypedFieldType<'source>) =
         field.ResolvedType <- inferObject retn
         field
     | _ -> field
+
+// TODO: Add proper validation using the result type
+let (|Result|_|) (``type``: Type) =
+    if ``type``.IsGenericType &&
+        ``type``.GetGenericTypeDefinition () = typedefof<Result<_, _>>
+    then Some (``type``.GenericTypeArguments.[0], ``type``.GenericTypeArguments.[1])
+    else None

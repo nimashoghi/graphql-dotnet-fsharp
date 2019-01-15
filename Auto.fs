@@ -12,6 +12,7 @@ open GraphQL.FSharp.Util
 // TODO: Add decorators for setting type descriptions
 
 // TODO: clean this up
+
 module Array =
     let some array =
         array
@@ -19,11 +20,12 @@ module Array =
         |> Array.map Option.get
 
 let isValidEnum<'enum> =
-    FSharpType.IsUnion typeof<'enum> &&
-    FSharpType.GetUnionCases typeof<'enum>
-    |> Array.forall (fun case ->
-        case.GetFields ()
-        |> Array.isEmpty)
+    typeof<'enum>.IsEnum ||
+    (FSharpType.IsUnion typeof<'enum> &&
+     FSharpType.GetUnionCases typeof<'enum>
+     |> Array.forall (fun case ->
+         case.GetFields ()
+         |> Array.isEmpty))
 
 let isValidUnion<'union> =
     FSharpType.IsUnion typeof<'union>
@@ -33,37 +35,35 @@ let isValidRecord<'object> = FSharpType.IsRecord typeof<'object>
 let Enum<'enum> =
     assert isValidEnum<'enum>
 
-    let enum = EnumerationGraphType ()
-    enum.Name <- typeof<'enum>.Name
-    FSharpType.GetUnionCases typeof<'enum>
-    |> Array.iter (fun case -> enum.AddValue(case.Name, null, FSharpValue.MakeUnion (case, [||])))
+    if typeof<'enum>.IsEnum then
+        EnumerationGraphType<'enum> () :> EnumerationGraphType
+    else
+        let enum = EnumerationGraphType ()
+        enum.Name <- typeof<'enum>.Name
+        FSharpType.GetUnionCases typeof<'enum>
+        |> Array.iter (fun case -> enum.AddValue(case.Name, null, FSharpValue.MakeUnion (case, [||])))
 
-    Object.register (typeof<'enum> => enum)
+        Object.register (typeof<'enum> => enum)
 
-    enum
+        enum
 
-let Union<'union> =
-    assert isValidUnion<'union>
-
-    let union = UnionGraphType ()
-    union.Name <- typeof<'union>.Name
+let addUnionFields<'union> (union: UnionGraphType) =
     FSharpType.GetUnionCases typeof<'union>
     |> Array.map (fun case ->
         let object = ObjectGraphType ()
         object.Name <- case.Name
 
-        case
-            .GetFields()
-            |> Array.indexed
-            |> Array.map (fun (i, prop) ->
-                let field = TypedFieldType<'union> ()
-                field.Name <- prop.Name
-                field.Resolver <- FuncFieldResolver<'union, _> (fun ctx ->
-                    let _, fields = FSharpValue.GetUnionFields(ctx.Source, typeof<'union>)
-                    fields.[i])
-                field.ResolvedType <- inferObject prop.PropertyType
-                field)
-            |> Array.iter (fun field -> (object.AddField >> ignore) field)
+        case.GetFields ()
+        |> Array.indexed
+        |> Array.map (fun (i, prop) ->
+            let field = TypedFieldType<'union> ()
+            field.Name <- prop.Name
+            field.Resolver <- FuncFieldResolver<'union, _> (fun ctx ->
+                let _, fields = FSharpValue.GetUnionFields(ctx.Source, typeof<'union>)
+                fields.[i])
+            field.ResolvedType <- inferObject prop.PropertyType
+            field)
+        |> Array.iter (fun field -> (object.AddField >> ignore) field)
 
         object.IsTypeOf <- (fun x ->
             if not (x :? 'union) then false else
@@ -72,6 +72,12 @@ let Union<'union> =
         object)
     |> Array.iter union.AddPossibleType
 
+let Union<'union> =
+    assert isValidUnion<'union>
+
+    let union = UnionGraphType ()
+    union.Name <- typeof<'union>.Name
+    addUnionFields<'union> union
     Object.register (typeof<'union> => union)
 
     union

@@ -29,5 +29,6 @@
     <PackageReference Include="GraphQL.Server.Ui.Voyager" Version="3.3.0" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
+    <PackageReference Include="Taskbuilder.fs" Version="2.1.0" />
   </ItemGroup>
 </Project>

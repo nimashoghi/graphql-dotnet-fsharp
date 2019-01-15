@@ -7,8 +7,6 @@ open GraphQL.FSharp.Util
 
 let inline private set f (x: InterfaceGraphType<_>) = f x; x
 
-// TODO: test out interface properly
-
 type InterfaceBuilder<'source>() =
     inherit BuilderMetadataBase<InterfaceGraphType<'source>>()
 
