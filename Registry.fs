@@ -1,5 +1,4 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Util.TypeRegistry
+module GraphQL.FSharp.Registry
 
 open System
 open GraphQL.Utilities

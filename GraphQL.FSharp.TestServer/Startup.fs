@@ -18,18 +18,22 @@ open System.Threading.Tasks
 module GQL =
     type IMyInterface =
         abstract member SomeName: string
+        abstract member GetSomeOtherName: name: string -> string
 
     type MyImplementation() =
         member val SomeOtherName = ""
+        member this.GetSomeThirdName name = sprintf "sup third %s" name
 
         interface IMyInterface with
             member val SomeName = ""
+            member this.GetSomeOtherName name = sprintf "sup %s" name
 
     type MyImplementationNum2() =
         member val SomeThirdName = ""
 
         interface IMyInterface with
             member val SomeName = ""
+            member this.GetSomeOtherName name = sprintf "hello %s" name
 
     let myInterface = Auto.Interface<IMyInterface>
     let myImplementation = Auto.Object<MyImplementation>
@@ -111,9 +115,9 @@ module GQL =
                 resolve (fun _ -> [
                     FirstUnion ("sup", 12)
                     FirstUnion ("dfsjiosh", 122)
-                    SecondUnion (1.2, Guid.NewGuid())
-                    SecondUnion (1.5, Guid.NewGuid())
-                    SecondUnion (1.3, Guid.NewGuid())
+                    SecondUnion (1.2, Guid.NewGuid ())
+                    SecondUnion (1.5, Guid.NewGuid ())
+                    SecondUnion (1.3, Guid.NewGuid ())
                 ])
             }
             field {

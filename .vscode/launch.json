@@ -15,11 +15,11 @@
             "console": "internalConsole",
             "stopAtEntry": false,
             "internalConsoleOptions": "openOnSessionStart",
-            "justMyCode": false,
-            "symbolOptions": {
-                "searchMicrosoftSymbolServer": true
-                // "searchPaths": ["https://symbols.nuget.org/download/symbols"]
-            },
+            "justMyCode": true,
+            // "symbolOptions": {
+            //     "searchMicrosoftSymbolServer": true
+            //     // "searchPaths": ["https://symbols.nuget.org/download/symbols"]
+            // },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             }

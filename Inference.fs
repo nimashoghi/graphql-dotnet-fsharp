@@ -1,5 +1,4 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Util.Inference
+module GraphQL.FSharp.Inference
 
 open System
 open System.Collections.Generic
@@ -45,26 +44,13 @@ let rec infer get (``type``: Type) =
     | Nullable underlyingType
     | Option underlyingType ->
         infer get underlyingType
-        // TODO: Review this. Kind of hacky
-        // let resolved: IGraphType = infer checkNullable get underlyingType
-        // if not checkNullable then resolved else
-        // match resolved with
-        // // if the inner type was resolved to be a NonNullGraphType of something, then we can unwrap it
-        // | :? NonNullGraphType as graphType -> graphType.ResolvedType
-        // | _ -> resolved
     | Enumerable underlyingType ->
         infer get underlyingType
         |> ListGraphType
         :> IGraphType
-    // TODO: clean up
     | underlyingType ->
-        // let graphType =
-            // if checkNullable then
-            //     get underlyingType
-            // else
-            //     get underlyingType
-            //     |> Option.map (fun graphType -> NonNullGraphType graphType :> IGraphType)
-        get underlyingType |> Option.toObj
+        get underlyingType
+        |> Option.toObj
 
 let inferObject ``type`` = infer Object.get ``type``
 let inferInput ``type`` = infer InputObject.get ``type``

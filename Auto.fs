@@ -1,6 +1,10 @@
 module GraphQL.FSharp.Auto
 
 open System
+open System.Collections.Generic
+open System.Reflection
+open System.Runtime.CompilerServices
+open System.Threading.Tasks
 open FSharp.Reflection
 open GraphQL.Types
 open GraphQL.Resolvers
@@ -27,9 +31,6 @@ let isValidEnum<'enum> =
          case.GetFields ()
          |> Array.isEmpty))
 
-let isValidUnion<'union> =
-    FSharpType.IsUnion typeof<'union>
-
 let isValidRecord<'object> = FSharpType.IsRecord typeof<'object>
 
 let Enum<'enum> =
@@ -47,40 +48,143 @@ let Enum<'enum> =
 
         enum
 
-let addUnionFields<'union> (union: UnionGraphType) =
-    FSharpType.GetUnionCases typeof<'union>
-    |> Array.map (fun case ->
-        let object = ObjectGraphType ()
-        object.Name <- case.Name
+let inline setFieldInfo (field: ^t) (attribute: FieldAttribute) =
+    if attribute.Name <> null then
+        (^t : (member set_Name: string -> unit) field, attribute.Name)
+    if attribute.Description <> null then
+        (^t : (member set_Description: string -> unit) field, attribute.Description)
+    if attribute.DefaultValue <> null then
+        (^t : (member set_DefaultValue: obj -> unit) field, attribute.DefaultValue)
+    if attribute.Type <> null then
+        (^t : (member set_Type: Type -> unit) field, attribute.Type)
+    if not <| List.isEmpty attribute.Metadata then
+        (^t : (member set_Metadata: IDictionary<string, obj> -> unit) field, dict attribute.Metadata)
 
-        case.GetFields ()
-        |> Array.indexed
-        |> Array.map (fun (i, prop) ->
-            let field = TypedFieldType<'union> ()
-            field.Name <- prop.Name
-            field.Resolver <- FuncFieldResolver<'union, _> (fun ctx ->
-                let _, fields = FSharpValue.GetUnionFields(ctx.Source, typeof<'union>)
-                fields.[i])
-            field.ResolvedType <- inferObject prop.PropertyType
-            field)
-        |> Array.iter (fun field -> (object.AddField >> ignore) field)
+let wrapNull (input: 't) =
+    box input
+    |> Option.ofObj
+    |> Option.map unbox<'t>
 
-        object.IsTypeOf <- (fun x ->
-            if not (x :? 'union) then false else
-            let case', _ = FSharpValue.GetUnionFields(x, typeof<'union>)
-            case.Tag = case'.Tag)
-        object)
-    |> Array.iter union.AddPossibleType
+let getFieldAttribute (method: MethodInfo) =
+    method.GetCustomAttribute<FieldAttribute> ()
+    |> wrapNull
 
-let Union<'union> =
-    assert isValidUnion<'union>
+let isTask (``type``: Type) =
+    ``type``.IsGenericType
+    && ``type``.GetGenericTypeDefinition () = typedefof<Task<_>>
 
-    let union = UnionGraphType ()
-    union.Name <- typeof<'union>.Name
-    addUnionFields<'union> union
-    Object.register (typeof<'union> => union)
+// TODO: What about obs?
+let (|SyncMethod|TaskMethod|) (method: MethodInfo) =
+    if isTask method.ReturnType
+    then TaskMethod method.ReturnType.GenericTypeArguments.[0]
+    else SyncMethod method.ReturnType
 
-    union
+let (||||) lhs rhs =
+    if box lhs <> null
+    then lhs
+    else rhs
+
+// TODO
+// pipeline this
+// create higher order inline method to decrease repetition
+let setParamInfo (param: QueryArgument) (attribute: ArgumentAttribute) =
+    if attribute.Name <> null then
+        param.Name <- attribute.Name
+    if attribute.Description <> null then
+        param.Description <- attribute.Description
+    if attribute.DefaultValue <> null then
+        param.DefaultValue <- attribute.DefaultValue
+
+// TODO: Use Strategy instead of ||||
+let makeArgument (info: ParameterInfo) =
+    let attribute =
+        info.GetCustomAttribute<ArgumentAttribute> ()
+        |||| ArgumentAttribute ()
+
+    let argument =
+        if attribute.Type <> null
+        then QueryArgument attribute.Type
+        else
+            inferObject info.ParameterType
+            |> QueryArgument
+
+    argument.Name <- info.Name
+    setParamInfo argument attribute
+
+    argument, info
+
+let makeFunctionField<'source> shouldResolve (method: MethodInfo) =
+    let field = EventStreamFieldType ()
+    field.Name <- method.Name
+
+    let arguments =
+        method.GetParameters ()
+        |> Array.map makeArgument
+
+    field.Arguments <-
+        arguments
+        |> Array.map fst
+        |> QueryArguments
+
+    let returnType =
+        match method with
+        | SyncMethod ``type``
+        | TaskMethod ``type`` -> ``type``
+
+    // TODO: Should sync/task be different?
+    if shouldResolve then
+        field.Resolver <- resolve (fun ctx ->
+            let resolvedArguments =
+                arguments
+                // TODO: Edge case: paramInfo.ParameterType <> the actual type
+                |> Array.map (fun (argument, paramInfo) ->
+                    ctx.GetArgument (
+                        paramInfo.ParameterType,
+                        argument.Name,
+                        argument.DefaultValue))
+            method.Invoke (ctx.Source, resolvedArguments))
+
+    field.ResolvedType <- inferObject returnType
+
+    getFieldAttribute method
+    |> Option.iter (setFieldInfo field)
+
+    field
+
+let funcFields (``type``: Type)  =
+    ``type``.GetMethods (
+        BindingFlags.DeclaredOnly
+        ||| BindingFlags.Instance
+        ||| BindingFlags.Public
+        ||| BindingFlags.InvokeMethod
+        ||| BindingFlags.FlattenHierarchy)
+    |> Array.filter (fun method ->
+        not method.IsSpecialName
+        && method.GetCustomAttribute<CompilerGeneratedAttribute> () = null)
+    // remove get_ and set_ methods
+let private allFuncFields<'object> =
+    if FSharpType.IsRecord typeof<'object> then [||] else
+    [|
+        yield! funcFields typeof<'object>
+        for ``interface`` in typeof<'object>.GetInterfaces () do
+            yield! funcFields ``interface``
+    |]
+
+let addFunctionFields resolve (source: #ComplexGraphType<'source>) =
+    allFuncFields<'source>
+    |> Array.map (makeFunctionField<'source> resolve)
+    |> Array.iter (source.AddField >> ignore)
+
+// TODO: Add func properties in records
+// let allFuncProperties<'source> =
+//     typeof<'source>.GetProperties ()
+//     |> Array.filter (fun prop -> FSharpType.IsFunction prop.PropertyType)
+
+// let addFunctionFieldsFromProperties (source: #ComplexGraphType<'source>) =
+//     allFuncProperties<'source>
+//     |> Array.map (fun prop ->
+//         let field = EventStreamFieldType ()
+//         field.Resolver)
 
 let private allProps<'object> () = [|
     yield! typeof<'object>.GetProperties ()
@@ -88,19 +192,59 @@ let private allProps<'object> () = [|
         yield! ``interface``.GetProperties ()
 |]
 
+let createField<'object> infer (prop: PropertyInfo, attribute: FieldAttribute) =
+    let field = EventStreamFieldType ()
+    field.Name <- prop.Name
+    setFieldInfo field attribute
+    field.Resolver <- resolve (fun ctx -> prop.GetValue ctx.Source)
+    // TODO: Use attribute.Type
+    field.ResolvedType <- infer prop.PropertyType
+    field
+
+// TODO: Should field prop be necessary?
+let getPropInfo (prop: PropertyInfo) =
+    let attribute =
+        prop.GetCustomAttributes ()
+        |> Seq.tryFind (fun attribute -> attribute :? FieldAttribute)
+        |> Option.map (fun attribute -> attribute :?> FieldAttribute)
+        |> Option.orElse (Some (FieldAttribute ()))
+        |> Option.get
+    prop, attribute
+
 // TODO: Refactor into a pipeline
 let private addFields infer (object: #ComplexGraphType<'object>) =
     allProps<'object> ()
-    |> Array.map (fun prop ->
-        let field = FieldType ()
-        field.Name <- prop.Name
-        field.Resolver <- FuncFieldResolver<'object, _> (fun ctx -> prop.GetValue ctx.Source)
-        field.ResolvedType <- infer prop.PropertyType
-        field)
+    |> Array.map getPropInfo
+    |> Array.map (createField<'object> infer)
     |> Array.iter (object.AddField >> ignore)
 
+let abstractClasses<'object> =
+    let rec run (``type``: Type) = [|
+        let baseType = ``type``.BaseType
+        if baseType <> null && baseType <> typeof<obj> && baseType.IsAbstract then
+            yield baseType
+            yield! run baseType
+    |]
+    run typeof<'object>
+
+type IA = interface end
+[<AbstractClass>]
+type Base() = interface IA
+[<AbstractClass>]
+type BaseTwo() = inherit Base()
+[<AbstractClass>]
+type BaseThree() = inherit BaseTwo()
+type Last() = inherit BaseThree()
+
+assert (abstractClasses<Last> = [|typeof<BaseThree>; typeof<BaseTwo>; typeof<Base>|])
+
+let private interfaces<'object> = [|
+    yield! typeof<'object>.GetInterfaces ()
+    yield! abstractClasses<'object>
+|]
+
 let private addInterfaces (object: ObjectGraphType<'object>) =
-    typeof<'object>.GetInterfaces ()
+    interfaces<'object>
     |> Array.map (fun ``interface`` -> inferObject ``interface`` |> Option.ofObj)
     |> Array.some
     |> Array.filter (fun ``interface`` -> ``interface`` :? IInterfaceGraphType)
@@ -109,12 +253,23 @@ let private addInterfaces (object: ObjectGraphType<'object>) =
 
     object.IsTypeOf <- fun x -> x :? 'object
 
+let inline setTypeInfo (object: ^t) (attribute: TypeAttribute) =
+    if attribute.Name <> null then
+        (^t : (member set_Name: string -> unit) object, attribute.Name)
+    if attribute.Description <> null then
+        (^t : (member set_Description: string -> unit) object, attribute.Description)
+    if attribute.DeprecationReason <> null then
+        (^t : (member set_DeprecationReason: string -> unit) object, attribute.DeprecationReason)
+    if not <| List.isEmpty attribute.Metadata then
+        (^t : (member set_Metadata: IDictionary<string, obj> -> unit) object, dict attribute.Metadata)
+
 let Object<'object> =
     assert (not typeof<'object>.IsInterface)
 
     let object = ObjectGraphType<'object> ()
     object.Name <- typeof<'object>.Name
     addFields inferObject object
+    addFunctionFields true object
     addInterfaces object
     TypeRegistry.Object.register (typeof<'object> => object)
     object
@@ -129,11 +284,12 @@ let InputObject<'object> =
     object
 
 let Interface<'object> =
-    assert typeof<'object>.IsInterface
+    assert (typeof<'object>.IsInterface || typeof<'object>.IsAbstract)
 
     let ``interface`` = InterfaceGraphType<'object> ()
     ``interface``.Name <- typeof<'object>.Name
     addFields inferObject ``interface``
+    addFunctionFields false ``interface``
     TypeRegistry.Object.register (typeof<'object> => ``interface``)
     ``interface``
 

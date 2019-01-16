@@ -1,5 +1,4 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Util.Types
+module GraphQL.FSharp.Types
 
 open GraphQL.Types
 
