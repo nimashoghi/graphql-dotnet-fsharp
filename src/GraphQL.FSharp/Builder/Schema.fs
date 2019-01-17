@@ -1,9 +1,8 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Schema
 
-open GraphQL.Instrumentation
 open GraphQL.Types
-open GraphQL.FSharp.Util
+open GraphQL.FSharp.Registry
 
 let inline private set f (x: Schema) = f x; x
 

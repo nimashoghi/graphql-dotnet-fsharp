@@ -4,10 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
+    <Compile Include="Utils.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Registry.fs" />
     <Compile Include="Inference.fs" />
-    <Compile Include="Operators.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Argument.fs" />
@@ -18,7 +18,13 @@
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Auto/Base.fs" />
+    <Compile Include="Auto/Enum.fs" />
     <Compile Include="Auto/Union.fs" />
+    <Compile Include="Auto/Interface.fs" />
+    <Compile Include="Auto/Object.fs" />
+    <Compile Include="Auto/InputObject.fs" />
+    <Compile Include="Auto.fs" />
+    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL" Version="2.4.0" />

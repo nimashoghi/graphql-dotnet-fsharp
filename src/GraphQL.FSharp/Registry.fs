@@ -6,9 +6,9 @@ open GraphQL.Types
 
 // TODO: Refactor this
 let private tryGet ``type`` =
-    match GraphTypeTypeRegistry.Get ``type`` with
-    | null -> None
-    | ``type`` -> Some (Activator.CreateInstance ``type`` :?> IGraphType)
+    GraphTypeTypeRegistry.Get ``type``
+    |> Option.ofObj
+    |> Option.map (fun ``type`` -> Activator.CreateInstance ``type`` :?> IGraphType)
 
 module Object =
     let mutable typesToRegister: IGraphType list = []
@@ -34,4 +34,5 @@ module InputObject =
         | _, ``type`` -> Some ``type``
 
     let register (sys, gql) =
+        Object.typesToRegister <- gql :: Object.typesToRegister
         registry.Register (sys, gql)

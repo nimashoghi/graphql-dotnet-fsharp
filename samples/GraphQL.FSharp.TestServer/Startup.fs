@@ -44,6 +44,9 @@ module GQL =
         name: string
     }
 
+    let myInferredType = Auto.Object<MyType>
+    myInferredType.Name <- "inferredMyType"
+
     let myType = object {
         name "myTypeManual"
         fields [
@@ -53,15 +56,13 @@ module GQL =
         ]
     }
 
-    let myInferredType = Auto.Object<MyType>
-    myInferredType.Name <- "inferredMyType"
     let myInferredInputType = Auto.InputObject<MyType>
     myInferredInputType.Name <- "myInferredInputType"
 
     let myEnum = enum {
         name "myEnum"
         cases [
-            "MyFirstCase" => "MyFirstCase"
+            "MyFirstCase", "MyFirstCase"
         ]
     }
 
@@ -143,7 +144,7 @@ module GQL =
         inherit ObjectGraphType()
 
         do
-            this.Field("setSomething", fun ctx -> "something")|>ignore
+            this.Field("setSomething", fun ctx -> "something") |> ignore
 
     let mySchema = schema {
         query myQuery

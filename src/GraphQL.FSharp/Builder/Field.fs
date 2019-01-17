@@ -10,7 +10,8 @@ open GraphQL.Types
 open GraphQL.Subscription
 open GraphQL.Resolvers
 
-open GraphQL.FSharp.Util
+open GraphQL.FSharp.Types
+open GraphQL.FSharp.Inference
 
 let inline private set f (x: TypedFieldType<_>) = f x; x
 

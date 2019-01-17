@@ -5,6 +5,9 @@ open System.Collections.Generic
 open GraphQL.Resolvers
 open GraphQL.Types
 
+open GraphQL.FSharp.Registry
+open GraphQL.FSharp.Types
+
 let (|Option|_|) (``type``: Type) =
     if ``type``.IsGenericType &&
         ``type``.GetGenericTypeDefinition () = typedefof<option<_>>

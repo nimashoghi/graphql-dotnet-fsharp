@@ -4,7 +4,7 @@ module GraphQL.FSharp.Builder.Object
 open GraphQL.Types
 
 open GraphQL.FSharp
-open GraphQL.FSharp.Util
+open GraphQL.FSharp.Types
 
 let inline private set f (x: ObjectGraphType<_>) = f x; x
 

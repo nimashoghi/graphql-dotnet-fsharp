@@ -4,7 +4,7 @@ module rec GraphQL.FSharp.Builder.Argument
 open System.Collections.Generic
 open GraphQL.Types
 
-open GraphQL.FSharp.Util.Inference
+open GraphQL.FSharp.Inference
 
 let inline private set f (x: QueryArgument) = f x; x
 

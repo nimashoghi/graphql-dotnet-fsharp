@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/GraphQL.FSharp.TestServer/bin/Debug/netcoreapp2.2/GraphQL.FSharp.TestServer.dll",
+            "program": "${workspaceFolder}/samples/GraphQL.FSharp.TestServer/bin/Debug/netcoreapp2.2/GraphQL.FSharp.TestServer.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",

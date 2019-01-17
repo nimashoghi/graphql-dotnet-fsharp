@@ -3,7 +3,7 @@ module GraphQL.FSharp.Builder.Interface
 
 open GraphQL.Types
 
-open GraphQL.FSharp.Util
+open GraphQL.FSharp.Types
 
 let inline private set f (x: InterfaceGraphType<_>) = f x; x
 
