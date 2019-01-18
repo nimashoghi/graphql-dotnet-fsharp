@@ -1,7 +1,15 @@
 language: csharp
-mono: none
-dotnet: 2.1.502
 solution: graphql-dotnet-fsharp.sln
+mono: none
+dotnet: 2.2
+sudo: required
+dist: xenial
+script:
+    - dotnet restore
+    - dotnet build
+    - dotnet test
 script:
     - dotnet restore
     - dotnet test
+global:
+    - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
