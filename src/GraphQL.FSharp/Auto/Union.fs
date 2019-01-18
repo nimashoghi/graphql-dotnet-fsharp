@@ -1,8 +1,9 @@
-module GraphQL.FSharp.AutoImplementation.Union
+module GraphQL.FSharp.AutoUnion
 
 open FSharp.Reflection
 open GraphQL.Types
 
+open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils

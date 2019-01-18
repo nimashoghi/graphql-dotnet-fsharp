@@ -1,7 +1,8 @@
-module GraphQL.FSharp.AutoImplementation.InputObject
+module GraphQL.FSharp.AutoInputObject
 
 open GraphQL.Types
 
+open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 

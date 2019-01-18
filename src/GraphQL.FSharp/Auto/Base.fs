@@ -1,5 +1,4 @@
-[<AutoOpen>]
-module GraphQL.FSharp.AutoImplementation.Base
+module GraphQL.FSharp.AutoBase
 
 open System
 open System.Collections.Generic

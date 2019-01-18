@@ -1,7 +1,7 @@
 module GraphQL.FSharp.Auto
 
-let Enum<'t> = AutoImplementation.Enum.Enum<'t>
-let Union<'t> = AutoImplementation.Union.Union<'t>
-let Interface<'t> = AutoImplementation.Interface.Interface<'t>
-let Object<'t when 't: (new: unit -> 't)> = AutoImplementation.Object.Object<'t>
-let InputObject<'t when 't: (new: unit -> 't)> = AutoImplementation.InputObject.InputObject<'t>
+let Enum<'t> = AutoEnum.Enum<'t>
+let Union<'t> = AutoUnion.Union<'t>
+let Interface<'t> = AutoInterface.Interface<'t>
+let Object<'t when 't: (new: unit -> 't)> = AutoObject.Object<'t>
+let InputObject<'t when 't: (new: unit -> 't)> = AutoInputObject.InputObject<'t>

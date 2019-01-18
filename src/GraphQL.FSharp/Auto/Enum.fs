@@ -1,9 +1,10 @@
-module GraphQL.FSharp.AutoImplementation.Enum
+module GraphQL.FSharp.AutoEnum
 
 open System
 open FSharp.Reflection
 open GraphQL.Types
 
+open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Registry
 

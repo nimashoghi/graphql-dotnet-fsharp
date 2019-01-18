@@ -1,7 +1,8 @@
-module GraphQL.FSharp.AutoImplementation.Interface
+module GraphQL.FSharp.AutoInterface
 
 open GraphQL.Types
 
+open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 
