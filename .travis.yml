@@ -8,8 +8,5 @@ script:
     - dotnet restore
     - dotnet build
     - dotnet test
-script:
-    - dotnet restore
-    - dotnet test
 global:
     - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
