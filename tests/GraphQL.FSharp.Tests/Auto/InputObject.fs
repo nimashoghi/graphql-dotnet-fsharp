@@ -1,4 +1,4 @@
-module GraphQL.FSharp.Tests.Auto.Object
+module GraphQL.FSharp.Tests.Auto.InputObject
 
 open NUnit.Framework
 open GraphQL.Types
@@ -9,8 +9,8 @@ open GraphQL.FSharp.Tests.Assert
 type EmptyObject() = class end
 
 [<Test>]
-let ``Auto Object empty class`` () =
-    Auto.Object<EmptyObject>
+let ``Auto InputObject empty class`` () =
+    Auto.InputObject<EmptyObject>
     |> objectEqual "EmptyObject" []
 
 [<CLIMutable>]
@@ -20,8 +20,8 @@ type UserWithProps = {
 }
 
 [<Test>]
-let ``Auto Object record with properties`` () =
-    Auto.Object<UserWithProps>
+let ``Auto InputObject record with properties`` () =
+    Auto.InputObject<UserWithProps>
     |> objectEqual "UserWithProps" [
         "Name", upcast StringGraphType ()
         "Count", upcast IntGraphType ()
@@ -37,8 +37,8 @@ type UserWithPropsAndMethods =
     member this.MyMethod () = this.Name
 
 [<Test>]
-let ``Auto Object record with properties and methods`` () =
-    Auto.Object<UserWithPropsAndMethods>
+let ``Auto InputObject record with properties and methods`` () =
+    Auto.InputObject<UserWithPropsAndMethods>
     |> objectEqual "UserWithPropsAndMethods" [
         "Name", upcast StringGraphType ()
         "Count", upcast IntGraphType ()
@@ -59,15 +59,10 @@ type UserWithInterface =
         member this.GetAbstract () = this.Count
 
 [<Test>]
-let ``Auto Object record implementing an interface`` () =
-    Auto.Object<UserWithInterface>
+let ``Auto InputObject record implementing an interface`` () =
+    Auto.InputObject<UserWithInterface>
     |> objectEqual "UserWithInterface" [
         "Name", upcast StringGraphType ()
         "Count", upcast IntGraphType ()
         "GetAbstract", upcast IntGraphType ()
     ]
-
-// TODO: add functionality for detecting (and tests for) for non-object types
-// type NonObjectType =
-// | First
-// | Second

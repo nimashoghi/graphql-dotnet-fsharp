@@ -3,8 +3,9 @@ module GraphQL.FSharp.Tests.Auto.Enum
 open System
 open NUnit.Framework
 open Swensen.Unquote
-
 open GraphQL.FSharp
+
+open GraphQL.FSharp.Tests.Assert
 
 type ValidEnum =
 | First
@@ -12,15 +13,11 @@ type ValidEnum =
 
 [<Test>]
 let ``Auto Enum valid enum`` () =
-    let enum = Auto.Enum<ValidEnum>
-    let values = Seq.toArray enum.Values
-
-    Array.length values =! 2
-
-    values.[0].Name =! "First"
-    values.[0].Value =! box First
-    values.[1].Name =! "Second"
-    values.[1].Value =! box Second
+    Auto.Enum<ValidEnum>
+    |> enumEqual "ValidEnum" [
+        "First", box First
+        "Second", box Second
+    ]
 
 type ValidClassicalEnum =
 | First = 0
@@ -28,15 +25,11 @@ type ValidClassicalEnum =
 
 [<Test>]
 let ``Auto Enum valid classical enum`` () =
-    let enum = Auto.Enum<ValidClassicalEnum>
-    let values = Seq.toArray enum.Values
-
-    Array.length values =! 2
-
-    values.[0].Name =! "First"
-    values.[0].Value =! box ValidClassicalEnum.First
-    values.[1].Name =! "Second"
-    values.[1].Value =! box ValidClassicalEnum.Second
+    Auto.Enum<ValidClassicalEnum>
+    |> enumEqual "ValidClassicalEnum" [
+        "First", box ValidClassicalEnum.First
+        "Second", box ValidClassicalEnum.Second
+    ]
 
 type NonEnum = {
     Name: string

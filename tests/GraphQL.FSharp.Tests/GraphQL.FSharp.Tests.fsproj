@@ -1,29 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
-
-    <IsPackable>false</IsPackable>
   </PropertyGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Utils.fs" />
+    <Compile Include="Assert.fs" />
+    <Compile Include="Runner.fs" />
+    <Compile Include="Define/Argument.fs" />
+    <Compile Include="Auto/Enum.fs" />
+    <Compile Include="Auto/Interface.fs" />
+    <Compile Include="Auto/Object.fs" />
+    <Compile Include="Auto/InputObject.fs" />
+    <Compile Include="Auto/Union.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="nunit" Version="3.11.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.11.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
     <PackageReference Include="Unquote" Version="4.0.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="Utils.fs" />
-    <Compile Include="Define/Argument.fs" />
-    <Compile Include="Auto/Enum.fs" />
-    <Compile Include="Auto/Object.fs" />
-    <Compile Include="Auto/Union.fs" />
-    <Compile Include="Program.fs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
-  </ItemGroup>
-
 </Project>

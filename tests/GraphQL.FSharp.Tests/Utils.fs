@@ -36,3 +36,10 @@ module List =
         [None; Some 1]
         |> List.some
         =! [1]
+
+module Array =
+    [<Test>]
+    let ``some`` () =
+        [|None; Some 1|]
+        |> Array.some
+        =! [|1|]
