@@ -67,6 +67,23 @@ let ``Auto Object record implementing an interface`` () =
         "GetAbstract", upcast IntGraphType ()
     ]
 
+type RegularClassWithMethodsAndProps() =
+    member __.Name = "Hello"
+    member __.Count = 1
+
+    member this.GetName () = this.Name
+    member this.GetCount () = this.Count
+
+[<Test>]
+let ``Auto Object regular class with methods and props`` () =
+    Auto.Object<RegularClassWithMethodsAndProps>
+    |> objectEqual "RegularClassWithMethodsAndProps" [
+        "Name", upcast StringGraphType ()
+        "Count", upcast IntGraphType ()
+        "GetName", upcast StringGraphType ()
+        "GetCount", upcast IntGraphType ()
+    ]
+
 // TODO: add functionality for detecting (and tests for) for non-object types
 // type NonObjectType =
 // | First

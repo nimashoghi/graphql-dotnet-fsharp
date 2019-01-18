@@ -66,3 +66,20 @@ let ``Auto InputObject record implementing an interface`` () =
         "Count", upcast IntGraphType ()
         "GetAbstract", upcast IntGraphType ()
     ]
+
+type RegularClassWithMethodsAndProps() =
+    member __.Name = "Hello"
+    member __.Count = 1
+
+    member this.GetName () = this.Name
+    member this.GetCount () = this.Count
+
+[<Test>]
+let ``Auto Object regular class with methods and props`` () =
+    Auto.InputObject<RegularClassWithMethodsAndProps>
+    |> objectEqual "RegularClassWithMethodsAndProps" [
+        "Name", upcast StringGraphType ()
+        "Count", upcast IntGraphType ()
+        "GetName", upcast StringGraphType ()
+        "GetCount", upcast IntGraphType ()
+    ]
