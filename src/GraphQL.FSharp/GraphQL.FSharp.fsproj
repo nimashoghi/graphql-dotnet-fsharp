@@ -8,6 +8,8 @@
     <Compile Include="Types.fs" />
     <Compile Include="Registry.fs" />
     <Compile Include="Inference.fs" />
+    <Compile Include="Define.fs" />
+    <Compile Include="Define/Argument.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Argument.fs" />

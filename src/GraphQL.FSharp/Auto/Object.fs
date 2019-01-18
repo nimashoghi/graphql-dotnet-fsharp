@@ -32,13 +32,14 @@ let private addInterfaces (object: ObjectGraphType<'object>) =
     object.IsTypeOf <- fun x -> x :? 'object
 
 let Object<'object> =
-    assert not typeof<'object>.IsInterface
+    if typeof<'object>.IsInterface || typeof<'object>.IsAbstract
+    then invalidArg "object" "type parameter cannot be abstract"
 
     let object = ObjectGraphType<'object> ()
     setInfo typeof<'object> object
 
     addProperties inferObject object
-    addMethodsComplex inferObject object
+    addMethods<'object> inferObject object
 
     getTypeAttribute<TypeAttribute> typeof<'object>
     |> Option.iter (updateType object >> ignore)

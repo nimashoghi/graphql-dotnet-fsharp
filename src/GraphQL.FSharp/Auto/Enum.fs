@@ -4,6 +4,7 @@ open System
 open FSharp.Reflection
 open GraphQL.Types
 
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Registry
 
 let private isValidEnum<'enum> =
@@ -35,11 +36,11 @@ let private unionEnum<'enum> () =
     enum
 
 let Enum<'enum> =
-    assert isValidEnum<'enum>
+    if not isValidEnum<'enum> then invalidArg "enum" "type parameter must be an enum"
 
     let graphType =
         match typeof<'enum> with
-        | Enum -> EnumerationGraphType<'enum> () :> EnumerationGraphType
+        | Enum -> EnumerationGraphTypeEx<'enum> () :> EnumerationGraphType
         | Union -> unionEnum<'enum> ()
 
     Object.register (typeof<'enum>, graphType)

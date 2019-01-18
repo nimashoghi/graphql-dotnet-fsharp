@@ -86,9 +86,9 @@ module GQL =
             }
             field {
                 name "myQuery"
-                resolve (fun ctx -> arg<int>.Get "myArg" ctx :: [1; 2; 3; 4; 5])
+                resolve (fun ctx -> ctx.GetArgument<int> "myArg" :: [1; 2; 3; 4; 5])
                 args [
-                    arg<int>.New ("myArg", 1)
+                    Define.Argument<int> ("myArg", 1)
                 ]
             }
             fieldOf myEnum {
@@ -103,7 +103,7 @@ module GQL =
             field {
                 name "withInput"
                 args [
-                    arg<MyType>.New "myArg"
+                    Define.Argument<MyType> "myArg"
                 ]
                 resolve (fun ctx -> ctx.GetArgument<MyType> "myArg")
             }

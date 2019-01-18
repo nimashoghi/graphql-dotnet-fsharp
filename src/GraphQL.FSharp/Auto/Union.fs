@@ -7,6 +7,9 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils
 
+// TODO: Single case discriminated unions
+// e.g. type Email = Email of string
+
 let private isValidUnion<'union> =
     FSharpType.IsUnion typeof<'union>
 
@@ -40,7 +43,8 @@ let private addUnionFields<'union> (union: UnionGraphType) =
     |> Array.iter union.AddPossibleType
 
 let Union<'union> =
-    assert isValidUnion<'union>
+    if not isValidUnion<'union>
+    then invalidArg "union" "type parameter must be a discriminated union"
 
     let union = UnionGraphType ()
 

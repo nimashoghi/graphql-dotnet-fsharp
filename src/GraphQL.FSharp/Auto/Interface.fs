@@ -6,13 +6,14 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 
 let Interface<'interface_> =
-    assert (typeof<'interface_>.IsInterface || typeof<'interface_>.IsAbstract)
+    if not typeof<'interface_>.IsInterface && not typeof<'interface_>.IsAbstract
+    then invalidArg "interface_" "type parameter must be abstract"
 
     let ``interface`` = InterfaceGraphType<'interface_> ()
     setInfo typeof<'interface_> ``interface``
 
     addProperties inferObject ``interface``
-    addMethodsComplex inferObject ``interface``
+    addMethods<'interface_> inferObject ``interface``
 
     getTypeAttribute<TypeAttribute> typeof<'interface_>
     |> Option.iter (updateType ``interface`` >> ignore)

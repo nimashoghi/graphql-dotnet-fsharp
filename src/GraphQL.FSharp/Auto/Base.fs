@@ -261,13 +261,7 @@ module Field =
         |> Array.map (makePropField infer)
         |> Array.iter (object.AddField >> ignore)
 
-    let addMethods<'object> infer (object: ObjectGraphType) =
-        methods<'object>
-        |> Array.map (makeMethodField infer)
-        |> Array.iter (object.AddField >> ignore)
-
-    // TODO: rename
-    let addMethodsComplex infer (object: ComplexGraphType<'object>) =
+    let addMethods<'object> infer (object: IComplexGraphType) =
         methods<'object>
         |> Array.map (makeMethodField infer)
         |> Array.iter (object.AddField >> ignore)
