@@ -1,4 +1,4 @@
-module GraphQL.FSharp.AutoEnum
+module internal GraphQL.FSharp.AutoEnum
 
 open System
 open FSharp.Reflection

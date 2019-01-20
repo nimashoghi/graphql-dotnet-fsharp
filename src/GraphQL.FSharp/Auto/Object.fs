@@ -1,4 +1,4 @@
-module GraphQL.FSharp.AutoObject
+module internal GraphQL.FSharp.AutoObject
 
 open System
 open GraphQL.Types

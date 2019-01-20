@@ -1,4 +1,4 @@
-module GraphQL.FSharp.AutoInputObject
+module internal GraphQL.FSharp.AutoInputObject
 
 open GraphQL.Types
 

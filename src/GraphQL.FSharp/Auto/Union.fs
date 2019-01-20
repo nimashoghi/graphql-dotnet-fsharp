@@ -1,4 +1,4 @@
-module GraphQL.FSharp.AutoUnion
+module internal GraphQL.FSharp.AutoUnion
 
 open FSharp.Reflection
 open GraphQL.Types

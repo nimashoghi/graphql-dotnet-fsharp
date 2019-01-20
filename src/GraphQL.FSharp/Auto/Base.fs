@@ -1,4 +1,4 @@
-module GraphQL.FSharp.AutoBase
+module internal GraphQL.FSharp.AutoBase
 
 open System
 open System.Collections.Generic
@@ -33,7 +33,7 @@ module Attribute =
         |> Option.ofBox
 
 [<AutoOpen>]
-module Update =
+module internal Update =
     type Type with
         member this.TypeAttributes = this.GetCustomAttributes ()
 
@@ -96,7 +96,7 @@ module Update =
 
         x
 
-    let internal (|Pair|) (pair: KeyValuePair<_, _>) = pair.Key, pair.Value
+    let (|Pair|) (pair: KeyValuePair<_, _>) = pair.Key, pair.Value
 
     let updateType attributes (x: #IGraphType)  =
         attributes
@@ -111,7 +111,7 @@ module Update =
         x
 
 [<AutoOpen>]
-module Field =
+module internal Field =
     let validProp (prop: PropertyInfo) =
         not prop.IsSpecialName
         && Option.isNone <| getMemberAttribute<CompilerGeneratedAttribute> prop
