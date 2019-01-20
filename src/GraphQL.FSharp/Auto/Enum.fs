@@ -23,13 +23,19 @@ let private (|Enum|Union|) (``type``: Type) =
     then Union
     else invalidArg "type" "The provided type must be an enum or a discriminated union!"
 
+let internal makeEnumValue (case: UnionCaseInfo) =
+    let enumValue = EnumValueDefinition ()
+    enumValue.Name <- case.Name
+    enumValue.Description <- ""
+    enumValue.Value <- FSharpValue.MakeUnion (case, [||])
+
+    enumValue
+    |> updateEnumValue case.CaseAttributes
+
 let internal addCases<'enum> (enum: EnumerationGraphType) =
     FSharpType.GetUnionCases typeof<'enum>
-    |> Array.iter (fun case ->
-        enum.AddValue (
-            name = case.Name,
-            description = null,
-            value = FSharpValue.MakeUnion (case, [||])))
+    |> Array.map makeEnumValue
+    |> Array.iter enum.AddValue
 
     enum
 

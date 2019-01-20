@@ -4,6 +4,8 @@ module GraphQL.FSharp.Attributes
 open System
 open System.Collections.Generic
 
+// TODO: Add attribute targets here
+
 type AttributeWithValue<'t> (value) =
     inherit Attribute ()
 
@@ -25,4 +27,7 @@ type TypeAttribute (value) =
     inherit AttributeWithValue<Type> (value)
 
 type DefaultValueAttribute (value) =
+    inherit AttributeWithValue<obj> (value)
+
+type ValueAttribute (value) =
     inherit AttributeWithValue<obj> (value)

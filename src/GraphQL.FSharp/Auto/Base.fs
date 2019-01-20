@@ -59,6 +59,12 @@
         type ParameterInfo with
             member this.ParameterAttributes = this.GetCustomAttributes ()
 
+        type UnionCaseInfo with
+            member this.CaseAttributes =
+                this.GetCustomAttributes ()
+                |> Seq.filter (fun x -> x :? Attribute)
+                |> Seq.map (fun x -> x :?> Attribute)
+
         let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: Attribute seq) =
             attributes
             |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
@@ -71,6 +77,16 @@
             |> Option.iter f
 
             attributes
+
+        let updateEnumValue attributes (x: EnumValueDefinition) =
+            attributes
+            |> update<NameAttribute, _> x.set_Name
+            |> update<DescriptionAttribute, _> x.set_Description
+            |> update<DeprecationReasonAttribute, _> x.set_DeprecationReason
+            |> update<ValueAttribute, _> x.set_Value
+            |> ignore
+
+            x
 
         let updateArgument attributes (x: QueryArgument) =
             attributes
@@ -107,9 +123,6 @@
 
             x
 
-        let updateObject attributes (x: ObjectGraphType<'object>) =
-            x
-            |> updateType attributes
     [<AutoOpen>]
     module Field =
         let validProp (prop: PropertyInfo) =

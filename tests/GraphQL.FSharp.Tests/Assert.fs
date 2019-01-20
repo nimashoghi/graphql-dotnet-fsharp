@@ -38,10 +38,12 @@ type Assert with
             values |> Option.iter (fun values ->
                 Seq.length enum.Values =! List.length values
 
-                let values = dict values
+                let values = dict (values |> List.map (fun (name, description, value) -> name, (description, value)))
                 for enumValue in enum.Values do
                     test <@ values.ContainsKey enumValue.Name @>
-                    enumValue.Value =! values.[enumValue.Name])
+                    let description, value = values.[enumValue.Name]
+                    enumValue.Description =! description
+                    enumValue.Value =! value)
 
     static member ObjectGraphEqual (?name, ?fields, ?description, ?deprecationReason, ?metadata) =
         fun (object: IComplexGraphType) ->
@@ -74,6 +76,10 @@ let unionEqual name cases union =
     )
 
 let enumEqual name values (enum: #EnumerationGraphType) =
+    let values =
+        values
+        |> List.map (fun (name, value) -> name, "", value)
+
     enum
     :> EnumerationGraphType
     |> Assert.EnumGraphEqual (
