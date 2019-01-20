@@ -1,58 +1,75 @@
 module GraphQL.FSharp.Tests.Auto.Union
 
 open System
+open FSharp.Reflection
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.Types
-
 open GraphQL.FSharp
 
+open GraphQL.FSharp.Tests.Assert
+
 // TODO: Add tests using custom attributes
+(*
+    TODO: Don't add a whole new object type if union has a single member
+    e.g.
+        type User = {
+            Name: string
+        }
+
+        type MyUnion =
+        | User of User
+        | Integer of int
+    In the case above, case `User` should not generate a new object type.
+*)
+
+[<CLIMutable>]
+type User = {
+    Name: string
+}
+
+type MyUnion =
+| NamedUser of User: User
+| UnnamedUser of User
+| UnnamedInteger of int
+| NamedInteger of Name: int
+
+[<Test>]
+let ``Auto Union single member case`` () =
+    let user = Auto.Object<User>
+
+    Auto.Union<MyUnion>
+    |> unionEqual "MyUnion" [
+        "NamedUser", [
+            "User", liftGraph user
+        ]
+        "UnnamedUser", [
+            "Item", liftGraph user
+        ]
+        "UnnamedInteger", [
+            "Item", graph IntGraphType
+        ]
+        "NamedInteger", [
+            "Name", graph IntGraphType
+        ]
+    ]
 
 type ValidUnion =
 | First of Name: int
 | Second of Fst: string * Snd: float
 
-let validSetup () =
-    let union = Auto.Union<ValidUnion>
-    let possibleTypes = Seq.toArray union.PossibleTypes
-
-    union, possibleTypes
-
 [<Test>]
 let ``Auto Union valid test graph type name`` () =
-    let union = validSetup () |> fst
-    union.Name =! "ValidUnion"
-
-[<Test>]
-let ``Auto Union valid test cases`` () =
-    let possibleTypes = validSetup () |> snd
-
-    Array.length possibleTypes =! 2
-
-    possibleTypes.[0].Name =! "First"
-    possibleTypes.[1].Name =! "Second"
-
-[<Test>]
-let ``Auto Union valid test first case fields`` () =
-    let possibleTypes = validSetup () |> snd
-
-    let firstCaseFields = Seq.toArray possibleTypes.[0].Fields
-    Array.length firstCaseFields =! 1
-    firstCaseFields.[0].Name =! "Name"
-    firstCaseFields.[0].ResolvedType =! upcast IntGraphType()
-
-[<Test>]
-let ``Auto Union valid test second case fields`` () =
-    let possibleTypes = validSetup () |> snd
-
-    let secondCaseFields = Seq.toArray possibleTypes.[1].Fields
-    Array.length secondCaseFields =! 2
-    secondCaseFields.[0].Name =! "Fst"
-    secondCaseFields.[0].ResolvedType =! upcast StringGraphType()
-
-    secondCaseFields.[1].Name =! "Snd"
-    secondCaseFields.[1].ResolvedType =! upcast FloatGraphType()
+    Auto.Union<ValidUnion>
+    |> unionEqual "ValidUnion" [
+        "First", [
+            "Name", graph IntGraphType
+        ]
+        "Second", [
+            "Fst", graph StringGraphType
+            "Snd", graph FloatGraphType
+        ]
+    ]
 
 type NonUnionType = {
     Name: string

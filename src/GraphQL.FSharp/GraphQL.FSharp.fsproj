@@ -6,6 +6,7 @@
     <Compile Include="Logging.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Types.fs" />
+    <Compile Include="Attributes.fs" />
     <Compile Include="Registry.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Define.fs" />
@@ -21,8 +22,8 @@
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Auto/Base.fs" />
     <Compile Include="Auto/Enum.fs" />
-    <Compile Include="Auto/Union.fs" />
     <Compile Include="Auto/Interface.fs" />
+    <Compile Include="Auto/Union.fs" />
     <Compile Include="Auto/Object.fs" />
     <Compile Include="Auto/InputObject.fs" />
     <Compile Include="Auto.fs" />

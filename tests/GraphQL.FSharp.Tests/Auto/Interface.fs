@@ -22,8 +22,8 @@ type IMethodPropInterface =
 let ``Auto Interface interface with methods and properties`` () =
     Auto.Interface<IMethodPropInterface>
     |> objectEqual "IMethodPropInterface" [
-        "Name", upcast StringGraphType ()
-        "GetCount", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "GetCount", graph IntGraphType
     ]
 
 type INestedInterfaceWithMethodPropInterface =
@@ -36,10 +36,10 @@ type INestedInterfaceWithMethodPropInterface =
 let ``Auto Interface nested interface with methods and properties`` () =
     Auto.Interface<INestedInterfaceWithMethodPropInterface>
     |> objectEqual "INestedInterfaceWithMethodPropInterface" [
-        "Name", upcast StringGraphType ()
-        "GetCount", upcast IntGraphType ()
-        "GetSecondName", upcast StringGraphType ()
-        "SecondCount", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "GetCount", graph IntGraphType
+        "GetSecondName", graph StringGraphType
+        "SecondCount", graph IntGraphType
     ]
 
 type MethodPropInterface() =
@@ -55,8 +55,8 @@ let ``Auto Interface interface implementation object`` () =
 
     object
     |> objectEqual "MethodPropInterface" [
-        "Name", upcast StringGraphType ()
-        "GetCount", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "GetCount", graph IntGraphType
     ]
 
     test

@@ -21,12 +21,9 @@ let private (|Enum|Union|) (``type``: Type) =
     then Enum
     elif FSharpType.IsUnion ``type``
     then Union
-    else failwith "The provided type must be an enum or a discriminated union!"
+    else invalidArg "type" "The provided type must be an enum or a discriminated union!"
 
-let private unionEnum<'enum> () =
-    let enum = EnumerationGraphType ()
-    setInfo typeof<'enum> enum
-
+let internal addCases<'enum> (enum: EnumerationGraphType) =
     FSharpType.GetUnionCases typeof<'enum>
     |> Array.iter (fun case ->
         enum.AddValue (
@@ -36,6 +33,11 @@ let private unionEnum<'enum> () =
 
     enum
 
+let private unionEnum<'enum> () =
+    EnumerationGraphType ()
+    |> setInfo typeof<'enum>
+    |> addCases<'enum>
+
 let Enum<'enum> =
     if not isValidEnum<'enum> then invalidArg "enum" "type parameter must be an enum"
 
@@ -44,6 +46,6 @@ let Enum<'enum> =
         | Enum -> EnumerationGraphTypeEx<'enum> () :> EnumerationGraphType
         | Union -> unionEnum<'enum> ()
 
-    Object.register (typeof<'enum>, graphType)
-
     graphType
+    |> updateType typeof<'enum>.TypeAttributes
+    |> Object.register typeof<'enum>

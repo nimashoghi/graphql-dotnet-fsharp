@@ -8,23 +8,21 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils
 
-// TODO: Single case discriminated unions
-// e.g. type Email = Email of string
-
-let private isValidUnion<'union> =
+let internal isValidUnion<'union> =
     FSharpType.IsUnion typeof<'union>
 
-let private makeUnionCase<'union> (case: UnionCaseInfo) =
-    let object = ObjectGraphType ()
-
-    setInfo case object
-
-    addMethods<'union> inferObject object
-
+let internal addFields<'union>
+    (case: UnionCaseInfo)
+    (object: ObjectGraphType<obj>) =
     case.GetFields ()
     |> Array.map (makePropField inferObject)
     |> Array.iter (object.AddField >> ignore)
 
+    object
+
+let internal setIsTypeOf<'union>
+    (case: UnionCaseInfo)
+    (object: ObjectGraphType<obj>) =
     object.IsTypeOf <- (fun x ->
         match x with
         | :? 'union ->
@@ -33,28 +31,30 @@ let private makeUnionCase<'union> (case: UnionCaseInfo) =
             |> ((=) case.Tag)
         | _ -> false)
 
-    getUnionCaseAttribute<TypeAttribute> case
-    |> Option.iter (updateType object >> ignore)
-
     object
 
-let private addUnionFields<'union> (union: UnionGraphType) =
+let internal makeUnionCase<'union> (case: UnionCaseInfo) =
+    ObjectGraphType<obj> ()
+    |> setInfo case
+    |> addMethods inferObject
+    |> addFields<'union> case
+    |> setIsTypeOf<'union> case
+    |> updateType typeof<'union>.TypeAttributes
+
+
+let internal addUnionFields<'union> (union: UnionGraphType) =
     FSharpType.GetUnionCases typeof<'union>
     |> Array.map makeUnionCase<'union>
     |> Array.iter union.AddPossibleType
+
+    union
 
 let Union<'union> =
     if not isValidUnion<'union>
     then invalidArg "union" "type parameter must be a discriminated union"
 
-    let union = UnionGraphType ()
-
-    setInfo typeof<'union> union
-
-    getTypeAttribute<TypeAttribute> typeof<'union>
-    |> Option.iter (updateType union >> ignore)
-
-    addUnionFields<'union> union
-    Object.register (typeof<'union>, union)
-
-    union
+    UnionGraphType ()
+    |> setInfo typeof<'union>
+    |> updateType typeof<'union>.TypeAttributes
+    |> addUnionFields<'union>
+    |> Object.register typeof<'union>

@@ -23,8 +23,8 @@ type UserWithProps = {
 let ``Auto InputObject record with properties`` () =
     Auto.InputObject<UserWithProps>
     |> objectEqual "UserWithProps" [
-        "Name", upcast StringGraphType ()
-        "Count", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "Count", graph IntGraphType
     ]
 
 [<CLIMutable>]
@@ -40,9 +40,9 @@ type UserWithPropsAndMethods =
 let ``Auto InputObject record with properties and methods`` () =
     Auto.InputObject<UserWithPropsAndMethods>
     |> objectEqual "UserWithPropsAndMethods" [
-        "Name", upcast StringGraphType ()
-        "Count", upcast IntGraphType ()
-        "MyMethod", upcast StringGraphType ()
+        "Name", graph StringGraphType
+        "Count", graph IntGraphType
+        "MyMethod", graph StringGraphType
     ]
 
 type IUserInterface =
@@ -62,9 +62,9 @@ type UserWithInterface =
 let ``Auto InputObject record implementing an interface`` () =
     Auto.InputObject<UserWithInterface>
     |> objectEqual "UserWithInterface" [
-        "Name", upcast StringGraphType ()
-        "Count", upcast IntGraphType ()
-        "GetAbstract", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "Count", graph IntGraphType
+        "GetAbstract", graph IntGraphType
     ]
 
 type RegularClassWithMethodsAndProps() =
@@ -78,8 +78,8 @@ type RegularClassWithMethodsAndProps() =
 let ``Auto Object regular class with methods and props`` () =
     Auto.InputObject<RegularClassWithMethodsAndProps>
     |> objectEqual "RegularClassWithMethodsAndProps" [
-        "Name", upcast StringGraphType ()
-        "Count", upcast IntGraphType ()
-        "GetName", upcast StringGraphType ()
-        "GetCount", upcast IntGraphType ()
+        "Name", graph StringGraphType
+        "Count", graph IntGraphType
+        "GetName", graph StringGraphType
+        "GetCount", graph IntGraphType
     ]

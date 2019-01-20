@@ -20,9 +20,11 @@ module Object =
         | _, null -> None
         | _, ``type`` -> Some ``type``
 
-    let register (sys, gql) =
-        typesToRegister <- gql :: typesToRegister
+    let register sys (gql: #IGraphType) =
+        typesToRegister <- gql :> IGraphType :: typesToRegister
         registry.Register (sys, gql)
+
+        gql
 
 module InputObject =
     let private registry = GraphTypeInstanceRegistry ()
@@ -33,6 +35,8 @@ module InputObject =
         | _, null -> None
         | _, ``type`` -> Some ``type``
 
-    let register (sys, gql) =
-        Object.typesToRegister <- gql :: Object.typesToRegister
+    let register sys (gql: #IGraphType) =
+        Object.typesToRegister <- gql :> IGraphType :: Object.typesToRegister
         registry.Register (sys, gql)
+
+        gql

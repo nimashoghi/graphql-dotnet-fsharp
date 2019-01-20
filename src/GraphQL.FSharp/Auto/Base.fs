@@ -1,266 +1,226 @@
-module GraphQL.FSharp.AutoBase
+    module GraphQL.FSharp.AutoBase
 
-open System
-open System.Collections.Generic
-open System.Reflection
-open System.Runtime.CompilerServices
-open FSharp.Reflection
-open GraphQL.Types
-open GraphQL.Resolvers
+    open System
+    open System.Collections.Generic
+    open System.Reflection
+    open System.Runtime.CompilerServices
+    open FSharp.Reflection
+    open GraphQL.Types
+    open GraphQL.Resolvers
 
-open GraphQL.FSharp.Inference
-open GraphQL.FSharp.Utils
+    open GraphQL.FSharp
+    open GraphQL.FSharp.Inference
+    open GraphQL.FSharp.Utils
 
-[<AttributeUsage(
-    AttributeTargets.Property
-    ||| AttributeTargets.Field
-    ||| AttributeTargets.Method,
-    AllowMultiple = false,
-    Inherited = true)>]
-type FieldAttribute() =
-    inherit Attribute()
+    [<AutoOpen>]
+    module Resolvers =
+        let resolve f =
+            {
+                new IFieldResolver with
+                    member __.Resolve ctx = f ctx |> box
+            }
 
-    member val Name: string = null with get, set
-    member val Description: string = null with get, set
-    member val DeprecationReason: string = null with get, set
-    member val Metadata: (string * obj) list = [] with get, set
-    member val Type: Type = null with get, set
-    member val DefaultValue: obj = null with get, set
+        let resolveSource f =
+            {
+                new IFieldResolver with
+                    member __.Resolve ctx = f ctx.Source |> box
+            }
 
-[<AttributeUsage(
-    AttributeTargets.Interface
-    ||| AttributeTargets.Class
-    ||| AttributeTargets.Struct,
-    AllowMultiple = false,
-    Inherited = true)>]
-type TypeAttribute() =
-    inherit Attribute()
+    [<AutoOpen>]
+    module Attribute =
+        let getUnionCaseAttribute<'attribute when 'attribute :> Attribute> (case: UnionCaseInfo) =
+            case.GetCustomAttributes ()
+            |> Array.tryFind (fun attribute -> attribute :? 'attribute)
+            |> Option.map (fun attribute -> attribute :?> 'attribute)
 
-    member val Name: string = null with get, set
-    member val Description: string = null with get, set
-    member val DeprecationReason: string = null with get, set
-    member val Metadata: (string * obj) list = [] with get, set
+        let getMemberAttribute<'attribute when 'attribute :> Attribute> (``member``: MemberInfo) =
+            ``member``.GetCustomAttribute<'attribute> ()
+            |> Option.ofBox
 
-[<AttributeUsage(
-    AttributeTargets.Parameter,
-    AllowMultiple = false,
-    Inherited = true)>]
-type ArgumentAttribute() =
-    inherit Attribute()
+        let getTypeAttribute<'attribute when 'attribute :> Attribute> (``member``: Type) =
+            ``member``.GetCustomAttribute<'attribute> ()
+            |> Option.ofBox
 
-    member val Name: string = null with get, set
-    member val Description: string = null with get, set
-    member val Type: Type = null with get, set
-    member val DefaultValue: obj = null with get, set
+        let getArgAttribute<'attribute when 'attribute :> Attribute> (parameter: ParameterInfo) =
+            parameter.GetCustomAttribute<'attribute> ()
+            |> Option.ofBox
 
-[<AutoOpen>]
-module Resolvers =
-    let resolve f =
-        {
-            new IFieldResolver with
-                member __.Resolve ctx = f ctx |> box
-        }
+    [<AutoOpen>]
+    module Update =
+        type Type with
+            member this.TypeAttributes = this.GetCustomAttributes ()
 
-    let resolveSource f =
-        {
-            new IFieldResolver with
-                member __.Resolve ctx = f ctx.Source |> box
-        }
+        type MethodInfo with
+            member this.MethodAttributes = this.GetCustomAttributes ()
 
-[<AutoOpen>]
-module Attribute =
-    let getUnionCaseAttribute<'attribute when 'attribute :> Attribute> (case: UnionCaseInfo) =
-        case.GetCustomAttributes ()
-        |> Array.tryFind (fun attribute -> attribute :? 'attribute)
-        |> Option.map (fun attribute -> attribute :?> 'attribute)
+        type PropertyInfo with
+            member this.PropertyAttributes = this.GetCustomAttributes ()
 
-    let getMemberAttribute<'attribute when 'attribute :> Attribute> (``member``: MemberInfo) =
-        ``member``.GetCustomAttribute<'attribute> ()
-        |> Option.ofBox
+        type ParameterInfo with
+            member this.ParameterAttributes = this.GetCustomAttributes ()
 
-    let getTypeAttribute<'attribute when 'attribute :> Attribute> (``member``: Type) =
-        ``member``.GetCustomAttribute<'attribute> ()
-        |> Option.ofBox
+        let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: Attribute seq) =
+            attributes
+            |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
+            |> Option.map (fun attribute ->  attribute :?> 'attribute)
 
-    let getArgAttribute<'attribute when 'attribute :> Attribute> (parameter: ParameterInfo) =
-        parameter.GetCustomAttribute<'attribute> ()
-        |> Option.ofBox
+        let update<'attribute, 't when 'attribute :> AttributeWithValue<'t>> f (attributes: Attribute seq) =
+            attributes
+            |> tryGetAttribute<'attribute>
+            |> Option.map (fun attribute -> attribute.Value)
+            |> Option.iter f
 
-[<AutoOpen>]
-module Update =
-    let inline withName (attribute: ^attribute) (x: ^t) =
-        match Option.ofObj (^attribute: (member Name: string) attribute) with
-        | Some name -> (^t: (member set_Name: string -> unit) x, name)
-        | _ -> ()
-        x
+            attributes
 
-    let inline withDescription (attribute: ^attribute) (x: ^t) =
-        match Option.ofObj (^attribute: (member Description: string) attribute) with
-        | Some description -> (^t: (member set_Description: string -> unit) x, description)
-        | _ -> ()
-        x
+        let updateArgument attributes (x: QueryArgument) =
+            attributes
+            |> update<NameAttribute, _> x.set_Name
+            |> update<DescriptionAttribute, _> x.set_Description
+            |> update<DefaultValueAttribute, _> x.set_DefaultValue
+            |> ignore
 
-    let inline withDefaultValue (attribute: ^attribute) (x: ^t) =
-        match Option.ofObj (^attribute: (member DefaultValue: obj) attribute) with
-        | Some defaultValue -> (^t: (member set_DefaultValue: obj -> unit) x, defaultValue)
-        | _ -> ()
-        x
+            x
 
-    let inline withDeprecationReason (attribute: ^attribute) (x: ^t) =
-        match Option.ofObj (^attribute: (member DeprecationReason: string) attribute) with
-        | Some deprecationReason -> (^t: (member set_DeprecationReason: string -> unit) x, deprecationReason)
-        | _ -> ()
-        x
+        let updateField attributes (x: FieldType) =
+            attributes
+            |> update<NameAttribute, _> x.set_Name
+            |> update<DescriptionAttribute, _> x.set_Description
+            |> update<DeprecationReasonAttribute, _> x.set_DeprecationReason
+            |> update<MetadataAttribute, _> x.set_Metadata
+            |> update<TypeAttribute, _> x.set_Type
+            |> update<DefaultValueAttribute, _> x.set_DefaultValue
+            |> ignore
 
-    let inline withType (attribute: ^attribute) (x: ^t) =
-        match Option.ofObj (^attribute: (member Type: Type) attribute) with
-        | Some ``type`` -> (^t: (member set_Type: Type -> unit) x, ``type``)
-        | _ -> ()
-        x
+            x
 
-    let inline withMetadata (attribute: ^attribute) (x: ^t) =
-        let metadata = (^t: (member Metadata: IDictionary<string, obj>) x)
-        for key, value in (^attribute: (member Metadata: (string * obj) list) attribute) do
-            metadata.[key] <- value
-        x
+        let internal (|Pair|) (pair: KeyValuePair<_, _>) = pair.Key, pair.Value
 
-    let inline updateArgument (x: QueryArgument) (attribute: ArgumentAttribute) =
-        x
-        |> withName attribute
-        |> withDescription attribute
-        |> withDefaultValue attribute
+        let updateType attributes (x: #IGraphType)  =
+            attributes
+            |> update<NameAttribute, _> x.set_Name
+            |> update<DescriptionAttribute, _> x.set_Description
+            |> update<DeprecationReasonAttribute, _> x.set_DeprecationReason
+            |> update<MetadataAttribute, _> (fun metadata ->
+                for Pair (key, value) in metadata do
+                    x.Metadata.[key] <- value)
+            |> ignore
 
-    let inline updateField (x: FieldType) (attribute: FieldAttribute) =
-        x
-        |> withName attribute
-        |> withDescription attribute
-        |> withDeprecationReason attribute
-        |> withDefaultValue attribute
-        |> withType attribute
-        |> withMetadata attribute
+            x
 
-    let inline updateType x (attribute: TypeAttribute) =
-        x
-        |> withName attribute
-        |> withDescription attribute
-        |> withDeprecationReason attribute
-        |> withMetadata attribute
+        let updateObject attributes (x: ObjectGraphType<'object>) =
+            x
+            |> updateType attributes
+    [<AutoOpen>]
+    module Field =
+        let validProp (prop: PropertyInfo) =
+            not prop.IsSpecialName
+            && Option.isNone <| getMemberAttribute<CompilerGeneratedAttribute> prop
 
-[<AutoOpen>]
-module Field =
-    let validProp (prop: PropertyInfo) =
-        not prop.IsSpecialName
-        && Option.isNone <| getMemberAttribute<CompilerGeneratedAttribute> prop
+        let validProps (``type``: Type) =
+            ``type``.GetProperties ()
+            |> Array.filter validProp
 
-    let validProps (``type``: Type) =
-        ``type``.GetProperties ()
-        |> Array.filter validProp
-
-    let properties<'object> = [|
-        yield! validProps typeof<'object>
-        for ``interface`` in typeof<'object>.GetInterfaces () do
-            yield! validProps ``interface``
-    |]
-
-    let inline setInfo (prop: ^t) (field: ^event) =
-        let name = (^t: (member Name: string) prop)
-        (^event: (member set_Name: string -> unit) field, name)
-
-    let makePropField infer (prop: PropertyInfo) =
-        let field = EventStreamFieldType ()
-
-        setInfo prop field
-
-        field.Resolver <- resolveSource prop.GetValue
-        field.ResolvedType <- infer prop.PropertyType
-
-        // if `FieldAttribute` is set, then update our field with the info
-        prop.GetCustomAttribute<FieldAttribute> ()
-        |> Option.ofBox
-        |> Option.iter (updateField field >> ignore)
-
-        field
-
-    let objectMethod (method: MemberInfo) = method.DeclaringType = typeof<obj>
-    // FIXME: this is hacky but works for now. fix this later
-    let systemMethod (method: MemberInfo) = method.Module.Name = "System.Private.CoreLib.dll"
-
-    let validMethod (method: MethodInfo) =
-        not method.IsSpecialName
-        && method.GetCustomAttribute<CompilerGeneratedAttribute> () = null
-        && not <| objectMethod method
-        && not <| systemMethod method
-
-    let validMethods (``type``: Type)  =
-        ``type``.GetMethods ()
-        |> Array.filter validMethod
-        |> Array.filter (fun method -> not method.IsStatic)
-
-    let methods<'object> =
-        [|
-            yield! validMethods typeof<'object>
+        let properties<'object> = [|
+            yield! validProps typeof<'object>
             for ``interface`` in typeof<'object>.GetInterfaces () do
-                yield! validMethods ``interface``
+                yield! validProps ``interface``
         |]
 
-    let makeArgument (parameter: ParameterInfo) =
-        let attribute =
-            getArgAttribute<ArgumentAttribute> parameter
-            |> Option.``or`` (ArgumentAttribute ())
+        let inline setInfo (prop: ^t) (x: ^event) =
+            let name = (^t: (member Name: string) prop)
+            (^event: (member set_Name: string -> unit) x, name)
 
-        let queryArgument =
-            match Option.ofObj attribute.Type with
-            | Some ``type`` -> QueryArgument ``type``
-            | None ->
-                inferObject parameter.ParameterType
-                |> QueryArgument
+            x
 
-        setInfo parameter queryArgument
+        let makePropField infer (prop: PropertyInfo) =
+            let field = EventStreamFieldType () |> setInfo prop
 
-        updateArgument queryArgument attribute |> ignore
+            field.Resolver <- resolveSource prop.GetValue
+            field.ResolvedType <- infer prop.PropertyType
 
-        queryArgument
+            updateField (prop.GetCustomAttributes ()) field
 
-    let makeMethodField infer (method: MethodInfo) =
-        let field = EventStreamFieldType ()
+        let objectMethod (method: MemberInfo) = method.DeclaringType = typeof<obj>
+        // FIXME: this is hacky but works for now. fix this later
+        let systemMethod (method: MemberInfo) = method.Module.Name = "System.Private.CoreLib.dll"
 
-        setInfo method field
+        let validMethod (method: MethodInfo) =
+            not method.IsSpecialName
+            && method.GetCustomAttribute<CompilerGeneratedAttribute> () = null
+            && not <| objectMethod method
+            && not <| systemMethod method
 
-        let arguments = method.GetParameters ()
-        let queryArguemnts = Array.map makeArgument arguments
+        let validMethods (``type``: Type)  =
+            ``type``.GetMethods ()
+            |> Array.filter validMethod
+            |> Array.filter (fun method -> not method.IsStatic)
 
-        let argumentPairs =
-            (queryArguemnts, arguments)
-            ||> Array.zip
+        let methods<'object> =
+            [|
+                yield! validMethods typeof<'object>
+                for ``interface`` in typeof<'object>.GetInterfaces () do
+                    yield! validMethods ``interface``
+            |]
 
-        field.Arguments <- QueryArguments queryArguemnts
-        field.ResolvedType <- infer method.ReturnType
+        let invalidGraphType =
+            {
+                new GraphType () with
+                    override __.Equals _ = false
+            }
 
-        getMemberAttribute<FieldAttribute> method
-        |> Option.iter (updateField field >> ignore)
+        let setArgumentType (parameter: ParameterInfo) (queryArgument: QueryArgument) =
+            if Object.ReferenceEquals (invalidGraphType, queryArgument.ResolvedType)
+            then queryArgument.ResolvedType <- inferObject parameter.ParameterType
 
-        // TODO: is this needed?
-        // if shouldResolve then
-        field.Resolver <-
-            resolve (fun ctx ->
-                let resolvedArguments =
-                    argumentPairs
-                    |> Array.map (fun (queryArg, info) ->
-                        ctx.GetArgument (
-                            argumentType = info.ParameterType,
-                            name = queryArg.Name,
-                            defaultValue = queryArg.DefaultValue
-                        ))
-                method.Invoke (ctx.Source, resolvedArguments))
+            queryArgument
 
-        field
+        let makeArgument (parameter: ParameterInfo) =
+            QueryArgument invalidGraphType
+            |> setInfo parameter
+            |> updateArgument (parameter.GetCustomAttributes ())
+            |> setArgumentType parameter
 
-    let addProperties infer (object: ComplexGraphType<'object>) =
-        properties<'object>
-        |> Array.map (makePropField infer)
-        |> Array.iter (object.AddField >> ignore)
+        let makeMethodField infer (method: MethodInfo) =
+            let field = EventStreamFieldType () |> setInfo method
 
-    let addMethods<'object> infer (object: IComplexGraphType) =
-        methods<'object>
-        |> Array.map (makeMethodField infer)
-        |> Array.iter (object.AddField >> ignore)
+            let arguments = method.GetParameters ()
+            let queryArguemnts = Array.map makeArgument arguments
+
+            let argumentPairs =
+                (queryArguemnts, arguments)
+                ||> Array.zip
+
+            field.Arguments <- QueryArguments queryArguemnts
+            field.ResolvedType <- infer method.ReturnType
+
+            let field = updateField (method.GetCustomAttributes ()) field
+
+            // TODO: is this needed?
+            // if shouldResolve then
+            field.Resolver <-
+                resolve (fun ctx ->
+                    let resolvedArguments =
+                        argumentPairs
+                        |> Array.map (fun (queryArg, info) ->
+                            ctx.GetArgument (
+                                argumentType = info.ParameterType,
+                                name = queryArg.Name,
+                                defaultValue = queryArg.DefaultValue
+                            ))
+                    method.Invoke (ctx.Source, resolvedArguments))
+
+            field
+
+        let addProperties infer (object: #ComplexGraphType<'object>) =
+            properties<'object>
+            |> Array.map (makePropField infer)
+            |> Array.iter (object.AddField >> ignore)
+
+            object
+
+        let addMethods infer (object: #ComplexGraphType<'object>) =
+            methods<'object>
+            |> Array.map (makeMethodField infer)
+            |> Array.iter (object.AddField >> ignore)
+
+            object

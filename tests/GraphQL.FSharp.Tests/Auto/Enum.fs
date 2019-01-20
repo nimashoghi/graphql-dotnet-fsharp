@@ -7,6 +7,29 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.Tests.Assert
 
+[<Literal>]
+let internal MyEnumName = "NameChangedEnum"
+
+[<Literal>]
+let internal MyEnumDescription = "My enum description"
+
+[<Name (MyEnumName); Description (MyEnumDescription)>]
+type MyEnum =
+| First
+| Second
+
+[<Test>]
+let ``Auto Enum valid enum with attributes`` () =
+    Auto.Enum<MyEnum>
+    |> Assert.EnumGraphEqual (
+        name = MyEnumName,
+        description = MyEnumDescription,
+        values = [
+            "First", box First
+            "Second", box Second
+        ]
+    )
+
 type ValidEnum =
 | First
 | Second
@@ -18,6 +41,14 @@ let ``Auto Enum valid enum`` () =
         "First", box First
         "Second", box Second
     ]
+
+type InvalidEnum =
+| First
+| Second of int
+
+[<Test>]
+let ``Auto Enum invalid discriminated union`` () =
+    raises<ArgumentException> <@ Auto.Enum<InvalidEnum> @>
 
 type ValidClassicalEnum =
 | First = 0

@@ -1,5 +1,18 @@
 module GraphQL.FSharp.Utils
 
+open System.Text.RegularExpressions
+
+let (|Regex|_|) pattern input =
+    match Regex.Match (input, pattern) with
+    | m when m.Success ->
+        m.Groups
+        |> Seq.cast<Group>
+        |> Seq.toList
+        |> List.map (fun group -> group.Value)
+        |> List.tail
+        |> Some
+    | _ -> None
+
 module Option =
     let ofBox (x: 't) =
         x
