@@ -14,15 +14,19 @@ let inline private graphEqual (name, description, deprecationReason, metadata) (
     metadata |> Option.iter (fun metadata -> graph.Metadata =! metadata)
 
 type Assert with
-    static member UnionGraphEqual (?name, ?cases) =
+    static member UnionGraphEqual (?name, ?cases, ?description, ?deprecationReason, ?metadata) =
         fun (union: UnionGraphType) ->
-            name |> Option.iter (fun name -> union.Name =! name)
+            graphEqual (name, description, deprecationReason, metadata) union
             cases |> Option.iter (fun cases ->
                 Seq.length union.PossibleTypes =! Seq.length cases
 
                 (cases, union.PossibleTypes)
                 ||> Seq.zip
                 |> Seq.iter (fun ((name, fields), object) ->
+                    let fields =
+                        fields
+                        |> List.map (fun (name, value) -> name, null, value)
+
                     object
                     :> IComplexGraphType
                     |> Assert.ObjectGraphEqual (
@@ -51,14 +55,16 @@ type Assert with
             fields |> Option.iter (fun fields ->
                 Seq.length object.Fields =! List.length fields
 
-                let ``types`` =
+                let types =
                     fields
-                    |> List.map (fun (name, ``type``) -> name, ``type`` ())
+                    |> List.map (fun (name, description, ``type``) -> name, (description, ``type`` ()))
                     |> dict
 
                 for field in object.Fields do
-                    test <@ ``types``.ContainsKey field.Name @>
-                    field.ResolvedType =! ``types``.[field.Name])
+                    test <@ types.ContainsKey field.Name @>
+                    let description, ``type`` = types.[field.Name]
+                    field.Description =! description
+                    field.ResolvedType =! ``type``)
 
     static member ArgumentEqual (?name, ?``type``, ?defaultValue, ?description) =
         fun (argument: QueryArgument) ->
@@ -78,7 +84,7 @@ let unionEqual name cases union =
 let enumEqual name values (enum: #EnumerationGraphType) =
     let values =
         values
-        |> List.map (fun (name, value) -> name, "", value)
+        |> List.map (fun (name, value) -> name, null, value)
 
     enum
     :> EnumerationGraphType
@@ -88,6 +94,10 @@ let enumEqual name values (enum: #EnumerationGraphType) =
     )
 
 let objectEqual name fields (object: #IComplexGraphType) =
+    let fields =
+        fields
+        |> List.map (fun (name, ``type``) -> name, null, ``type``)
+
     object
     :> IComplexGraphType
     |> Assert.ObjectGraphEqual (

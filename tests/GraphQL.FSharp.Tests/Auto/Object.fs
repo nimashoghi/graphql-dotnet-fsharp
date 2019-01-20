@@ -6,6 +6,45 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.Tests.Assert
 
+[<Name "MyCustomName"; Description "My custom description">]
+type AttributeClass() =
+    [<Name "MyCustomNameField"; Description "My custom description field">]
+    member val Name = "" with get, set
+
+[<Test>]
+let ``Auto Object class with attributes`` () =
+    Auto.Object<AttributeClass>
+    :> IComplexGraphType
+    |> Assert.ObjectGraphEqual (
+        name = "MyCustomName",
+        description = "My custom description",
+        fields = [
+            "MyCustomNameField", "My custom description field", graph StringGraphType
+        ]
+    )
+
+[<Name "MyCustomName"; Description "My custom description">]
+type IAttributeInterface =
+    [<Name "MyCustomNameField"; Description "My custom description field">]
+    abstract member Name: string with get, set
+
+[<Name "MyCustomNameImpl"; Description "My custom impl description">]
+type AttributeClassExtended() =
+    interface IAttributeInterface with
+        member val Name = "" with get, set
+
+[<Test>]
+let ``Auto Object class implementing an interface with attributes`` () =
+    Auto.Object<AttributeClassExtended>
+    :> IComplexGraphType
+    |> Assert.ObjectGraphEqual (
+        name = "MyCustomNameImpl",
+        description = "My custom impl description",
+        fields = [
+            "MyCustomNameField", "My custom description field", graph StringGraphType
+        ]
+    )
+
 type EmptyObject() = class end
 
 [<Test>]

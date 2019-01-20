@@ -7,6 +7,23 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.Tests.Assert
 
+[<Name "MyCustomName"; Description "My custom description">]
+type IAttributeInterface =
+    [<Name "MyCustomNameField"; Description "My custom description field">]
+    abstract member Name: string with get, set
+
+[<Test>]
+let ``Auto Interface interface with attributes`` () =
+    Auto.Interface<IAttributeInterface>
+    :> IComplexGraphType
+    |> Assert.ObjectGraphEqual (
+        name = "MyCustomName",
+        description = "My custom description",
+        fields = [
+            "MyCustomNameField", "My custom description field", graph StringGraphType
+        ]
+    )
+
 type IEmptyInterface = interface end
 
 [<Test>]

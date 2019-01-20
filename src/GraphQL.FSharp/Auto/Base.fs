@@ -28,21 +28,8 @@
 
     [<AutoOpen>]
     module Attribute =
-        let getUnionCaseAttribute<'attribute when 'attribute :> Attribute> (case: UnionCaseInfo) =
-            case.GetCustomAttributes ()
-            |> Array.tryFind (fun attribute -> attribute :? 'attribute)
-            |> Option.map (fun attribute -> attribute :?> 'attribute)
-
         let getMemberAttribute<'attribute when 'attribute :> Attribute> (``member``: MemberInfo) =
             ``member``.GetCustomAttribute<'attribute> ()
-            |> Option.ofBox
-
-        let getTypeAttribute<'attribute when 'attribute :> Attribute> (``member``: Type) =
-            ``member``.GetCustomAttribute<'attribute> ()
-            |> Option.ofBox
-
-        let getArgAttribute<'attribute when 'attribute :> Attribute> (parameter: ParameterInfo) =
-            parameter.GetCustomAttribute<'attribute> ()
             |> Option.ofBox
 
     [<AutoOpen>]

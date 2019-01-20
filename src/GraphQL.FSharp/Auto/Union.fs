@@ -39,8 +39,7 @@ let internal makeUnionCase<'union> (case: UnionCaseInfo) =
     |> addMethods inferObject
     |> addFields<'union> case
     |> setIsTypeOf<'union> case
-    |> updateType typeof<'union>.TypeAttributes
-
+    |> updateType case.CaseAttributes
 
 let internal addUnionFields<'union> (union: UnionGraphType) =
     FSharpType.GetUnionCases typeof<'union>

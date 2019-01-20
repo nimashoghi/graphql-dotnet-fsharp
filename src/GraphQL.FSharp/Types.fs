@@ -8,10 +8,4 @@ type TypedFieldType<'source>() =
 type EnumerationGraphTypeEx<'t> () =
     inherit EnumerationGraphType<'t> ()
 
-    do
-        base.Values
-        |> Seq.iter (fun value ->
-            if value.Description = null
-            then value.Description <- "")
-
     override __.ChangeEnumCase x = x

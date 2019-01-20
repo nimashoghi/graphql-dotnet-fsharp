@@ -20,7 +20,7 @@ let ``Auto Enum valid enum with attributes`` () =
         name = "NameChangedEnum",
         description = "My enum description",
         values = [
-            "NotChanged", "", box NotChanged
+            "NotChanged", null, box NotChanged
             "FirstEnum", "First case", box First
             "SecondEnum", "Second case", box Second
         ]

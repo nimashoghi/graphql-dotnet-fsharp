@@ -26,7 +26,7 @@ let private (|Enum|Union|) (``type``: Type) =
 let internal makeEnumValue (case: UnionCaseInfo) =
     let enumValue = EnumValueDefinition ()
     enumValue.Name <- case.Name
-    enumValue.Description <- ""
+    enumValue.Description <- null
     enumValue.Value <- FSharpValue.MakeUnion (case, [||])
 
     enumValue

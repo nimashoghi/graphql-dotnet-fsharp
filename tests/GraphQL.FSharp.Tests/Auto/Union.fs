@@ -10,18 +10,29 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Tests.Assert
 
 // TODO: Add tests using custom attributes
-(*
-    TODO: Don't add a whole new object type if union has a single member
-    e.g.
-        type User = {
-            Name: string
-        }
 
-        type MyUnion =
-        | User of User
-        | Integer of int
-    In the case above, case `User` should not generate a new object type.
-*)
+[<Name "MyAttributeUnionCustom"; Description "My attribute union description"; DeprecationReason "Not deprecated">]
+type MyAttributeUnion =
+| [<Name "FirstCase">] First of int
+| [<Name "SecondCase">] Second of fst: int * snd: float
+
+[<Test>]
+let ``Auto Union union with attributes`` () =
+    Auto.Union<MyAttributeUnion>
+    |> Assert.UnionGraphEqual (
+        name = "MyAttributeUnionCustom",
+        description = "My attribute union description",
+        deprecationReason = "Not deprecated",
+        cases = [
+            "FirstCase", [
+                "Item", graph IntGraphType
+            ]
+            "SecondCase", [
+                "fst", graph IntGraphType
+                "snd", graph FloatGraphType
+            ]
+        ]
+    )
 
 [<CLIMutable>]
 type User = {

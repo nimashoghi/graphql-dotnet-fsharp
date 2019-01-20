@@ -6,6 +6,23 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.Tests.Assert
 
+[<Name "MyCustomName"; Description "My custom description">]
+type AttributeClass() =
+    [<Name "MyCustomNameField"; Description "My custom description field">]
+    member val Name = "" with get, set
+
+[<Test>]
+let ``Auto InputObject class with attributes`` () =
+    Auto.InputObject<AttributeClass>
+    :> IComplexGraphType
+    |> Assert.ObjectGraphEqual (
+        name = "MyCustomName",
+        description = "My custom description",
+        fields = [
+            "MyCustomNameField", "My custom description field", graph StringGraphType
+        ]
+    )
+
 type EmptyObject() = class end
 
 [<Test>]
