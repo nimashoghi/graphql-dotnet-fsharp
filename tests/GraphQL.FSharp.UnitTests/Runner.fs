@@ -1,1 +1,1 @@
-module GraphQL.FSharp.Tests.Runner
+module GraphQL.FSharp.UnitTests.Runner

@@ -1,11 +1,11 @@
-module GraphQL.FSharp.Tests.Auto.Enum
+module GraphQL.FSharp.UnitTests.Auto.Enum
 
 open System
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp
 
-open GraphQL.FSharp.Tests.Assert
+open GraphQL.FSharp.UnitTests.Assert
 
 [<Name "NameChangedEnum"; Description "My enum description">]
 type MyEnum =

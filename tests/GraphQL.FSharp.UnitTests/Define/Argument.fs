@@ -1,4 +1,4 @@
-module GraphQL.FSharp.Tests.Define
+module GraphQL.FSharp.UnitTests.Define
 
 open System
 open NUnit.Framework

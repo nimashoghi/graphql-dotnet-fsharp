@@ -1,10 +1,10 @@
-module GraphQL.FSharp.Tests.Auto.InputObject
+module GraphQL.FSharp.UnitTests.Auto.InputObject
 
 open NUnit.Framework
 open GraphQL.Types
 open GraphQL.FSharp
 
-open GraphQL.FSharp.Tests.Assert
+open GraphQL.FSharp.UnitTests.Assert
 
 [<Name "MyCustomName"; Description "My custom description">]
 type AttributeClass() =

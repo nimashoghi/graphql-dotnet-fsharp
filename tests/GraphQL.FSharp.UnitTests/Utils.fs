@@ -1,4 +1,4 @@
-module GraphQL.FSharp.Tests.Util
+module GraphQL.FSharp.UnitTests.Util
 
 open NUnit.Framework
 open Swensen.Unquote

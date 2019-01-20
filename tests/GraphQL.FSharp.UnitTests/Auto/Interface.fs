@@ -1,11 +1,11 @@
-module GraphQL.FSharp.Tests.Auto.Interface
+module GraphQL.FSharp.UnitTests.Auto.Interface
 
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.Types
 open GraphQL.FSharp
 
-open GraphQL.FSharp.Tests.Assert
+open GraphQL.FSharp.UnitTests.Assert
 
 [<Name "MyCustomName"; Description "My custom description">]
 type IAttributeInterface =

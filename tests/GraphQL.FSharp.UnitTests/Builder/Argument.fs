@@ -1,11 +1,11 @@
-module GraphQL.FSharp.Tests.Builder.Enum
+module GraphQL.FSharp.UnitTests.Builder.Enum
 
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Builder
 open GraphQL.Types
 
-open GraphQL.FSharp.Tests.Assert
+open GraphQL.FSharp.UnitTests.Assert
 
 [<Test>]
 let ``Builder Argument basic test`` () =
