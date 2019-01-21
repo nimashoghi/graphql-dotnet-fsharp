@@ -8,15 +8,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />
-    <Compile Include="Runner.fs" />
     <Compile Include="Define/Argument.fs" />
     <Compile Include="Auto/Enum.fs" />
     <Compile Include="Auto/Interface.fs" />
     <Compile Include="Auto/Object.fs" />
     <Compile Include="Auto/InputObject.fs" />
     <Compile Include="Auto/Union.fs" />
-    <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
+    <Compile Include="Builder/Argument.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

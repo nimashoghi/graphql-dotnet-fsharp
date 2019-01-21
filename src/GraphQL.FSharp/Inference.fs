@@ -85,3 +85,5 @@ let inferInput ``type`` = infer false InputObject.get ``type``
 
 let inferObjectNull ``type`` = infer true Object.get ``type``
 let inferInputNull ``type`` = infer true InputObject.get ``type``
+
+let inferObjectConfigure ``type`` checkNullability = infer checkNullability Object.get ``type``

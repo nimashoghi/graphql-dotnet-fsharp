@@ -33,6 +33,11 @@ let getFieldType (field: TypedFieldType<_>) =
     | true, (:? Type as ``type``) when field.Type = null && field.ResolvedType = null -> Some ``type``
     | _ -> None
 
+let hasDefaultValue (field: TypedFieldType<_>) =
+    match field.Metadata.TryGetValue "HasDefaultValue" with
+    | true, value when unbox<bool> value = true -> true
+    | _ -> false
+
 type FieldBuilder<'source>(?ofType) =
     inherit BuilderMetadataBase<TypedFieldType<'source>>()
 
@@ -46,7 +51,10 @@ type FieldBuilder<'source>(?ofType) =
     member __.DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
         field
         |> setFieldType<'field, _>
-        |> set (fun x -> x.DefaultValue <- ``default``)
+        |> set (fun x ->
+            x.DefaultValue <- ``default``
+            x.Metadata.["HasDefaultValue"] <- true
+        )
 
     [<CustomOperation "args">]
     member __.Args (field: TypedFieldType<'source>, arguments: _ list) =
@@ -67,7 +75,8 @@ type FieldBuilder<'source>(?ofType) =
         |> setFieldType<'field, _>
         |> set (fun x ->
             x.Name <- fieldName
-            x.Resolver <- resolver)
+            x.Resolver <- resolver
+        )
 
     [<CustomOperation "resolve">]
     member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
@@ -98,7 +107,10 @@ type FieldBuilder<'source>(?ofType) =
 
         field
         |> getFieldType
-        |> Option.iter (fun ``type`` -> field.ResolvedType <- inferObjectNull ``type``)
+        |> Option.iter (fun ``type`` ->
+            field.ResolvedType <-
+                (not << hasDefaultValue) field
+                |> inferObjectConfigure ``type``)
 
         field
 

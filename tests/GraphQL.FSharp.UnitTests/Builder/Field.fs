@@ -12,7 +12,7 @@ open GraphQL.FSharp.TestUtils.Assert
 
 [<CLIMutable>]
 type MyType = {
-    name: string
+    Name: string
 }
 
 [<Test>]
@@ -20,13 +20,33 @@ let ``Builder Field getter invalid argument`` () =
     raises<ArgumentException>
         <@
             field {
-                get (fun x -> x.name.ToString())
+                get (fun x -> x.Name.ToString())
             }
         @>
 
 [<Test>]
 let ``Builder Field valid getter`` () =
     field {
-        get (fun x -> x.name)
+        get (fun x -> x.Name)
     }
-    |> fieldEqual "name" (nonNull StringGraphType)
+    |> fieldEqual "Name" (nonNull StringGraphType)
+
+[<CLIMutable>]
+type SomeType = {
+    Testing: bool
+}
+
+[<Test>]
+let ``Builder Field inferred field type without default value should be non nullable`` () =
+    field {
+        get (fun x -> x.Testing)
+    }
+    |> fieldEqual "Testing" (nonNull BooleanGraphType)
+
+[<Test>]
+let ``Builder Field inferred field type with default value should be nullable`` () =
+    field {
+        get (fun x -> x.Testing)
+        defaultValue false
+    }
+    |> fieldEqual "Testing" (nullable BooleanGraphType)
