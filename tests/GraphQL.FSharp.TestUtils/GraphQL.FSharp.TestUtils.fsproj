@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Assert.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
+    <PackageReference Include="nunit" Version="3.11.0" />
+    <PackageReference Include="Unquote" Version="4.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
+  </ItemGroup>
+</Project>

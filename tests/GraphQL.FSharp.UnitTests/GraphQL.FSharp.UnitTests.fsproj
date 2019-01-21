@@ -1,13 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
-    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
+    <ProjectReference Include="..\GraphQL.FSharp.TestUtils\GraphQL.FSharp.TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assert.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Runner.fs" />
     <Compile Include="Define/Argument.fs" />
@@ -17,6 +16,7 @@
     <Compile Include="Auto/InputObject.fs" />
     <Compile Include="Auto/Union.fs" />
     <Compile Include="Builder/Argument.fs" />
+    <Compile Include="Builder/Field.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -8,7 +8,7 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils
 
-let private abstractClasses<'object> =
+let abstractClasses<'object> =
     let rec run (``type``: Type) = [|
         let baseType = ``type``.BaseType
         if baseType <> null && baseType <> typeof<obj> && baseType.IsAbstract then
@@ -17,12 +17,12 @@ let private abstractClasses<'object> =
     |]
     run typeof<'object>
 
-let private interfaces<'object> = [|
+let interfaces<'object> = [|
     yield! typeof<'object>.GetInterfaces ()
     yield! abstractClasses<'object>
 |]
 
-let private addInterfaces (object: ObjectGraphType<'object>) =
+let addInterfaces (object: ObjectGraphType<'object>) =
     interfaces<'object>
     |> Array.map (fun ``interface`` -> inferObject ``interface`` |> Option.ofObj)
     |> Array.some
@@ -36,7 +36,7 @@ let private addInterfaces (object: ObjectGraphType<'object>) =
 
 let Object<'object> =
     if typeof<'object>.IsInterface || typeof<'object>.IsAbstract
-    then invalidArg "object" "type parameter cannot be abstract"
+    then invalidArg "'object" "Type parameter cannot be abstract"
 
     ObjectGraphType<'object> ()
     |> setInfo typeof<'object>

@@ -4,7 +4,23 @@ open NUnit.Framework
 open GraphQL.Types
 open GraphQL.FSharp
 
-open GraphQL.FSharp.UnitTests.Assert
+open GraphQL.FSharp.TestUtils.Assert
+
+[<CLIMutable>]
+type NullableFieldObject = {
+    Name: string option
+    Age: int option
+    Height: float
+}
+
+[<Test>]
+let ``Auto InputObject nullable fields`` () =
+    Auto.InputObject<NullableFieldObject>
+    |> objectEqual "NullableFieldObject" [
+        "Name", nullable StringGraphType
+        "Age", nullable IntGraphType
+        "Height", nonNull FloatGraphType
+    ]
 
 [<Name "MyCustomName"; Description "My custom description">]
 type AttributeClass() =

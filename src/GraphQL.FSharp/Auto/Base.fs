@@ -12,6 +12,7 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Utils
 
+// TODO: What about methods with unit parameters? e.g. member this.DoSomething () = "2"
 // TODO: For object methods, add Task<_> methods as async fields and IObservable<_> methods as subscriptions
 
 [<AutoOpen>]
@@ -179,7 +180,7 @@ module internal Field =
     let makeArgument (parameter: ParameterInfo) =
         QueryArgument invalidGraphType
         |> setInfo parameter
-        |> updateArgument (parameter.GetCustomAttributes ())
+        |> updateArgument parameter.ParameterAttributes
         |> setArgumentType parameter
 
     let makeMethodField infer (method: MethodInfo) =
@@ -195,7 +196,7 @@ module internal Field =
         field.Arguments <- QueryArguments queryArguemnts
         field.ResolvedType <- infer method.ReturnType
 
-        let field = updateField (method.GetCustomAttributes ()) field
+        let field = updateField method.MethodAttributes field
 
         // TODO: is this needed?
         // if shouldResolve then

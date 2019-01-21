@@ -5,7 +5,7 @@ open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp
 
-open GraphQL.FSharp.UnitTests.Assert
+open GraphQL.FSharp.TestUtils.Assert
 
 [<Name "NameChangedEnum"; Description "My enum description">]
 type MyEnum =

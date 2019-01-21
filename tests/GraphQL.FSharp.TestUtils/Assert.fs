@@ -1,8 +1,14 @@
-module GraphQL.FSharp.UnitTests.Assert
+﻿module GraphQL.FSharp.TestUtils.Assert
 
+open GraphQL
+open GraphQL.Types
+open JsonDiffPatchDotNet
+open Newtonsoft.Json
+open Newtonsoft.Json.Linq
 open NUnit.Framework
 open Swensen.Unquote
-open GraphQL.Types
+
+let nullable (f: unit -> #IGraphType) = fun () -> f () :> IGraphType
 
 let nonNull (f: unit -> #IGraphType) = fun () -> NonNullGraphType (f ()) :> IGraphType
 let liftNonNull (``type``: #IGraphType) = fun () -> NonNullGraphType ``type`` :> IGraphType
@@ -66,6 +72,14 @@ type Assert with
                     field.Description =! description
                     field.ResolvedType =! ``type``)
 
+    static member FieldEqual (?name, ?``type``, ?description, ?deprecationReason, ?metadata) =
+        fun (field: FieldType) ->
+            name |> Option.iter (fun name -> field.Name =! name)
+            description |> Option.iter (fun description -> field.Description =! description)
+            deprecationReason |> Option.iter (fun deprecationReason -> field.DeprecationReason =! deprecationReason)
+            metadata |> Option.iter (fun metadata -> field.Metadata =! metadata)
+            ``type`` |> Option.iter (fun ``type`` -> field.ResolvedType =! ``type`` ())
+
     static member ArgumentEqual (?name, ?``type``, ?defaultValue, ?description) =
         fun (argument: QueryArgument) ->
             name |> Option.iter (fun name -> argument.Name =! name)
@@ -73,6 +87,60 @@ type Assert with
             description |> Option.iter (fun description -> argument.Description =! description)
             defaultValue |> Option.iter (fun defaultValue -> argument.DefaultValue =! defaultValue)
 
+    static member JsonEqual (expected, result) =
+        let toString (token: JToken) =
+            JsonConvert.SerializeObject (
+                token,
+                Formatting.Indented
+            )
+
+        let result = JObject.Parse result
+        let expected = JObject.Parse expected
+        if not <| JToken.DeepEquals (result, expected) then
+            sprintf
+                "expected\n\n%s\n\nbut got\n\n%s\n\ndiff:\n\n%s"
+                (toString expected)
+                (toString result)
+                (string <| JsonDiffPatch().Diff (result, expected))
+            |> Assert.Fail
+
+    static member QueryEqual (query, expected, ?root) =
+        fun (schema: Schema) ->
+            let root =
+                root
+                |> Option.orElse (Some null)
+                |> Option.get
+            let result =
+                schema.Execute (fun options ->
+                    options.Schema <- schema
+                    options.Query <- query
+                    options.Root <- root
+                )
+
+            Assert.JsonEqual (
+                expected = expected,
+                result = result
+            )
+
+let jsonEqual expected result =
+    Assert.JsonEqual (
+        expected = expected,
+        result = result
+    )
+
+let queryEqual query expected schema =
+    schema
+    |> Assert.QueryEqual (
+        query = query,
+        expected = expected
+    )
+
+let fieldEqual name ``type`` field =
+    field
+    |> Assert.FieldEqual (
+        name = name,
+        ``type`` = ``type``
+    )
 
 let unionEqual name cases union =
     union

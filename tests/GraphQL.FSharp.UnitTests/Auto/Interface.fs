@@ -2,10 +2,24 @@ module GraphQL.FSharp.UnitTests.Auto.Interface
 
 open NUnit.Framework
 open Swensen.Unquote
-open GraphQL.Types
+open GraphQL
 open GraphQL.FSharp
+open GraphQL.FSharp.Builder
+open GraphQL.Types
 
-open GraphQL.FSharp.UnitTests.Assert
+open GraphQL.FSharp.TestUtils.Assert
+
+type IInterfaceWithNullableMembers =
+    abstract member Name: string option with get, set
+    abstract member GetInteger: unit -> int option
+
+[<Test>]
+let ``Auto Interface with nullable members`` () =
+    Auto.Interface<IInterfaceWithNullableMembers>
+    |> objectEqual "IInterfaceWithNullableMembers" [
+        "Name", nullable StringGraphType
+        "GetInteger", nullable IntGraphType
+    ]
 
 [<Name "MyCustomName"; Description "My custom description">]
 type IAttributeInterface =
@@ -62,12 +76,11 @@ let ``Auto Interface nested interface with methods and properties`` () =
 type MethodPropInterface() =
     interface IMethodPropInterface with
         member __.Name = "sup"
-        member __.GetCount () = 0
+        member __.GetCount () = 232
 
 [<Test>]
 let ``Auto Interface interface implementation object`` () =
-    let ``interface`` = Auto.Interface<IMethodPropInterface> :> IInterfaceGraphType
-
+    let ``interface`` = Auto.Interface<IMethodPropInterface>
     let object = Auto.Object<MethodPropInterface>
 
     object
@@ -79,5 +92,48 @@ let ``Auto Interface interface implementation object`` () =
     test
         <@
             object.ResolvedInterfaces
-            |> Seq.exists ((=) ``interface``)
+            |> Seq.exists ((=) (upcast ``interface`` ))
         @>
+
+[<Test>]
+let ``Auto Interface implementation results`` () =
+    Auto.Interface<IMethodPropInterface> |> ignore
+    Auto.Object<MethodPropInterface> |> ignore
+
+
+    let Query = """
+        query {
+            getMethod {
+                name,
+                getCount
+            }
+        }
+    """
+
+    let Expected = """
+        {
+            "data": {
+                "getMethod": {
+                    "name": "sup",
+                    "getCount": 232
+                }
+            }
+        }
+    """
+
+    let myQuery =
+        query {
+            fields [
+                field {
+                    name "getMethod"
+                    resolve (fun _ -> MethodPropInterface () :> IMethodPropInterface)
+                }
+            ]
+        }
+    let mySchema =
+        schema {
+            query myQuery
+        }
+
+    mySchema
+    |> queryEqual Query Expected

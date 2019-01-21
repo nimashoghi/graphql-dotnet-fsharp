@@ -2,6 +2,7 @@
 module GraphQL.FSharp.Builder.Field
 
 open System
+open System.Collections.Generic
 open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
@@ -23,6 +24,15 @@ let getFieldName expr =
         | _ -> None
     | _ -> None
 
+let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
+    field.Metadata.["FieldType"] <- box typeof<'field>
+    field
+
+let getFieldType (field: TypedFieldType<_>) =
+    match field.Metadata.TryGetValue "FieldType" with
+    | true, (:? Type as ``type``) when field.Type = null && field.ResolvedType = null -> Some ``type``
+    | _ -> None
+
 type FieldBuilder<'source>(?ofType) =
     inherit BuilderMetadataBase<TypedFieldType<'source>>()
 
@@ -34,7 +44,9 @@ type FieldBuilder<'source>(?ofType) =
 
     [<CustomOperation "defaultValue">]
     member __.DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
-        set (fun x -> x.DefaultValue <- ``default``) field
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x -> x.DefaultValue <- ``default``)
 
     [<CustomOperation "args">]
     member __.Args (field: TypedFieldType<'source>, arguments: _ list) =
@@ -46,36 +58,49 @@ type FieldBuilder<'source>(?ofType) =
         let resolver =
             LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %getter @>
             |> ExpressionFieldResolver
-        set (fun x ->
-            x.Name <- Option.get (getFieldName getter)
-            x.Resolver <- resolver) field
+        let fieldName =
+            match getFieldName getter with
+            | Some value -> value
+            // TODO: Add unit test for this
+            | None -> invalidArg "getter" "Could not find field name from getter expression. Get only supports simple expressions. Use resolve instead."
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x ->
+            x.Name <- fieldName
+            x.Resolver <- resolver)
 
     [<CustomOperation "resolve">]
     member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
-        let resolver = FuncFieldResolver<_, _> (Func<_, _> resolver)
-        set (fun x -> x.Resolver <- resolver) field
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x -> x.Resolver <- FuncFieldResolver<_, _> (Func<_, _> resolver))
 
     member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field Task) =
-        let resolver = AsyncFieldResolver<_, _> (Func<_, _> resolver)
-        set (fun x -> x.Resolver <- resolver) field
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x -> x.Resolver <- AsyncFieldResolver<_, _> (Func<_, _> resolver))
 
     [<CustomOperation "subscribe">]
     member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable) =
-        let subscriber = EventStreamResolver<_, _> (Func<_, _> subscribe)
-        set (fun x -> x.Subscriber <- subscriber) field
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
     // TODO: Should there be subscribe and subscribeAsync?
     // [<CustomOperation "subscribeAsync">]
     member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) =
-        let subscriber = AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-        set (fun x -> x.AsyncSubscriber <- subscriber) field
+        field
+        |> setFieldType<'field, _>
+        |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))
 
     member __.Run (field: TypedFieldType<'source>) =
         Option.iter (fun ofType -> field.ResolvedType <- ofType) ofType
 
-        if shouldInferField field
-        then inferField field
-        else field
+        field
+        |> getFieldType
+        |> Option.iter (fun ``type`` -> field.ResolvedType <- inferObjectNull ``type``)
 
-let field<'source> = FieldBuilder<'source> ()
+        field
+
+let field<'source when 'source: (new: unit -> 'source)> = FieldBuilder<'source> ()
 let fieldOf ofType = FieldBuilder<obj> ofType

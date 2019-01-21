@@ -1,13 +1,12 @@
 module GraphQL.FSharp.UnitTests.Auto.Union
 
 open System
-open FSharp.Reflection
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.Types
 open GraphQL.FSharp
 
-open GraphQL.FSharp.UnitTests.Assert
+open GraphQL.FSharp.TestUtils.Assert
 
 // TODO: Add tests using custom attributes
 

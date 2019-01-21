@@ -2,11 +2,10 @@ module GraphQL.FSharp.Inference
 
 open System
 open System.Collections.Generic
-open GraphQL.Resolvers
+open System.Threading.Tasks
 open GraphQL.Types
 
 open GraphQL.FSharp.Registry
-open GraphQL.FSharp.Types
 
 let (|Option|_|) (``type``: Type) =
     if ``type``.IsGenericType &&
@@ -14,9 +13,27 @@ let (|Option|_|) (``type``: Type) =
     then Some ``type``.GenericTypeArguments.[0]
     else None
 
+// TODO: Add proper validation using the result type
+let (|Result|_|) (``type``: Type) =
+    if ``type``.IsGenericType &&
+        ``type``.GetGenericTypeDefinition () = typedefof<Result<_, _>>
+    then Some (``type``.GenericTypeArguments.[0], ``type``.GenericTypeArguments.[1])
+    else None
+
 let (|Nullable|_|) (``type``: Type) =
     if ``type``.IsGenericType && ``type``.GetGenericTypeDefinition() = typedefof<Nullable<_>>
     then Some``type``.GenericTypeArguments.[0]
+    else None
+
+let (|Observable|_|) (``type``: Type) =
+    ``type``.GetInterfaces ()
+    |> Array.tryFind (fun ``interface`` ->
+        ``interface``.IsGenericType
+        && ``interface``.GetGenericTypeDefinition () = typedefof<IObservable<_>>)
+
+let (|Task|_|) (``type``: Type) =
+    if ``type``.IsGenericType && typeof<Task>.IsAssignableFrom ``type``
+    then Some ``type``.GenericTypeArguments.[0]
     else None
 
 let (|ArrayType|_|) (``type``: Type) =
@@ -45,6 +62,8 @@ let (|Enumerable|_|) (``type``: Type) =
 let rec infer checkNullability get (``type``: Type) =
     let graphType, isNull =
         match ``type`` with
+        | Observable underlyingType -> infer checkNullability get underlyingType, false
+        | Task underlyingType -> infer checkNullability get underlyingType, false
         | Nullable underlyingType
         | Option underlyingType ->
             infer false get underlyingType, true
@@ -66,34 +85,3 @@ let inferInput ``type`` = infer false InputObject.get ``type``
 
 let inferObjectNull ``type`` = infer true Object.get ``type``
 let inferInputNull ``type`` = infer true InputObject.get ``type``
-
-let getReturnType (resolver: IFieldResolver) =
-    resolver
-        .GetType()
-        .GetInterfaces()
-        |> Array.tryFind (fun ``interface`` ->
-            ``interface``.IsGenericType &&
-            ``interface``.GetGenericTypeDefinition() = typedefof<IFieldResolver<_>>)
-        // TODO: What about IFieldResolver of Task<TReturnType>
-        |> Option.map (fun ``interface`` -> ``interface``.GenericTypeArguments.[0])
-
-let (|TypedResolver|_|) resolver =
-    if resolver = null
-    then None
-    else getReturnType resolver
-
-let shouldInferField (field: TypedFieldType<'source>) = field.Type = null && field.ResolvedType = null
-
-let inferField (field: TypedFieldType<'source>) =
-    match field.Resolver with
-    | TypedResolver retn ->
-        field.ResolvedType <- inferObjectNull retn
-        field
-    | _ -> field
-
-// TODO: Add proper validation using the result type
-let (|Result|_|) (``type``: Type) =
-    if ``type``.IsGenericType &&
-        ``type``.GetGenericTypeDefinition () = typedefof<Result<_, _>>
-    then Some (``type``.GenericTypeArguments.[0], ``type``.GenericTypeArguments.[1])
-    else None

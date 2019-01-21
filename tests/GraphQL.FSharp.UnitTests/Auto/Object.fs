@@ -1,10 +1,28 @@
 module GraphQL.FSharp.UnitTests.Auto.Object
 
+open System
 open NUnit.Framework
+open Swensen.Unquote
 open GraphQL.Types
 open GraphQL.FSharp
 
-open GraphQL.FSharp.UnitTests.Assert
+open GraphQL.FSharp.TestUtils.Assert
+
+[<CLIMutable>]
+type NullableFieldObject = {
+    Name: string option
+    Age: int option
+    Height: float
+}
+
+[<Test>]
+let ``Auto Object nullable fields`` () =
+    Auto.Object<NullableFieldObject>
+    |> objectEqual "NullableFieldObject" [
+        "Name", nullable StringGraphType
+        "Age", nullable IntGraphType
+        "Height", nonNull FloatGraphType
+    ]
 
 [<Name "MyCustomName"; Description "My custom description">]
 type AttributeClass() =
@@ -122,8 +140,3 @@ let ``Auto Object regular class with methods and props`` () =
         "GetName", nonNull StringGraphType
         "GetCount", nonNull IntGraphType
     ]
-
-// TODO: add functionality for detecting (and tests for) for non-object types
-// type NonObjectType =
-// | First
-// | Second
