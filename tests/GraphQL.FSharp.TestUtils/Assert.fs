@@ -93,9 +93,10 @@ type Assert with
                 token,
                 Formatting.Indented
             )
+        let replaceNewLines (str: string) = str.Replace ("\r\n", "\n")
 
-        let result = JObject.Parse result
-        let expected = JObject.Parse expected
+        let result = JObject.Parse (replaceNewLines result)
+        let expected = JObject.Parse (replaceNewLines expected)
         if not <| JToken.DeepEquals (result, expected) then
             sprintf
                 "expected\n\n%s\n\nbut got\n\n%s\n\ndiff:\n\n%s"
