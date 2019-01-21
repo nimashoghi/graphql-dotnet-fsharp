@@ -101,16 +101,22 @@ type FieldBuilder<'source>(?ofType) =
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))
 
     member __.Run (field: TypedFieldType<'source>) =
-        Option.iter (fun ofType -> field.ResolvedType <- ofType) ofType
+        let hasDefaultValue = hasDefaultValue field
+        Option.iter (fun ofType ->
+            field.ResolvedType <-
+                if hasDefaultValue
+                then ofType :> IGraphType
+                else NonNullGraphType ofType :> IGraphType) ofType
 
         field
         |> getFieldType
         |> Option.iter (fun ``type`` ->
             field.ResolvedType <-
-                (not << hasDefaultValue) field
+                not hasDefaultValue
                 |> inferObjectConfigure ``type``)
 
         field
 
 let field<'source when 'source: (new: unit -> 'source)> = FieldBuilder<'source> ()
+// TODO: Add tests for fieldOf
 let fieldOf ofType = FieldBuilder<obj> ofType

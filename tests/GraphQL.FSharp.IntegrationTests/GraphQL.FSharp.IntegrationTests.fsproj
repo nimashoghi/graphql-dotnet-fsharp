@@ -5,9 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
+    <ProjectReference Include="..\GraphQL.FSharp.TestUtils\GraphQL.FSharp.TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
     <Compile Include="Basic.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

@@ -140,15 +140,8 @@ module GQL =
         ]
     }
 
-    type MyMutation() as this =
-        inherit ObjectGraphType()
-
-        do
-            this.Field("setSomething", fun ctx -> "something") |> ignore
-
     let mySchema = schema {
         query myQuery
-        mutation (MyMutation())
     }
 
 type Startup() =
