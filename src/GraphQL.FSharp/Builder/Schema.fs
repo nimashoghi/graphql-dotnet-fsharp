@@ -34,12 +34,6 @@ type SchemaBuilder() =
         |> List.toArray
         |> schema.RegisterTypes
 
-        // schema.RegisterValueConverter
-        //     {
-        //         new IAstFromValueConverter with
-        //             member __.Matches (o, graph) = printfn "%A" (o, graph); true
-        //             member __.Convert (value, ``type``) = null
-        //     }
         schema
 
 let schema = SchemaBuilder ()

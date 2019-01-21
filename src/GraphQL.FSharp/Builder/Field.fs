@@ -61,7 +61,6 @@ type FieldBuilder<'source>(?ofType) =
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]
-    // Should i not set name here?
     member __.Get (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field>) =
         let resolver =
             LeafExpressionConverter.QuotationToLambdaExpression <@ Func<_, _> %getter @>
@@ -69,7 +68,6 @@ type FieldBuilder<'source>(?ofType) =
         let fieldName =
             match getFieldName getter with
             | Some value -> value
-            // TODO: Add unit test for this
             | None -> invalidArg "getter" "Could not find field name from getter expression. Get only supports simple expressions. Use resolve instead."
         field
         |> setFieldType<'field, _>

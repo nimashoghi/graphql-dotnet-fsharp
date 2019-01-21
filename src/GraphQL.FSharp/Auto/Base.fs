@@ -55,6 +55,10 @@ module internal Update =
             |> Seq.filter (fun x -> x :? Attribute)
             |> Seq.map (fun x -> x :?> Attribute)
 
+    let shouldIgnore (attributes: Attribute seq) =
+        attributes
+        |> Seq.exists (fun attribute -> attribute :? IgnoreAttribute)
+
     let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: Attribute seq) =
         attributes
         |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
@@ -123,11 +127,13 @@ module internal Field =
         ``type``.GetProperties ()
         |> Array.filter validProp
 
-    let properties<'object> = [|
-        yield! validProps typeof<'object>
-        for ``interface`` in typeof<'object>.GetInterfaces () do
-            yield! validProps ``interface``
-    |]
+    let properties<'object> =
+        [|
+            yield! validProps typeof<'object>
+            for ``interface`` in typeof<'object>.GetInterfaces () do
+                yield! validProps ``interface``
+        |]
+        |> Array.filter (fun property -> not <| shouldIgnore property.PropertyAttributes)
 
     let inline setInfo (prop: ^t) (x: ^event) =
         let name = (^t: (member Name: string) prop)
@@ -164,6 +170,7 @@ module internal Field =
             for ``interface`` in typeof<'object>.GetInterfaces () do
                 yield! validMethods ``interface``
         |]
+        |> Array.filter (fun method -> not <| shouldIgnore method.MethodAttributes)
 
     let invalidGraphType =
         {
@@ -177,11 +184,36 @@ module internal Field =
 
         queryArgument
 
+    type MethodParameter =
+    | Argument of QueryArgument
+    | Context
+
+    let (|ContextParameter|ArgumentParameter|) (parameter: ParameterInfo) =
+        if parameter.ParameterAttributes |> Seq.exists (fun attribute -> attribute :? ContextAttribute)
+        then ContextParameter
+        else ArgumentParameter
+
+    let isResolveFieldContext (``type``: Type) =
+        if ``type``.IsGenericType
+            && ``type``.GetGenericTypeDefinition ()
+                <> typedefof<ResolveFieldContext<_>> then true
+        elif ``type`` = typeof<ResolveFieldContext> then true
+        else false
+
+
     let makeArgument (parameter: ParameterInfo) =
-        QueryArgument invalidGraphType
-        |> setInfo parameter
-        |> updateArgument parameter.ParameterAttributes
-        |> setArgumentType parameter
+        match parameter with
+        | ContextParameter ->
+            if not <| isResolveFieldContext parameter.ParameterType
+            then invalidOp "A parameter that has the Context attribute must have the type of ResolveFieldContext<_>."
+
+            Context
+        | ArgumentParameter ->
+            QueryArgument invalidGraphType
+            |> setInfo parameter
+            |> updateArgument parameter.ParameterAttributes
+            |> setArgumentType parameter
+            |> Argument
 
     let makeMethodField infer (method: MethodInfo) =
         let field = EventStreamFieldType () |> setInfo method
@@ -193,7 +225,16 @@ module internal Field =
             (queryArguemnts, arguments)
             ||> Array.zip
 
-        field.Arguments <- QueryArguments queryArguemnts
+        field.Arguments <-
+            queryArguemnts
+            |> Array.map (fun parameter ->
+                match parameter with
+                | Argument arg -> Some arg
+                | Context -> None
+            )
+            |> Array.some
+            |> QueryArguments
+
         field.ResolvedType <- infer method.ReturnType
 
         let field = updateField method.MethodAttributes field
@@ -205,11 +246,15 @@ module internal Field =
                 let resolvedArguments =
                     argumentPairs
                     |> Array.map (fun (queryArg, info) ->
-                        ctx.GetArgument (
-                            argumentType = info.ParameterType,
-                            name = queryArg.Name,
-                            defaultValue = queryArg.DefaultValue
-                        ))
+                        match queryArg with
+                        | Argument queryArg ->
+                            ctx.GetArgument (
+                                argumentType = info.ParameterType,
+                                name = queryArg.Name,
+                                defaultValue = queryArg.DefaultValue
+                            )
+                        | Context -> box ctx
+                    )
                 method.Invoke (ctx.Source, resolvedArguments))
 
         field

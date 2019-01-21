@@ -1,12 +1,47 @@
 module GraphQL.FSharp.UnitTests.Auto.Object
 
-open System
 open NUnit.Framework
-open Swensen.Unquote
 open GraphQL.Types
 open GraphQL.FSharp
 
 open GraphQL.FSharp.TestUtils.Assert
+
+type ContextParameterTest () =
+    member __.TestContext ([<Context>] _ctx: ResolveFieldContext, name: int) = ""
+
+[<Test>]
+let ``Auto Object context parameter`` () =
+    let object = Auto.Object<ContextParameterTest>
+    object
+    |> objectEqual "ContextParameterTest" [
+        "TestContext", nonNull StringGraphType
+    ]
+
+    let testContext = object.Fields |> Seq.head
+    Swensen.Unquote.Assertions.test
+        <@
+            testContext.Arguments
+            |> Seq.exists (fun arg -> arg.Name = "name" && arg.ResolvedType = upcast NonNullGraphType (IntGraphType ()))
+        @>
+
+[<CLIMutable>]
+type IgnoredFieldObject =
+    {
+        Name: string
+        [<Ignore>]
+        Ignored: int
+    }
+    member this.GetName () = this.Name
+    [<Ignore>]
+    member this.GetIgnored () = this.Ignored
+
+[<Test>]
+let ``Auto Object ignored fields`` () =
+    Auto.Object<IgnoredFieldObject>
+    |> objectEqual "IgnoredFieldObject" [
+        "Name", nonNull StringGraphType
+        "GetName", nonNull StringGraphType
+    ]
 
 [<CLIMutable>]
 type NullableFieldObject = {
