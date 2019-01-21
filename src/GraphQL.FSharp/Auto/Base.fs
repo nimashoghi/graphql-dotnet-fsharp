@@ -12,6 +12,8 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Utils
 
+// TODO: For object methods, add Task<_> methods as async fields and IObservable<_> methods as subscriptions
+
 [<AutoOpen>]
 module Resolvers =
     let resolve f =
@@ -138,7 +140,7 @@ module internal Field =
         field.Resolver <- resolveSource prop.GetValue
         field.ResolvedType <- infer prop.PropertyType
 
-        updateField (prop.GetCustomAttributes ()) field
+        updateField prop.PropertyAttributes field
 
     let objectMethod (method: MemberInfo) = method.DeclaringType = typeof<obj>
     // FIXME: this is hacky but works for now. fix this later
@@ -170,7 +172,7 @@ module internal Field =
 
     let setArgumentType (parameter: ParameterInfo) (queryArgument: QueryArgument) =
         if Object.ReferenceEquals (invalidGraphType, queryArgument.ResolvedType)
-        then queryArgument.ResolvedType <- inferObject parameter.ParameterType
+        then queryArgument.ResolvedType <- inferObjectNull parameter.ParameterType
 
         queryArgument
 

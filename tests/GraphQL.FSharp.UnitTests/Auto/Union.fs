@@ -25,11 +25,11 @@ let ``Auto Union union with attributes`` () =
         deprecationReason = "Not deprecated",
         cases = [
             "FirstCase", [
-                "Item", graph IntGraphType
+                "Item", nonNull IntGraphType
             ]
             "SecondCase", [
-                "fst", graph IntGraphType
-                "snd", graph FloatGraphType
+                "fst", nonNull IntGraphType
+                "snd", nonNull FloatGraphType
             ]
         ]
     )
@@ -52,16 +52,16 @@ let ``Auto Union single member case`` () =
     Auto.Union<MyUnion>
     |> unionEqual "MyUnion" [
         "NamedUser", [
-            "User", liftGraph user
+            "User", liftNonNull user
         ]
         "UnnamedUser", [
-            "Item", liftGraph user
+            "Item", liftNonNull user
         ]
         "UnnamedInteger", [
-            "Item", graph IntGraphType
+            "Item", nonNull IntGraphType
         ]
         "NamedInteger", [
-            "Name", graph IntGraphType
+            "Name", nonNull IntGraphType
         ]
     ]
 
@@ -74,11 +74,11 @@ let ``Auto Union valid test graph type name`` () =
     Auto.Union<ValidUnion>
     |> unionEqual "ValidUnion" [
         "First", [
-            "Name", graph IntGraphType
+            "Name", nonNull IntGraphType
         ]
         "Second", [
-            "Fst", graph StringGraphType
-            "Snd", graph FloatGraphType
+            "Fst", nonNull StringGraphType
+            "Snd", nonNull FloatGraphType
         ]
     ]
 

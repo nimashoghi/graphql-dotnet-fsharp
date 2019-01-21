@@ -12,7 +12,7 @@ let InputObject<'object> =
 
     InputObjectGraphType<'object> ()
     |> setInfo typeof<'object>
-    |> addProperties inferInput
-    |> addMethods inferInput
+    |> addProperties inferInputNull
+    |> addMethods inferInputNull
     |> updateType typeof<'object>.TypeAttributes
     |> InputObject.register typeof<'object>

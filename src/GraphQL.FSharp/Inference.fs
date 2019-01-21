@@ -42,21 +42,30 @@ let (|Enumerable|_|) (``type``: Type) =
     | _ -> None
 
 // TODO: Check nullable stuff
-let rec infer get (``type``: Type) =
-    match ``type`` with
-    | Nullable underlyingType
-    | Option underlyingType ->
-        infer get underlyingType
-    | Enumerable underlyingType ->
-        infer get underlyingType
-        |> ListGraphType
-        :> IGraphType
-    | underlyingType ->
-        get underlyingType
-        |> Option.toObj
+let rec infer checkNullability get (``type``: Type) =
+    let graphType, isNull =
+        match ``type`` with
+        | Nullable underlyingType
+        | Option underlyingType ->
+            infer false get underlyingType, true
+        | Enumerable underlyingType ->
+            (infer checkNullability get underlyingType
+            |> ListGraphType
+            :> IGraphType), false
+        | underlyingType ->
+            (get underlyingType
+            |> Option.toObj), false
 
-let inferObject ``type`` = infer Object.get ``type``
-let inferInput ``type`` = infer InputObject.get ``type``
+    if checkNullability && not isNull
+    then NonNullGraphType graphType :> IGraphType
+    else graphType
+
+
+let inferObject ``type`` = infer false Object.get ``type``
+let inferInput ``type`` = infer false InputObject.get ``type``
+
+let inferObjectNull ``type`` = infer true Object.get ``type``
+let inferInputNull ``type`` = infer true InputObject.get ``type``
 
 let getReturnType (resolver: IFieldResolver) =
     resolver
@@ -78,7 +87,7 @@ let shouldInferField (field: TypedFieldType<'source>) = field.Type = null && fie
 let inferField (field: TypedFieldType<'source>) =
     match field.Resolver with
     | TypedResolver retn ->
-        field.ResolvedType <- inferObject retn
+        field.ResolvedType <- inferObjectNull retn
         field
     | _ -> field
 

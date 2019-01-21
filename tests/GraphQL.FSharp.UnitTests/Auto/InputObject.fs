@@ -19,7 +19,7 @@ let ``Auto InputObject class with attributes`` () =
         name = "MyCustomName",
         description = "My custom description",
         fields = [
-            "MyCustomNameField", "My custom description field", graph StringGraphType
+            "MyCustomNameField", "My custom description field", nonNull StringGraphType
         ]
     )
 
@@ -40,8 +40,8 @@ type UserWithProps = {
 let ``Auto InputObject record with properties`` () =
     Auto.InputObject<UserWithProps>
     |> objectEqual "UserWithProps" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
     ]
 
 [<CLIMutable>]
@@ -57,9 +57,9 @@ type UserWithPropsAndMethods =
 let ``Auto InputObject record with properties and methods`` () =
     Auto.InputObject<UserWithPropsAndMethods>
     |> objectEqual "UserWithPropsAndMethods" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "MyMethod", graph StringGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "MyMethod", nonNull StringGraphType
     ]
 
 type IUserInterface =
@@ -79,9 +79,9 @@ type UserWithInterface =
 let ``Auto InputObject record implementing an interface`` () =
     Auto.InputObject<UserWithInterface>
     |> objectEqual "UserWithInterface" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "GetAbstract", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "GetAbstract", nonNull IntGraphType
     ]
 
 type RegularClassWithMethodsAndProps() =
@@ -95,8 +95,8 @@ type RegularClassWithMethodsAndProps() =
 let ``Auto Object regular class with methods and props`` () =
     Auto.InputObject<RegularClassWithMethodsAndProps>
     |> objectEqual "RegularClassWithMethodsAndProps" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "GetName", graph StringGraphType
-        "GetCount", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "GetName", nonNull StringGraphType
+        "GetCount", nonNull IntGraphType
     ]

@@ -19,7 +19,7 @@ let ``Auto Object class with attributes`` () =
         name = "MyCustomName",
         description = "My custom description",
         fields = [
-            "MyCustomNameField", "My custom description field", graph StringGraphType
+            "MyCustomNameField", "My custom description field", nonNull StringGraphType
         ]
     )
 
@@ -41,7 +41,7 @@ let ``Auto Object class implementing an interface with attributes`` () =
         name = "MyCustomNameImpl",
         description = "My custom impl description",
         fields = [
-            "MyCustomNameField", "My custom description field", graph StringGraphType
+            "MyCustomNameField", "My custom description field", nonNull StringGraphType
         ]
     )
 
@@ -62,8 +62,8 @@ type UserWithProps = {
 let ``Auto Object record with properties`` () =
     Auto.Object<UserWithProps>
     |> objectEqual "UserWithProps" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
     ]
 
 [<CLIMutable>]
@@ -79,9 +79,9 @@ type UserWithPropsAndMethods =
 let ``Auto Object record with properties and methods`` () =
     Auto.Object<UserWithPropsAndMethods>
     |> objectEqual "UserWithPropsAndMethods" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "MyMethod", graph StringGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "MyMethod", nonNull StringGraphType
     ]
 
 type IUserInterface =
@@ -101,9 +101,9 @@ type UserWithInterface =
 let ``Auto Object record implementing an interface`` () =
     Auto.Object<UserWithInterface>
     |> objectEqual "UserWithInterface" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "GetAbstract", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "GetAbstract", nonNull IntGraphType
     ]
 
 type RegularClassWithMethodsAndProps() =
@@ -117,10 +117,10 @@ type RegularClassWithMethodsAndProps() =
 let ``Auto Object regular class with methods and props`` () =
     Auto.Object<RegularClassWithMethodsAndProps>
     |> objectEqual "RegularClassWithMethodsAndProps" [
-        "Name", graph StringGraphType
-        "Count", graph IntGraphType
-        "GetName", graph StringGraphType
-        "GetCount", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "Count", nonNull IntGraphType
+        "GetName", nonNull StringGraphType
+        "GetCount", nonNull IntGraphType
     ]
 
 // TODO: add functionality for detecting (and tests for) for non-object types

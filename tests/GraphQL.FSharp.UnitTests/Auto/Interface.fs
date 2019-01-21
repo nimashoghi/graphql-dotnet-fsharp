@@ -20,7 +20,7 @@ let ``Auto Interface interface with attributes`` () =
         name = "MyCustomName",
         description = "My custom description",
         fields = [
-            "MyCustomNameField", "My custom description field", graph StringGraphType
+            "MyCustomNameField", "My custom description field", nonNull StringGraphType
         ]
     )
 
@@ -39,8 +39,8 @@ type IMethodPropInterface =
 let ``Auto Interface interface with methods and properties`` () =
     Auto.Interface<IMethodPropInterface>
     |> objectEqual "IMethodPropInterface" [
-        "Name", graph StringGraphType
-        "GetCount", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "GetCount", nonNull IntGraphType
     ]
 
 type INestedInterfaceWithMethodPropInterface =
@@ -53,10 +53,10 @@ type INestedInterfaceWithMethodPropInterface =
 let ``Auto Interface nested interface with methods and properties`` () =
     Auto.Interface<INestedInterfaceWithMethodPropInterface>
     |> objectEqual "INestedInterfaceWithMethodPropInterface" [
-        "Name", graph StringGraphType
-        "GetCount", graph IntGraphType
-        "GetSecondName", graph StringGraphType
-        "SecondCount", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "GetCount", nonNull IntGraphType
+        "GetSecondName", nonNull StringGraphType
+        "SecondCount", nonNull IntGraphType
     ]
 
 type MethodPropInterface() =
@@ -72,8 +72,8 @@ let ``Auto Interface interface implementation object`` () =
 
     object
     |> objectEqual "MethodPropInterface" [
-        "Name", graph StringGraphType
-        "GetCount", graph IntGraphType
+        "Name", nonNull StringGraphType
+        "GetCount", nonNull IntGraphType
     ]
 
     test

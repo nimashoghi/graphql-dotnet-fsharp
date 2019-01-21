@@ -12,4 +12,4 @@ let ``Builder Argument basic test`` () =
     arg<int> {
         name "myArg"
     }
-    |> argumentEqual "myArg" IntGraphType None
+    |> argumentEqual "myArg" (nonNull IntGraphType) None

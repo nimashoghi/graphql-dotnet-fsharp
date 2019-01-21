@@ -12,7 +12,7 @@ let Interface<'object> =
 
     InterfaceGraphType<'object> ()
     |> setInfo typeof<'object>
-    |> addProperties inferObject
-    |> addMethods inferObject
+    |> addProperties inferObjectNull
+    |> addMethods inferObjectNull
     |> updateType typeof<'object>.TypeAttributes
     |> Object.register typeof<'object>

@@ -12,7 +12,7 @@ type ArgumentBuilder<'arg when 'arg : (new: unit -> 'arg)>(?``type``: IGraphType
     member __.Yield _ =
         match ``type`` with
         | Some ``type`` -> QueryArgument ``type``
-        | None -> QueryArgument (inferInput typeof<'arg>)
+        | None -> QueryArgument (inferInputNull typeof<'arg>)
 
     [<CustomOperation "name">]
     member __.Name (arg, name) =

@@ -40,8 +40,8 @@ let Object<'object> =
 
     ObjectGraphType<'object> ()
     |> setInfo typeof<'object>
-    |> addProperties inferObject
-    |> addMethods inferObject
+    |> addProperties inferObjectNull
+    |> addMethods inferObjectNull
     |> updateType typeof<'object>.TypeAttributes
     |> addInterfaces
     |> Object.register typeof<'object>

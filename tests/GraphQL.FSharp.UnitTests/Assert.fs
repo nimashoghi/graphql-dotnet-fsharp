@@ -4,8 +4,8 @@ open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.Types
 
-let graph (f: unit -> #IGraphType) = fun () -> f () :> IGraphType
-let liftGraph (``type``: #IGraphType) = fun () -> ``type`` :> IGraphType
+let nonNull (f: unit -> #IGraphType) = fun () -> NonNullGraphType (f ()) :> IGraphType
+let liftNonNull (``type``: #IGraphType) = fun () -> NonNullGraphType ``type`` :> IGraphType
 
 let inline private graphEqual (name, description, deprecationReason, metadata) (graph: #IGraphType) =
     name |> Option.iter (fun name -> graph.Name =! name)

@@ -15,7 +15,7 @@ let internal addFields<'union>
     (case: UnionCaseInfo)
     (object: ObjectGraphType<obj>) =
     case.GetFields ()
-    |> Array.map (makePropField inferObject)
+    |> Array.map (makePropField inferObjectNull)
     |> Array.iter (object.AddField >> ignore)
 
     object
@@ -36,7 +36,7 @@ let internal setIsTypeOf<'union>
 let internal makeUnionCase<'union> (case: UnionCaseInfo) =
     ObjectGraphType<obj> ()
     |> setInfo case
-    |> addMethods inferObject
+    |> addMethods inferObjectNull
     |> addFields<'union> case
     |> setIsTypeOf<'union> case
     |> updateType case.CaseAttributes
