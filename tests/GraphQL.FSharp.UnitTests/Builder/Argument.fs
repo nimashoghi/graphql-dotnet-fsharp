@@ -11,7 +11,7 @@ open GraphQL.FSharp.TestUtils.Assert
 
 [<Test>]
 let ``Builder Argument basic test`` () =
-    arg<int> {
+    argument<int> {
         name "myArg"
     }
     |> argumentEqual "myArg" (nonNull IntGraphType) None

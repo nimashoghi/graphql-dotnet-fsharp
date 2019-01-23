@@ -87,7 +87,7 @@ module GQL =
             field {
                 name "myQuery"
                 resolve (fun ctx -> ctx.GetArgument<int> "myArg" :: [1; 2; 3; 4; 5])
-                args [
+                arguments [
                     Define.Argument<int> ("myArg", 1)
                 ]
             }
@@ -102,7 +102,7 @@ module GQL =
             }
             field {
                 name "withInput"
-                args [
+                arguments [
                     Define.Argument<MyType> "myArg"
                 ]
                 resolveAsync (fun ctx -> Task.FromResult <| ctx.GetArgument<MyType> "myArg")

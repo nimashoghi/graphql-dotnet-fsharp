@@ -26,5 +26,5 @@ type ArgumentBuilder<'arg when 'arg : (new: unit -> 'arg)>(?``type``: IGraphType
     member __.DefaultValue (arg, ``default``: 'arg) =
         set (fun x -> x.DefaultValue <- ``default``) arg
 
-let arg<'arg when 'arg : (new: unit -> 'arg)> = ArgumentBuilder<'arg> ()
-let argOf ``type`` = ArgumentBuilder ``type``
+let argument<'arg when 'arg : (new: unit -> 'arg)> = ArgumentBuilder<'arg> ()
+let argumentOf ``type`` = ArgumentBuilder ``type``

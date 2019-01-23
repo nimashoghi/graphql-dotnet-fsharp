@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Basic.fs" />
     <Compile Include="Task.fs" />
+    <Compile Include="Mutation.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

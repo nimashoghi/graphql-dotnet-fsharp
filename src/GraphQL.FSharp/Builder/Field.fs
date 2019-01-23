@@ -108,8 +108,8 @@ type FieldBuilder<'source>(?ofType) =
             x.Metadata.[HasDefaultValueMetadataName] <- true
         )
 
-    [<CustomOperation "args">]
-    member __.Args (field: TypedFieldType<'source>, arguments: _ list) =
+    [<CustomOperation "arguments">]
+    member __.Arguments (field: TypedFieldType<'source>, arguments: _ list) =
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]

@@ -84,7 +84,7 @@ module GraphTypes =
             field {
                 name "myQuery"
                 resolve (fun ctx -> ctx.GetArgument<int> "myArg" :: [1; 2; 3; 4; 5])
-                args [
+                arguments [
                     Define.Argument<int> ("myArg", 1)
                 ]
             }
@@ -99,7 +99,7 @@ module GraphTypes =
             }
             field {
                 name "withInput"
-                args [
+                arguments [
                     Define.Argument<MyType> "myArg"
                 ]
                 resolve (fun ctx -> ctx.GetArgument<MyType> "myArg")
