@@ -8,6 +8,8 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils
 
+// TODO: Subscriptions
+
 let abstractClasses<'object> =
     let rec run (``type``: Type) = [|
         let baseType = ``type``.BaseType

@@ -8,8 +8,6 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.TestUtils.Assert
 
-// TODO: Add tests using custom attributes
-
 [<Name "MyAttributeUnionCustom"; Description "My attribute union description"; DeprecationReason "Not deprecated">]
 type MyAttributeUnion =
 | [<Name "FirstCase">] First of int

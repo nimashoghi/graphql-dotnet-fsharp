@@ -25,6 +25,7 @@ let (|Nullable|_|) (``type``: Type) =
     then Some``type``.GenericTypeArguments.[0]
     else None
 
+// TODO: Add proper inference of IObservable types
 let (|Observable|_|) (``type``: Type) =
     ``type``.GetInterfaces ()
     |> Array.tryFind (fun ``interface`` ->

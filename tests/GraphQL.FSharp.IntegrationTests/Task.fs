@@ -5,6 +5,7 @@ open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
+open FSharp.Control.Tasks.V2
 
 open GraphQL.FSharp.TestUtils.Assert
 
@@ -66,6 +67,37 @@ let ``Schema using asynchronous resolver with methods returning task works prope
                 field {
                     name "getMyType"
                     resolveAsync (fun _ -> Task.FromResult <| MyType ())
+                }
+            ]
+        }
+    let mySchema =
+        schema {
+            query myQuery
+        }
+
+    queryEqual Query ExpectedResult mySchema
+
+[<Test>]
+let ``getAsync test`` () =
+    let myObject =
+        object {
+            name "MyObject"
+            fields [
+                field {
+                    getAsync (fun (x: MyType) -> x.GetSomethingAsync ())
+                }
+                field {
+                    getAsync (fun (x: MyType) -> task { return x.GetSomethingSync () })
+                }
+            ]
+        }
+
+    let myQuery =
+        query {
+            fields [
+                fieldOf myObject {
+                    name "getMyType"
+                    resolve (fun _ -> MyType ())
                 }
             ]
         }

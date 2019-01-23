@@ -8,7 +8,7 @@ open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Registry
 
-let private isValidEnum<'enum> =
+let isValidEnum<'enum> =
     typeof<'enum>.IsEnum ||
     (FSharpType.IsUnion typeof<'enum> &&
      FSharpType.GetUnionCases typeof<'enum>
@@ -16,7 +16,7 @@ let private isValidEnum<'enum> =
          case.GetFields ()
          |> Array.isEmpty))
 
-let private (|Enum|Union|) (``type``: Type) =
+let (|Enum|Union|) (``type``: Type) =
     if ``type``.IsEnum
     then Enum
     elif FSharpType.IsUnion ``type``
@@ -39,7 +39,7 @@ let internal addCases<'enum> (enum: EnumerationGraphType) =
 
     enum
 
-let private unionEnum<'enum> () =
+let unionEnum<'enum> () =
     EnumerationGraphType ()
     |> setInfo typeof<'enum>
     |> addCases<'enum>
