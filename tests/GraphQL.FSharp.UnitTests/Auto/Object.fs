@@ -1,10 +1,21 @@
 module GraphQL.FSharp.UnitTests.Auto.Object
 
+open System.Threading.Tasks
 open NUnit.Framework
-open GraphQL.Types
 open GraphQL.FSharp
+open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
+
+type TaskMethodType() =
+    member __.TaskMethod () = Task.FromResult "test"
+
+[<Test>]
+let ``Auto Object field of method returning task`` () =
+    Auto.Object<TaskMethodType>
+    |> objectEqual "TaskMethodType" [
+        "TaskMethod", nonNull StringGraphType
+    ]
 
 type ContextParameterTest () =
     member __.TestContext ([<Context>] _ctx: ResolveFieldContext, name: int) = ""

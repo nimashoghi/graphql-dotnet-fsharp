@@ -32,7 +32,7 @@ let (|Observable|_|) (``type``: Type) =
         && ``interface``.GetGenericTypeDefinition () = typedefof<IObservable<_>>)
 
 let (|Task|_|) (``type``: Type) =
-    if ``type``.IsGenericType && typeof<Task>.IsAssignableFrom ``type``
+    if ``type``.IsGenericType && ``type``.GetGenericTypeDefinition () = typedefof<Task<_>>
     then Some ``type``.GenericTypeArguments.[0]
     else None
 
@@ -58,12 +58,11 @@ let (|Enumerable|_|) (``type``: Type) =
     | EnumerableType underlyingType -> Some underlyingType
     | _ -> None
 
-// TODO: Check nullable stuff
 let rec infer checkNullability get (``type``: Type) =
     let graphType, isNull =
         match ``type`` with
-        | Observable underlyingType -> infer checkNullability get underlyingType, false
-        | Task underlyingType -> infer checkNullability get underlyingType, false
+        // | Observable underlyingType -> infer checkNullability get underlyingType, false
+        // | Task underlyingType -> infer checkNullability get underlyingType, false
         | Nullable underlyingType
         | Option underlyingType ->
             infer false get underlyingType, true
@@ -71,6 +70,7 @@ let rec infer checkNullability get (``type``: Type) =
             (infer checkNullability get underlyingType
             |> ListGraphType
             :> IGraphType), false
+        | Task underlyingType
         | underlyingType ->
             (get underlyingType
             |> Option.toObj), false

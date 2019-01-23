@@ -82,7 +82,8 @@ type FieldBuilder<'source>(?ofType) =
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- FuncFieldResolver<_, _> (Func<_, _> resolver))
 
-    member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field Task) =
+    [<CustomOperation "resolveAsync">]
+    member __.ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field Task) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- AsyncFieldResolver<_, _> (Func<_, _> resolver))
@@ -93,9 +94,8 @@ type FieldBuilder<'source>(?ofType) =
         |> setFieldType<'field, _>
         |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
-    // TODO: Should there be subscribe and subscribeAsync?
-    // [<CustomOperation "subscribeAsync">]
-    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) =
+    [<CustomOperation "subscribeAsync">]
+    member __.SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))

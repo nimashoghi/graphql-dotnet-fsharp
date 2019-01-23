@@ -293,7 +293,7 @@ let ExpectedResult = """
 let ``Complex query result`` () =
     queryEqual Query ExpectedResult mySchema
 
-
+[<Literal>]
 let IntrosepctionQuery = """
     query IntrospectionQuery {
         __schema {
@@ -395,7 +395,7 @@ let IntrosepctionQuery = """
         }
     }
 """
-
+[<Literal>]
 let ExpectedIntrospectionResult = """
     {
         "data": {

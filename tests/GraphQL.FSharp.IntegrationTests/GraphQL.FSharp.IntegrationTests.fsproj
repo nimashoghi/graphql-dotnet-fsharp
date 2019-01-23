@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
-    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
@@ -9,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Basic.fs" />
+    <Compile Include="Task.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

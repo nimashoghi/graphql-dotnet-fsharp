@@ -18,7 +18,7 @@ open System.Threading.Tasks
 module GQL =
     type IMyInterface =
         abstract member SomeName: string
-        abstract member GetSomeOtherName: name: string -> string
+        abstract member GetSomeOtherName: name: string -> string Task
 
     type MyImplementation() =
         member val SomeOtherName = ""
@@ -26,14 +26,14 @@ module GQL =
 
         interface IMyInterface with
             member val SomeName = ""
-            member this.GetSomeOtherName name = sprintf "sup %s" name
+            member this.GetSomeOtherName name = sprintf "sup %s" name |> Task.FromResult
 
     type MyImplementationNum2() =
         member val SomeThirdName = ""
 
         interface IMyInterface with
             member val SomeName = ""
-            member this.GetSomeOtherName name = sprintf "hello %s" name
+            member this.GetSomeOtherName name = sprintf "hello %s" name |> Task.FromResult
 
     let myInterface = Auto.Interface<IMyInterface>
     let myImplementation = Auto.Object<MyImplementation>
@@ -105,15 +105,15 @@ module GQL =
                 args [
                     Define.Argument<MyType> "myArg"
                 ]
-                resolve (fun ctx -> ctx.GetArgument<MyType> "myArg")
+                resolveAsync (fun ctx -> Task.FromResult <| ctx.GetArgument<MyType> "myArg")
             }
             field {
                 name "myAutoUnion"
-                resolve (fun _ -> FirstUnion ("sup", 12))
+                resolveAsync (fun _ -> Task.FromResult <| FirstUnion ("sup", 12))
             }
             field {
                 name "myAutoUnionList"
-                resolve (fun _ -> [
+                resolveAsync (fun _ -> Task.FromResult [
                     FirstUnion ("sup", 12)
                     FirstUnion ("dfsjiosh", 122)
                     SecondUnion (1.2, Guid.NewGuid ())
@@ -123,11 +123,11 @@ module GQL =
             }
             field {
                 name "myImpl"
-                resolve (fun _ -> MyImplementation())
+                resolveAsync (fun _ -> Task.FromResult <| MyImplementation())
             }
             field {
                 name "myImplList"
-                resolve (fun _ -> [
+                resolveAsync (fun _ -> Task.FromResult [
                     MyImplementation() :> IMyInterface
                     MyImplementationNum2() :> IMyInterface
                     MyImplementation() :> IMyInterface
@@ -135,7 +135,7 @@ module GQL =
             }
             field {
                 name "myInterface"
-                resolve (fun _ -> MyImplementation() :> IMyInterface)
+                resolveAsync (fun _ -> Task.FromResult <| (MyImplementation() :> IMyInterface))
             }
         ]
     }
