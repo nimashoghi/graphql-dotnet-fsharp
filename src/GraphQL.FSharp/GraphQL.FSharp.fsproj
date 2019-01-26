@@ -3,10 +3,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Logging.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Attributes.fs" />
+    <Compile Include="Resolvers.fs" />
     <Compile Include="Registry.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Define.fs" />

@@ -1,7 +1,6 @@
 [<AutoOpen>]
-module rec GraphQL.FSharp.Builder.Argument
+module GraphQL.FSharp.Builder.Argument
 
-open System.Collections.Generic
 open GraphQL.Types
 
 open GraphQL.FSharp.Inference

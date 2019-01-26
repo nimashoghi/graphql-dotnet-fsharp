@@ -2,7 +2,6 @@ module GraphQL.FSharp.UnitTests.Builder.Field
 
 open System
 open System.Threading.Tasks
-open FSharp.Control.Tasks.V2
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Builder
@@ -43,14 +42,6 @@ module Quotations =
     let ``AsyncFieldName method`` () =
         (|AsyncFieldName|_|) <@ fun (x: MyAsyncObject) -> x.GetSomeAsyncMethod2 () @> =! Some "GetSomeAsyncMethod2"
 
-    [<Test>]
-    let ``AsyncFieldName record property computation expressions`` () =
-        (|AsyncFieldName|_|) <@ fun (x: MyAsyncObject) -> task { return! x.GetSomeAsyncMethod () } @> =! Some "GetSomeAsyncMethod"
-
-    [<Test>]
-    let ``AsyncFieldName method computation expressions`` () =
-        (|AsyncFieldName|_|) <@ fun (x: MyAsyncObject) -> task { return! x.GetSomeAsyncMethod2 () } @> =! Some "GetSomeAsyncMethod2"
-
 
 [<Test>]
 let ``Builder Field task return types`` () =
@@ -67,13 +58,6 @@ type MyTaskObject() =
 let ``Builder Field task return types inferred`` () =
     field {
         getAsync (fun (x: MyTaskObject) -> x.GetNameStored ())
-    }
-    |> fieldEqual "GetNameStored" (nonNull StringGraphType)
-
-[<Test>]
-let ``Builder Field task return types inferred computation expression`` () =
-    field {
-        getAsync (fun (x: MyTaskObject) -> task { return! x.GetNameStored () })
     }
     |> fieldEqual "GetNameStored" (nonNull StringGraphType)
 

@@ -87,7 +87,7 @@ let ``getAsync test`` () =
                     getAsync (fun (x: MyType) -> x.GetSomethingAsync ())
                 }
                 field {
-                    getAsync (fun (x: MyType) -> task { return x.GetSomethingSync () })
+                    get (fun (x: MyType) -> x.GetSomethingSync ())
                 }
             ]
         }

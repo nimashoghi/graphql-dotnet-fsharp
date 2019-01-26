@@ -137,6 +137,14 @@ module GQL =
                 name "myInterface"
                 resolveAsync (fun _ -> Task.FromResult <| (MyImplementation() :> IMyInterface))
             }
+            field {
+                name "getString"
+                resolve (fun _ -> Ok "sup")
+            }
+            // field {
+            //     name "getStringErr"
+            //     resolveAsync (fun _ -> Task.FromResult (Error "sup"))
+            // }
         ]
     }
 

@@ -6,28 +6,14 @@ open System.Reflection
 open System.Runtime.CompilerServices
 open FSharp.Reflection
 open GraphQL.Types
-open GraphQL.Resolvers
 
 open GraphQL.FSharp
 open GraphQL.FSharp.Inference
+open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Utils
 
 // TODO: What about methods with unit parameters? e.g. member this.DoSomething () = "2"
 // TODO: For object methods, add Task<_> methods as async fields and IObservable<_> methods as subscriptions
-
-[<AutoOpen>]
-module Resolvers =
-    let resolve f =
-        {
-            new IFieldResolver with
-                member __.Resolve ctx = f ctx |> box
-        }
-
-    let resolveSource f =
-        {
-            new IFieldResolver with
-                member __.Resolve ctx = f ctx.Source |> box
-        }
 
 [<AutoOpen>]
 module Attribute =
@@ -133,7 +119,7 @@ module internal Field =
             for ``interface`` in typeof<'object>.GetInterfaces () do
                 yield! validProps ``interface``
         |]
-        |> Array.filter (fun property -> not <| shouldIgnore property.PropertyAttributes)
+        |> Array.filter (fun prop -> not <| shouldIgnore prop.PropertyAttributes)
 
     let inline setInfo (prop: ^t) (x: ^event) =
         let name = (^t: (member Name: string) prop)
@@ -144,7 +130,7 @@ module internal Field =
     let makePropField infer (prop: PropertyInfo) =
         let field = EventStreamFieldType () |> setInfo prop
 
-        field.Resolver <- resolveSource prop.GetValue
+        field.Resolver <- Resolver.ResolveSource prop.GetValue
         field.ResolvedType <- infer prop.PropertyType
 
         updateField prop.PropertyAttributes field
@@ -178,8 +164,10 @@ module internal Field =
                 override __.Equals _ = false
         }
 
+    let isInvalidGraphType (``type``: #IGraphType) = Object.ReferenceEquals (invalidGraphType, ``type``)
+
     let setArgumentType (parameter: ParameterInfo) (queryArgument: QueryArgument) =
-        if Object.ReferenceEquals (invalidGraphType, queryArgument.ResolvedType)
+        if isInvalidGraphType queryArgument.ResolvedType
         then queryArgument.ResolvedType <- inferObjectNull parameter.ParameterType
 
         queryArgument
@@ -242,7 +230,7 @@ module internal Field =
         // TODO: is this needed?
         // if shouldResolve then
         field.Resolver <-
-            resolve (fun ctx ->
+            Resolver.Resolve (fun (ctx: ResolveFieldContext<_>) ->
                 let resolvedArguments =
                     argumentPairs
                     |> Array.map (fun (queryArg, info) ->
