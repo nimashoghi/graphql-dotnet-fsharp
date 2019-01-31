@@ -6,7 +6,7 @@ open GraphQL.Types
 let inline private set f (x: EnumerationGraphType) = f x; x
 
 type EnumBuilder () =
-    inherit BuilderMetadataBase<EnumerationGraphType >()
+    inherit BuilderMetadataBase<EnumerationGraphType> ()
 
     [<CustomOperation "cases">]
     member __.Cases (enum, values) =

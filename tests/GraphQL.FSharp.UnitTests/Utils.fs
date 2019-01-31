@@ -19,14 +19,6 @@ module Option =
     let ``ofBox null string`` () =
         Option.ofBox (null: string) =! None
 
-    [<Test>]
-    let ``or test with None input`` () =
-        Option.``or`` "test" None =! "test"
-
-    [<Test>]
-    let ``or test with Some input`` () =
-        Option.``or`` "test" (Some "input") =! "input"
-
 module Seq =
     [<Test>]
     let ``some`` () =

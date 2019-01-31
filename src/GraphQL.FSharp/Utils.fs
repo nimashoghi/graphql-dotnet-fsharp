@@ -77,15 +77,10 @@ module Option =
         |> Option.ofObj
         |> Option.map unbox<'t>
 
-    let ``or`` ``else`` x =
-        match x with
-        | Some value -> value
-        | None -> ``else``
-
     let toBox x =
         x
         |> Option.map box
-        |> ``or`` (box null)
+        |> Option.defaultValue (box null)
 
 module Array =
     let some array =

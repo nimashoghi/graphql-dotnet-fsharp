@@ -11,7 +11,9 @@
     <Compile Include="Inference.fs" />
     <Compile Include="Define.fs" />
     <Compile Include="Define/Argument.fs" />
+    <Compile Include="Define/Directive.fs" />
     <Compile Include="Builder/Base.fs" />
+    <Compile Include="Builder/Directive.fs" />
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
