@@ -5,7 +5,6 @@ open GraphQL.Types
 
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
-open GraphQL.FSharp.Registry
 open GraphQL.FSharp.Utils
 
 let internal isValidUnion<'union> =
@@ -15,7 +14,7 @@ let internal addFields<'union>
     (case: UnionCaseInfo)
     (object: ObjectGraphType<obj>) =
     case.GetFields ()
-    |> Array.map (makePropField inferObjectNull)
+    |> Array.map (makePropField createReference)
     |> Array.iter (object.AddField >> ignore)
 
     object
@@ -36,7 +35,7 @@ let internal setIsTypeOf<'union>
 let internal makeUnionCase<'union> (case: UnionCaseInfo) =
     ObjectGraphType<obj> ()
     |> setInfo case
-    |> addMethods inferObjectNull
+    |> addMethods createReference
     |> addFields<'union> case
     |> setIsTypeOf<'union> case
     |> updateType case.CaseAttributes
@@ -56,4 +55,3 @@ let Union<'union> =
     |> setInfo typeof<'union>
     |> updateType typeof<'union>.TypeAttributes
     |> addUnionFields<'union>
-    |> Object.register typeof<'union>

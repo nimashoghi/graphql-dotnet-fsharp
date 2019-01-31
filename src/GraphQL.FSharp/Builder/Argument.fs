@@ -6,12 +6,13 @@ open GraphQL.Types
 open GraphQL.FSharp.Inference
 
 let inline private set f (x: QueryArgument) = f x; x
+// TODO: Fix problem with FSharp list type as an argument
 
 type ArgumentBuilder<'arg when 'arg : (new: unit -> 'arg)>(?``type``: IGraphType) =
     member __.Yield _ =
         match ``type`` with
         | Some ``type`` -> QueryArgument ``type``
-        | None -> QueryArgument (inferInputNull typeof<'arg>)
+        | None -> QueryArgument (createReference typeof<'arg>)
 
     [<CustomOperation "name">]
     member __.Name (arg, name) =

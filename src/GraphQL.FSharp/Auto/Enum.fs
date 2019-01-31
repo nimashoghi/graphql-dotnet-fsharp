@@ -6,7 +6,6 @@ open GraphQL.Types
 
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Types
-open GraphQL.FSharp.Registry
 
 let isValidEnum<'enum> =
     typeof<'enum>.IsEnum ||
@@ -54,4 +53,3 @@ let Enum<'enum> =
 
     graphType
     |> updateType typeof<'enum>.TypeAttributes
-    |> Object.register typeof<'enum>

@@ -5,10 +5,14 @@ open GraphQL.Types
 
 open GraphQL.FSharp.Types
 
+type Query = ObjectGraphType<obj>
+type Mutation = ObjectGraphType<obj>
+type Subscription = ObjectGraphType<obj>
+
 let inline private set f (x: ObjectGraphType<_>) = f x; x
 
-type ObjectBuilder<'source>(?name) =
-    inherit BuilderMetadataBase<ObjectGraphType<'source>>()
+type ObjectBuilder<'source> () =
+    inherit BuilderMetadataBase<ObjectGraphType<'source>> ()
 
     [<CustomOperation "fields">]
     member __.Fields (object: ObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
@@ -22,11 +26,19 @@ type ObjectBuilder<'source>(?name) =
             ``interface``
             |> List.iter x.AddResolvedInterface) object
 
-    member __.Run (object: ObjectGraphType<'source>) =
-        Option.iter (fun name -> object.Name <- name) name
-        object
-
 let object<'source> = ObjectBuilder<'source> ()
-let query = ObjectBuilder<obj> "Query"
-let mutation = ObjectBuilder<obj> "Mutation"
-let subscription = ObjectBuilder<obj> "Subscription"
+let query lst : Query =
+    object<obj> {
+        name "Query"
+        fields lst
+    }
+let mutation lst : Mutation =
+    object<obj> {
+        name "Mutation"
+        fields lst
+    }
+let subscription lst : Subscription =
+    object<obj> {
+        name "Subscription"
+        fields lst
+    }

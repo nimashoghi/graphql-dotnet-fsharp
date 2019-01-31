@@ -1,161 +1,79 @@
 namespace GraphQL.FSharp.TestServer
 
-open System
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
-
-open GraphQL
 open GraphQL.Types
 open GraphQL.Server
 open GraphQL.Server.Ui.GraphiQL
 open GraphQL.Server.Ui.Playground
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
-open System.Threading.Tasks
 
-module GQL =
-    type IMyInterface =
-        abstract member SomeName: string
-        abstract member GetSomeOtherName: name: string -> string Task
-
-    type MyImplementation() =
-        member val SomeOtherName = ""
-        member this.GetSomeThirdName name = sprintf "sup third %s" name
-
-        interface IMyInterface with
-            member val SomeName = ""
-            member this.GetSomeOtherName name = sprintf "sup %s" name |> Task.FromResult
-
-    type MyImplementationNum2() =
-        member val SomeThirdName = ""
-
-        interface IMyInterface with
-            member val SomeName = ""
-            member this.GetSomeOtherName name = sprintf "hello %s" name |> Task.FromResult
-
-    let myInterface = Auto.Interface<IMyInterface>
-    let myImplementation = Auto.Object<MyImplementation>
-    let myImplementationNum2 = Auto.Object<MyImplementationNum2>
+module Model =
+    type IUser =
+        abstract member GetName: System.Guid System.Collections.Generic.List -> string
 
     [<CLIMutable>]
-    type MyType = {
-        name: string
+    type User =
+        {
+            Name: string
+        }
+        interface IUser with
+            member this.GetName id = sprintf "%s-%s" this.Name (System.String.Join(' ', id |> Seq.map (fun id -> id.ToString ())))
+
+    [<CLIMutable>]
+    type Website = {
+        Users: User list
     }
 
-    let myInferredType = Auto.Object<MyType>
-    myInferredType.Name <- "inferredMyType"
+    type UserUnion =
+    | DescriptionUser of User: User * Description: string
+    | Metadata of User: User * Metadata: int
 
-    let myType = object {
-        name "myTypeManual"
-        fields [
+module Schema =
+    open Model
+
+    let IUser = Auto.Interface<IUser>
+    let User = Auto.Object<User>
+    let Website = Auto.Object<Website>
+    let UserUnion = Auto.Union<UserUnion>
+
+    let user = {Name = "sup"}
+    let website = {Users = [user]}
+
+    let Query =
+        query [
             field {
-                get (fun x -> x.name)
+                name "getUser"
+                resolve (fun _ -> user :> IUser)
+            }
+            field {
+                name "getUserUnion"
+                resolve (fun _ -> DescriptionUser (user, "Sup"))
+            }
+            field {
+                name "getWebsite"
+                resolve (fun _ -> website)
             }
         ]
-    }
 
-    let myInferredInputType = Auto.InputObject<MyType>
-    myInferredInputType.Name <- "myInferredInputType"
-
-    let myEnum = enum {
-        name "myEnum"
-        cases [
-            "MyFirstCase", "MyFirstCase"
-        ]
-    }
-
-    type MySecondEnum =
-    | First
-    | Second
-
-    let mySecondEnum = Auto.Enum<MySecondEnum>
-
-    type MyUnion =
-    | FirstUnion of Name: string * Age: int
-    | SecondUnion of Something: float * Id: System.Guid
-
-    let myAutoUnion = Auto.Union<MyUnion>
-
-    let myQuery = query {
-        fields [
-            field {
-                name "getMyType"
-                resolve (fun _ -> {name = "sup"})
-            }
-            field {
-                name "myQuery"
-                resolve (fun ctx -> ctx.GetArgument<int> "myArg" :: [1; 2; 3; 4; 5])
-                arguments [
-                    Define.Argument<int> ("myArg", 1)
-                ]
-            }
-            fieldOf myEnum {
-                name "myEnum"
-                resolve (fun _ -> "MyFirstCase")
-                ofType myEnum
-            }
-            fieldOf mySecondEnum {
-                name "mySecondEnum"
-                resolve (fun _ -> First)
-            }
-            field {
-                name "withInput"
-                arguments [
-                    Define.Argument<MyType> "myArg"
-                ]
-                resolveAsync (fun ctx -> Task.FromResult <| ctx.GetArgument<MyType> "myArg")
-            }
-            field {
-                name "myAutoUnion"
-                resolveAsync (fun _ -> Task.FromResult <| FirstUnion ("sup", 12))
-            }
-            field {
-                name "myAutoUnionList"
-                resolveAsync (fun _ -> Task.FromResult [
-                    FirstUnion ("sup", 12)
-                    FirstUnion ("dfsjiosh", 122)
-                    SecondUnion (1.2, Guid.NewGuid ())
-                    SecondUnion (1.5, Guid.NewGuid ())
-                    SecondUnion (1.3, Guid.NewGuid ())
-                ])
-            }
-            field {
-                name "myImpl"
-                resolveAsync (fun _ -> Task.FromResult <| MyImplementation())
-            }
-            field {
-                name "myImplList"
-                resolveAsync (fun _ -> Task.FromResult [
-                    MyImplementation() :> IMyInterface
-                    MyImplementationNum2() :> IMyInterface
-                    MyImplementation() :> IMyInterface
-                ])
-            }
-            field {
-                name "myInterface"
-                resolveAsync (fun _ -> Task.FromResult <| (MyImplementation() :> IMyInterface))
-            }
-            field {
-                name "getString"
-                resolve (fun _ -> Ok "sup")
-            }
-            // field {
-            //     name "getStringErr"
-            //     resolveAsync (fun _ -> Task.FromResult (Error "sup"))
-            // }
-        ]
-    }
-
-    let mySchema = schema {
-        query myQuery
-    }
+    let Schema =
+        schema {
+            types [
+                IUser
+                User
+                UserUnion
+                Website
+            ]
+            query Query
+        }
 
 type Startup() =
     member this.ConfigureServices(services: IServiceCollection) =
         services
-            .AddSingleton(GQL.mySchema)
+            .AddSingleton(Schema.Schema)
             .AddGraphQL(fun options ->
                 options.ExposeExceptions <- true
                 options.EnableMetrics <- true)

@@ -169,7 +169,7 @@ type FieldBuilder<'source>(?ofType) =
         |> Option.iter (fun ``type`` ->
             field.ResolvedType <-
                 not hasDefaultValue
-                |> inferObjectConfigure ``type``)
+                |> createReferenceConfigure ``type``)
 
         field
 

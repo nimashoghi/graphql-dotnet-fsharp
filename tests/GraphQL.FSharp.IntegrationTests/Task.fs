@@ -2,10 +2,8 @@ module GraphQL.FSharp.IntegrationTests.Tasks
 
 open System.Threading.Tasks
 open NUnit.Framework
-open Swensen.Unquote
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
-open FSharp.Control.Tasks.V2
 
 open GraphQL.FSharp.TestUtils.Assert
 
@@ -17,7 +15,7 @@ module GraphTypes =
 
 
 [<Literal>]
-let Query = """
+let QueryString = """
     query {
         getMyType {
             getSomethingSync
@@ -41,45 +39,48 @@ let ExpectedResult = """
 
 [<Test>]
 let ``Schema using synchronous resolver with methods returning task works properly`` () =
-    let _myTypeGraph = Auto.Object<MyType>
-    let myQuery =
-        query {
-            fields [
-                field {
-                    name "getMyType"
-                    resolve (fun _ -> MyType ())
-                }
+    let MyTypeGraph = Auto.Object<MyType>
+    let Query =
+        query [
+            field {
+                name "getMyType"
+                resolve (fun _ -> MyType ())
+            }
+        ]
+    let Schema =
+        schema {
+            query Query
+            types [
+                MyTypeGraph
             ]
         }
-    let mySchema =
-        schema {
-            query myQuery
-        }
 
-    queryEqual Query ExpectedResult mySchema
+    queryEqual QueryString ExpectedResult Schema
 
 [<Test>]
 let ``Schema using asynchronous resolver with methods returning task works properly`` () =
-    let _myTypeGraph = Auto.Object<MyType>
-    let myQuery =
-        query {
-            fields [
-                field {
-                    name "getMyType"
-                    resolveAsync (fun _ -> Task.FromResult <| MyType ())
-                }
+    let MyTypeGraph = Auto.Object<MyType>
+    let Query =
+        query [
+            field {
+                name "getMyType"
+                resolveAsync (fun _ -> Task.FromResult <| MyType ())
+            }
+        ]
+    let Schema =
+        schema {
+            query Query
+            types [
+                MyTypeGraph
             ]
         }
-    let mySchema =
-        schema {
-            query myQuery
-        }
 
-    queryEqual Query ExpectedResult mySchema
+    queryEqual QueryString ExpectedResult Schema
 
 [<Test>]
 let ``getAsync test`` () =
-    let myObject =
+    let MyTypeGraph = Auto.Object<MyType>
+    let MyObjectGraph =
         object {
             name "MyObject"
             fields [
@@ -92,18 +93,20 @@ let ``getAsync test`` () =
             ]
         }
 
-    let myQuery =
-        query {
-            fields [
-                fieldOf myObject {
-                    name "getMyType"
-                    resolve (fun _ -> MyType ())
-                }
+    let Query =
+        query [
+            fieldOf MyObjectGraph {
+                name "getMyType"
+                resolve (fun _ -> MyType ())
+            }
+        ]
+    let Schema =
+        schema {
+            query Query
+            types [
+                MyTypeGraph
+                MyObjectGraph
             ]
         }
-    let mySchema =
-        schema {
-            query myQuery
-        }
 
-    queryEqual Query ExpectedResult mySchema
+    queryEqual QueryString ExpectedResult Schema

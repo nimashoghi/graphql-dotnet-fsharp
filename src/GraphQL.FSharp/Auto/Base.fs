@@ -8,7 +8,6 @@ open FSharp.Reflection
 open GraphQL.Types
 
 open GraphQL.FSharp
-open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Utils
 
@@ -166,9 +165,9 @@ module internal Field =
 
     let isInvalidGraphType (``type``: #IGraphType) = Object.ReferenceEquals (invalidGraphType, ``type``)
 
-    let setArgumentType (parameter: ParameterInfo) (queryArgument: QueryArgument) =
+    let setArgumentType infer (parameter: ParameterInfo) (queryArgument: QueryArgument) =
         if isInvalidGraphType queryArgument.ResolvedType
-        then queryArgument.ResolvedType <- inferObjectNull parameter.ParameterType
+        then queryArgument.ResolvedType <- infer parameter.ParameterType
 
         queryArgument
 
@@ -187,7 +186,38 @@ module internal Field =
                 <> typedefof<ResolveFieldContext<_>> then true
         else ``type`` = typeof<ResolveFieldContext>
 
-    let makeArgument (parameter: ParameterInfo) =
+    let rec unwrapGraphType (``type``: IGraphType) =
+        match ``type`` with
+        | :? NonNullGraphType as ``type`` -> unwrapGraphType ``type``.ResolvedType
+        | :? ListGraphType as ``type`` -> unwrapGraphType ``type``.ResolvedType
+        | _ -> ``type``
+
+    let rec isList (``type``: IGraphType) =
+        match ``type`` with
+        | :? NonNullGraphType as ``type`` -> isList ``type``.ResolvedType
+        | :? ListGraphType -> true
+        | _ -> false
+
+    let allCaps (str: string) =
+        str
+        |> Seq.forall Char.IsUpper
+
+    // TODO: Test this stuff
+    let normalizeName name =
+        if allCaps name
+        then sprintf "%c%s" name.[0] (name.[1..].ToLower())
+        else name
+
+    let checkArgumentName (argument: QueryArgument) =
+        if isNull argument.Name || argument.Name = "" then
+            let unwrapedType = unwrapGraphType argument.ResolvedType
+            argument.Name <- normalizeName unwrapedType.Name
+            if isList argument.ResolvedType
+            then argument.Name <- sprintf "%sList" argument.Name
+            argument
+        else argument
+
+    let makeArgument infer (parameter: ParameterInfo) =
         match parameter with
         | ContextParameter ->
             if not <| isResolveFieldContext parameter.ParameterType
@@ -198,14 +228,15 @@ module internal Field =
             QueryArgument invalidGraphType
             |> setInfo parameter
             |> updateArgument parameter.ParameterAttributes
-            |> setArgumentType parameter
+            |> setArgumentType infer parameter
+            |> checkArgumentName
             |> Argument
 
     let makeMethodField infer (method: MethodInfo) =
         let field = EventStreamFieldType () |> setInfo method
 
         let arguments = method.GetParameters ()
-        let queryArguemnts = Array.map makeArgument arguments
+        let queryArguemnts = Array.map (makeArgument infer) arguments
 
         let argumentPairs =
             (queryArguemnts, arguments)

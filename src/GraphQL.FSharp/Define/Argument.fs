@@ -11,7 +11,7 @@ type Define with
         then invalidArg "name" "value cannot be null"
 
         let arg =
-            inferInputNull typeof<'arg>
+            createReferenceNoChecks typeof<'arg>
             |> QueryArgument
 
         arg.Name <- name

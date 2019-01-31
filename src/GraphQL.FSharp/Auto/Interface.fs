@@ -4,7 +4,6 @@ open GraphQL.Types
 
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
-open GraphQL.FSharp.Registry
 
 let Interface<'object> =
     if not typeof<'object>.IsInterface && not typeof<'object>.IsAbstract
@@ -12,7 +11,6 @@ let Interface<'object> =
 
     InterfaceGraphType<'object> ()
     |> setInfo typeof<'object>
-    |> addProperties inferObjectNull
-    |> addMethods inferObjectNull
+    |> addProperties createReference
+    |> addMethods createReference
     |> updateType typeof<'object>.TypeAttributes
-    |> Object.register typeof<'object>

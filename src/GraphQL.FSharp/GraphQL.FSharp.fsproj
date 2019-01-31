@@ -7,7 +7,6 @@
     <Compile Include="Types.fs" />
     <Compile Include="Attributes.fs" />
     <Compile Include="Resolvers.fs" />
-    <Compile Include="Registry.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Define.fs" />
     <Compile Include="Define/Argument.fs" />

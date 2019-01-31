@@ -80,25 +80,33 @@ type MethodPropInterface() =
 
 [<Test>]
 let ``Auto Interface interface implementation object`` () =
-    let ``interface`` = Auto.Interface<IMethodPropInterface>
-    let object = Auto.Object<MethodPropInterface>
+    let IMethodPropInterfaceGraph = Auto.Interface<IMethodPropInterface>
+    let MethodPropInterfaceGraph = Auto.Object<MethodPropInterface>
 
-    object
+    MethodPropInterfaceGraph
     |> objectEqual "MethodPropInterface" [
         "Name", nonNull StringGraphType
         "GetCount", nonNull IntGraphType
     ]
 
+    // create the schema so interface resolution gets done
+    schema {
+        types [
+            IMethodPropInterfaceGraph
+            MethodPropInterfaceGraph
+        ]
+    } |> ignore
+
     test
         <@
-            object.ResolvedInterfaces
-            |> Seq.exists ((=) (upcast ``interface`` ))
+            MethodPropInterfaceGraph.ResolvedInterfaces
+            |> Seq.exists ((=) (upcast IMethodPropInterfaceGraph ))
         @>
 
 [<Test>]
 let ``Auto Interface implementation results`` () =
-    Auto.Interface<IMethodPropInterface> |> ignore
-    Auto.Object<MethodPropInterface> |> ignore
+    let IMethodPropInterfaceGraph = Auto.Interface<IMethodPropInterface>
+    let MethodPropInterfaceGraph = Auto.Object<MethodPropInterface>
 
 
     let Query = """
@@ -122,17 +130,19 @@ let ``Auto Interface implementation results`` () =
     """
 
     let myQuery =
-        query {
-            fields [
-                field {
-                    name "getMethod"
-                    resolve (fun _ -> MethodPropInterface () :> IMethodPropInterface)
-                }
-            ]
-        }
+        query [
+            field {
+                name "getMethod"
+                resolve (fun _ -> MethodPropInterface () :> IMethodPropInterface)
+            }
+        ]
     let mySchema =
         schema {
             query myQuery
+            types [
+                IMethodPropInterfaceGraph
+                MethodPropInterfaceGraph
+            ]
         }
 
     mySchema
