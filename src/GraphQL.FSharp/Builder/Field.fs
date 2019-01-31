@@ -64,12 +64,12 @@ let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
 
 let getFieldType (field: TypedFieldType<_>) =
     match field.Metadata.TryGetValue FieldTypeMetadataName with
-    | true, (:? Type as ``type``) when field.Type = null && field.ResolvedType = null -> Some ``type``
+    | true, (:? Type as ``type``) when isNull field.Type && isNull field.ResolvedType -> Some ``type``
     | _ -> None
 
 let hasDefaultValue (field: TypedFieldType<_>) =
     match field.Metadata.TryGetValue HasDefaultValueMetadataName with
-    | true, value when unbox<bool> value = true -> true
+    | true, value when unbox<bool> value -> true
     | _ -> false
 
 type FieldBuilder<'source>(?ofType) =
@@ -113,7 +113,7 @@ type FieldBuilder<'source>(?ofType) =
         )
 
     [<CustomOperation "getAsync">]
-    member __.GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field Task>) =
+    member __.GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> Task<'field>>) =
         let getterFn =
             LeafExpressionConverter
                 .QuotationToLambdaExpression(<@ Func<_, _> %getter @>)
@@ -137,21 +137,21 @@ type FieldBuilder<'source>(?ofType) =
         |> set (fun x -> x.Resolver <- Resolver.Resolve resolver)
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field Task) =
+    member __.ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- Resolver.ResolveAsync resolver)
 
     // TODO: Test this
     [<CustomOperation "subscribe">]
-    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable) =
+    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
     // TODO: Test this
     [<CustomOperation "subscribeAsync">]
-    member __.SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) =
+    member __.SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))

@@ -41,16 +41,16 @@ module internal Update =
             |> Seq.filter (fun x -> x :? Attribute)
             |> Seq.map (fun x -> x :?> Attribute)
 
-    let shouldIgnore (attributes: Attribute seq) =
+    let shouldIgnore (attributes: seq<Attribute>) =
         attributes
         |> Seq.exists (fun attribute -> attribute :? IgnoreAttribute)
 
-    let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: Attribute seq) =
+    let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: seq<Attribute>) =
         attributes
         |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
         |> Option.map (fun attribute ->  attribute :?> 'attribute)
 
-    let update<'attribute, 't when 'attribute :> AttributeWithValue<'t>> f (attributes: Attribute seq) =
+    let update<'attribute, 't when 'attribute :> AttributeWithValue<'t>> f (attributes: seq<Attribute>) =
         attributes
         |> tryGetAttribute<'attribute>
         |> Option.map (fun attribute -> attribute.Value)
@@ -89,7 +89,7 @@ module internal Update =
 
         x
 
-    let (|Pair|) (pair: KeyValuePair<_, _>) = pair.Key, pair.Value
+    let (|Pair|) (pair: KeyValuePair<_, _>) = (pair.Key, pair.Value)
 
     let updateType attributes (x: #IGraphType)  =
         attributes
@@ -123,7 +123,7 @@ module internal Field =
 
     let inline setInfo (prop: ^t) (x: ^event) =
         let name = (^t: (member Name: string) prop)
-        (^event: (member set_Name: string -> unit) x, name)
+        (^event: (member set_Name: string -> unit) (x, name))
 
         x
 
@@ -141,7 +141,7 @@ module internal Field =
 
     let validMethod (method: MethodInfo) =
         not method.IsSpecialName
-        && method.GetCustomAttribute<CompilerGeneratedAttribute> () = null
+        && isNull <| method.GetCustomAttribute<CompilerGeneratedAttribute> ()
         && not <| objectMethod method
         && not <| systemMethod method
 
@@ -173,8 +173,8 @@ module internal Field =
         queryArgument
 
     type MethodParameter =
-    | Argument of QueryArgument
-    | Context
+        | Argument of QueryArgument
+        | Context
 
     let (|ContextParameter|ArgumentParameter|) (parameter: ParameterInfo) =
         if parameter.ParameterAttributes |> Seq.exists (fun attribute -> attribute :? ContextAttribute)
@@ -185,9 +185,7 @@ module internal Field =
         if ``type``.IsGenericType
             && ``type``.GetGenericTypeDefinition ()
                 <> typedefof<ResolveFieldContext<_>> then true
-        elif ``type`` = typeof<ResolveFieldContext> then true
-        else false
-
+        else ``type`` = typeof<ResolveFieldContext>
 
     let makeArgument (parameter: ParameterInfo) =
         match parameter with

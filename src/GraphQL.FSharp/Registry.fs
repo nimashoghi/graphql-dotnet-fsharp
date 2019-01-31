@@ -15,7 +15,7 @@ module Object =
     let private registry = GraphTypeInstanceRegistry ()
 
     let get ``type`` =
-        match tryGet ``type``, registry.Get ``type`` with
+        match (tryGet ``type``, registry.Get ``type``) with
         | Some ``type``, _ -> Some ``type``
         | _, null -> None
         | _, ``type`` -> Some ``type``
@@ -30,7 +30,7 @@ module InputObject =
     let private registry = GraphTypeInstanceRegistry ()
 
     let get ``type`` =
-        match tryGet ``type``, registry.Get ``type`` with
+        match (tryGet ``type``, registry.Get ``type``) with
         | Some ``type``, _ -> Some ``type``
         | _, null -> None
         | _, ``type`` -> Some ``type``

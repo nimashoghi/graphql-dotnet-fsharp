@@ -19,7 +19,7 @@ let (|Regex|_|) pattern input =
 module Type =
     let (|Option|_|) (``type``: Type) =
         if ``type``.IsGenericType &&
-            ``type``.GetGenericTypeDefinition () = typedefof<option<_>>
+            ``type``.GetGenericTypeDefinition () = typedefof<_ option>
         then Some ``type``.GenericTypeArguments.[0]
         else None
 
@@ -86,6 +86,7 @@ module Option =
         x
         |> Option.map box
         |> ``or`` (box null)
+
 module Array =
     let some array =
         array
