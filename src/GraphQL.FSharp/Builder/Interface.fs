@@ -7,8 +7,8 @@ open GraphQL.FSharp.Types
 
 let inline private set f (x: InterfaceGraphType<_>) = f x; x
 
-type InterfaceBuilder<'source>() =
-    inherit BuilderMetadataBase<InterfaceGraphType<'source>>()
+type InterfaceBuilder<'source> () =
+    inherit BuilderMetadataBase<InterfaceGraphType<'source>> ()
 
     [<CustomOperation "fields">]
     member __.Fields (object: InterfaceGraphType<'source>, fields: TypedFieldType<'source> list) =
