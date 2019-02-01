@@ -28,7 +28,8 @@ module Handlers =
 
     let optionValue x =
         unionValue
-            (fun case [|value|] ->
+            (fun case args ->
+                let value = match args with [|value|] -> value | _ -> invalidArg "args" "Option expects only 1 field."
                 match case with
                 | CaseTag 0 -> Some value
                 | CaseTag 1 -> None
@@ -37,7 +38,8 @@ module Handlers =
 
     let resultValue x =
         unionValue
-            (fun case [|value|] ->
+            (fun case args ->
+                let value = match args with [|value|] -> value | _ -> invalidArg "args" "Result expects only 1 field."
                 match case with
                 | CaseTag 0 -> Ok value
                 | CaseTag 1 -> Error value
