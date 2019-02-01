@@ -9,7 +9,8 @@ let rec unwrapType checkNullability graphTypeGetter ``type`` =
     let graphType, isNull =
         match ``type`` with
         | Nullable innerType
-        | Option innerType ->
+        | Option innerType
+        | Result innerType  ->
             let ``type`` = unwrapType false graphTypeGetter innerType
             ``type``, true
 

@@ -42,10 +42,13 @@ type DirectiveLocationUnion =
         | InputObject -> GraphQL.Types.DirectiveLocation.InputObject
         | InputFieldDefinition -> GraphQL.Types.DirectiveLocation.InputFieldDefinition
 
-type TypedFieldType<'source>() =
-    inherit EventStreamFieldType()
+type TypedFieldType<'source> () =
+    inherit EventStreamFieldType ()
 
 type EnumerationGraphTypeEx<'t> () =
     inherit EnumerationGraphType<'t> ()
 
     override __.ChangeEnumCase x = x
+
+type UnionGraphType<'t> () =
+    inherit UnionGraphType ()

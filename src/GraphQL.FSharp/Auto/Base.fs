@@ -129,7 +129,7 @@ module internal Field =
     let makePropField infer (prop: PropertyInfo) =
         let field = EventStreamFieldType () |> setInfo prop
 
-        field.Resolver <- Resolver.ResolveSource prop.GetValue
+        field.Resolver <- (withSource >> resolve) prop.GetValue
         field.ResolvedType <- infer prop.PropertyType
 
         updateField prop.PropertyAttributes field
@@ -138,9 +138,12 @@ module internal Field =
     // FIXME: this is hacky but works for now. fix this later
     let systemMethod (method: MemberInfo) = method.Module.Name = "System.Private.CoreLib.dll"
 
+    let genericMehod (method: MethodInfo) = method.IsGenericMethod
+
     let validMethod (method: MethodInfo) =
         not method.IsSpecialName
         && isNull <| method.GetCustomAttribute<CompilerGeneratedAttribute> ()
+        && not <| genericMehod method
         && not <| objectMethod method
         && not <| systemMethod method
 
@@ -236,7 +239,7 @@ module internal Field =
         let field = EventStreamFieldType () |> setInfo method
 
         let arguments = method.GetParameters ()
-        let queryArguemnts = Array.map (makeArgument infer) arguments
+        let queryArguemnts = arguments |> Array.map (makeArgument infer)
 
         let argumentPairs =
             (queryArguemnts, arguments)
@@ -259,7 +262,7 @@ module internal Field =
         // TODO: is this needed?
         // if shouldResolve then
         field.Resolver <-
-            Resolver.Resolve (fun (ctx: ResolveFieldContext<_>) ->
+            resolve (fun (ctx: ResolveFieldContext<_>) ->
                 let resolvedArguments =
                     argumentPairs
                     |> Array.map (fun (queryArg, info) ->

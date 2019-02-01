@@ -8,6 +8,12 @@ open GraphQL.FSharp.Utils
 
 type Define with
     static member Directive (name, locations, ?description, ?arguments) =
+        if name = null || name = ""
+        then invalidArg "name" "value cannot be null"
+
+        if List.isEmpty locations
+        then invalidArg "locations" "locations cannot be empty"
+
         let directive =
             DirectiveGraphType (
                 name,

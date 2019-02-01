@@ -104,7 +104,7 @@ type FieldBuilder<'source>(?ofType) =
             match getter with
             | FieldName value -> value
             | _ -> invalidArg "getter" "Could not find field name from getter expression. Get only supports simple expressions. Use resolve instead."
-        let resolver = Resolver.ResolveSource getterFunc.Invoke
+        let resolver = (withSource >> resolve) getterFunc.Invoke
         field
         |> setFieldType<'field, _>
         |> set (fun x ->
@@ -127,20 +127,20 @@ type FieldBuilder<'source>(?ofType) =
         |> setFieldType<'field, _>
         |> set (fun x ->
             x.Name <- fieldName
-            x.Resolver <- Resolver.ResolveAsyncSource getterFn
+            x.Resolver <- (withSource >> resolveAsync) getterFn
         )
 
     [<CustomOperation "resolve">]
     member inline __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
         field
         |> setFieldType<'field, _>
-        |> set (fun x -> x.Resolver <- Resolver.Resolve resolver)
+        |> set (fun x -> x.Resolver <- resolve resolver)
 
     [<CustomOperation "resolveAsync">]
     member __.ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         field
         |> setFieldType<'field, _>
-        |> set (fun x -> x.Resolver <- Resolver.ResolveAsync resolver)
+        |> set (fun x -> x.Resolver <- resolveAsync resolver)
 
     // TODO: Test this
     [<CustomOperation "subscribe">]

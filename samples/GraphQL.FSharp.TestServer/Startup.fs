@@ -28,6 +28,15 @@ module Model =
         Users: User list
     }
 
+    type MyError = {
+        description: string
+        code: int
+    }
+
+    type ResultClass () =
+        member __.Ok (x: int) : Result<int, MyError> = Ok x
+        member __.Error (x: int) : Result<int, MyError> = Error {description = "messed up"; code = 12}
+
     type UserUnion =
     | DescriptionUser of User: User * Description: string
     | Metadata of User: User * Metadata: int
@@ -35,10 +44,11 @@ module Model =
 module Schema =
     open Model
 
-    let IUser = Auto.Interface<IUser>
-    let User = Auto.Object<User>
-    let Website = Auto.Object<Website>
-    let UserUnion = Auto.Union<UserUnion>
+    let IUserGraph = Auto.Interface<IUser>
+    let UserGraph = Auto.Object<User>
+    let WebsiteGraph = Auto.Object<Website>
+    let UserUnionGraph = Auto.Union<UserUnion>
+    let ResultClassGraph = Auto.Object<ResultClass>
 
     let user = {Name = "sup"}
     let website = {Users = [user]}
@@ -57,15 +67,20 @@ module Schema =
                 name "getWebsite"
                 resolve (fun _ -> website)
             }
+            field {
+                name "getResult"
+                resolve (fun _ -> ResultClass ())
+            }
         ]
 
     let Schema =
         schema {
             types [
-                IUser
-                User
-                UserUnion
-                Website
+                IUserGraph
+                ResultClassGraph
+                UserGraph
+                UserUnionGraph
+                WebsiteGraph
             ]
             query Query
         }
@@ -75,7 +90,7 @@ type Startup() =
         services
             .AddSingleton(Schema.Schema)
             .AddGraphQL(fun options ->
-                options.ExposeExceptions <- true
+                options.ExposeExceptions <- false
                 options.EnableMetrics <- true)
             .AddWebSockets()
             |> ignore

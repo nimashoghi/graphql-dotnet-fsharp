@@ -5,6 +5,7 @@ open GraphQL.Types
 
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
 let internal isValidUnion<'union> =
@@ -51,7 +52,7 @@ let Union<'union> =
     if not isValidUnion<'union>
     then invalidArg "union" "type parameter must be a discriminated union"
 
-    UnionGraphType ()
+    UnionGraphType<'union> ()
     |> setInfo typeof<'union>
     |> updateType typeof<'union>.TypeAttributes
     |> addUnionFields<'union>
