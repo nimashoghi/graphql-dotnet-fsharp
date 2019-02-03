@@ -22,7 +22,10 @@ let rec unwrapType checkNullability graphTypeGetter ``type`` =
             ``type``, false
 
         | Observable innerType
-        | Task innerType
+        | Task innerType ->
+            let ``type`` = unwrapType checkNullability graphTypeGetter innerType
+            ``type``, true
+
         | innerType ->
             let ``type`` =
                 graphTypeGetter innerType

@@ -1,5 +1,8 @@
 namespace GraphQL.FSharp.TestServer
 
+open System
+open System.Collections.Generic
+open System.Threading.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
@@ -13,7 +16,7 @@ open GraphQL.FSharp.Builder
 
 module Model =
     type IUser =
-        abstract member GetName: System.Guid System.Collections.Generic.List -> string
+        abstract member GetName: Guid List -> string
 
     [<CLIMutable>]
     type User =
@@ -21,7 +24,7 @@ module Model =
             Name: string
         }
         interface IUser with
-            member this.GetName id = sprintf "%s-%s" this.Name (System.String.Join(' ', id |> Seq.map (fun id -> id.ToString ())))
+            member this.GetName id = sprintf "%s-%s" this.Name (String.Join (' ', id |> Seq.map (fun id -> id.ToString ())))
 
     [<CLIMutable>]
     type Website = {
@@ -35,7 +38,9 @@ module Model =
 
     type ResultClass () =
         member __.Ok (x: int) : Result<int, MyError> = Ok x
-        member __.Error (x: int) : Result<int, MyError> = Error {description = "messed up"; code = 12}
+        member __.Error (x: int) : Result<int, MyError> = Error {description = "messed up"; code = x}
+        member this.OkAsync x = this.Ok x |> Task.FromResult
+        member this.ErrorAsync x = this.Error x |> Task.FromResult
 
     type UserUnion =
     | DescriptionUser of User: User * Description: string
@@ -75,6 +80,7 @@ module Schema =
 
     let Schema =
         schema {
+            query Query
             types [
                 IUserGraph
                 ResultClassGraph
@@ -82,7 +88,6 @@ module Schema =
                 UserUnionGraph
                 WebsiteGraph
             ]
-            query Query
         }
 
 type Startup() =

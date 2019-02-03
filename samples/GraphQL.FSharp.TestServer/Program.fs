@@ -1,25 +1,14 @@
-namespace GraphQL.FSharp.TestServer
+module GraphQL.FSharp.TestServer.Program
 
-open System
-open System.Collections.Generic
-open System.IO
-open System.Linq
-open System.Threading.Tasks
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Hosting
-open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.Logging
 
-module Program =
-    let exitCode = 0
+[<EntryPoint>]
+let main args =
+    WebHost
+        .CreateDefaultBuilder(args)
+        .UseStartup<Startup>()
+        .Build()
+        .Run()
 
-    let CreateWebHostBuilder args =
-        WebHost
-            .CreateDefaultBuilder(args)
-            .UseStartup<Startup>();            
-
-    [<EntryPoint>]
-    let main args =
-        CreateWebHostBuilder(args).Build().Run()
-
-        exitCode
+    0

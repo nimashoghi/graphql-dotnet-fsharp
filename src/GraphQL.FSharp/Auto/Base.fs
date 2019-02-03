@@ -11,8 +11,7 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Utils
 
-// TODO: What about methods with unit parameters? e.g. member this.DoSomething () = "2"
-// TODO: For object methods, add Task<_> methods as async fields and IObservable<_> methods as subscriptions
+// TODO: Subscriptions
 
 [<AutoOpen>]
 module Attribute =
@@ -76,7 +75,7 @@ module internal Update =
 
         x
 
-    let updateField attributes (x: FieldType) =
+    let updateField attributes (x: EventStreamFieldType) =
         attributes
         |> update<NameAttribute, _> x.set_Name
         |> update<DescriptionAttribute, _> x.set_Description
@@ -205,7 +204,6 @@ module internal Field =
         str
         |> Seq.forall Char.IsUpper
 
-    // TODO: Test this stuff
     let normalizeName name =
         if allCaps name
         then sprintf "%c%s" name.[0] (name.[1..].ToLower())
@@ -256,13 +254,14 @@ module internal Field =
             |> QueryArguments
 
         field.ResolvedType <- infer method.ReturnType
+        printfn "method.ReturnType = %s; ResolvedType %s" method.ReturnType.Name (graphTypeName field.ResolvedType)
 
         let field = updateField method.MethodAttributes field
 
         // TODO: is this needed?
         // if shouldResolve then
         field.Resolver <-
-            resolve (fun (ctx: ResolveFieldContext<_>) ->
+            resolveInfer (fun (ctx: ResolveFieldContext<_>) ->
                 let resolvedArguments =
                     argumentPairs
                     |> Array.map (fun (queryArg, info) ->

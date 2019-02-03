@@ -4,6 +4,21 @@ open System
 open System.Collections.Generic
 open System.Threading.Tasks
 open System.Text.RegularExpressions
+open GraphQL.Types
+
+let graphTypeName (x: #IGraphType) =
+    let rec run (x: IGraphType) =
+        match x with
+        | :? NonNullGraphType as x ->
+            x.ResolvedType
+            |> run
+            |> sprintf "%s!"
+        | :? ListGraphType as x ->
+            x.ResolvedType
+            |> run
+            |> sprintf "[%s]"
+        | x -> sprintf "%s" x.Name
+    run (x :> IGraphType)
 
 let (|Regex|_|) pattern input =
     match Regex.Match (input, pattern) with

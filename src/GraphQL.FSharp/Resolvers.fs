@@ -11,6 +11,7 @@ open GraphQL.Types
 open Newtonsoft.Json
 
 open GraphQL.FSharp.Utils
+open GraphQL.FSharp.Utils.Type
 
 let private getSource (ctx: ResolveFieldContext<_>) = ctx.Source
 
@@ -20,8 +21,7 @@ module Handlers =
 
     let unionValue f (x: obj) =
         let ``type`` = x.GetType ()
-        if FSharpType.IsUnion ``type``
-        then
+        if FSharpType.IsUnion ``type`` then
             FSharpValue.GetUnionFields (x, ``type``)
             ||> f
         else invalidArg "x" "x must be a union type"
@@ -107,10 +107,8 @@ let handleObject (ctx: ResolveFieldContext) x =
                 | None ->
                     string error
                     |> ExecutionError
-
             executionError
             |> ctx.Errors.Add
-
             null
     | x -> x
 
@@ -119,3 +117,34 @@ let withSource f =
 
 let resolve f = resolveHandler handleObject f
 let resolveAsync f = resolveTaskHandler handleObject f
+
+let getTask (obj: obj) =
+    let source = TaskCompletionSource<obj> ()
+    (obj :?> Task)
+        .ContinueWith(fun t ->
+            if t.IsCanceled then source.SetCanceled ()
+            elif t.IsFaulted then source.SetException t.Exception
+            else source.SetResult (t.GetType().GetProperty("Result").GetValue(t))
+        )
+        |> ignore
+    source.Task
+
+let resolveInfer f =
+    {
+        new IFieldResolver with
+            member __.Resolve ctx =
+                let result =
+                    ResolveFieldContext<_> ctx
+                    |> f
+                    |> box
+
+                match result.GetType () with
+                | Task _ ->
+                    getTask result
+                    |> taskMap (handleObject ctx)
+                    |> box
+                | _ ->
+                    result
+                    |> handleObject ctx
+                    |> box
+    }

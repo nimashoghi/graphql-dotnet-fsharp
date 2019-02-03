@@ -1,4 +1,4 @@
-module AssemblyInfo
+module GraphQL.FSharp.AssemblyInfo
 
 open System.Runtime.CompilerServices
 
