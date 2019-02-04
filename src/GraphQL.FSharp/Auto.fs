@@ -1,5 +1,6 @@
 module GraphQL.FSharp.Auto
 
+let Scalar<'t> = AutoScalar.Scalar<'t>
 let Enum<'t> = AutoEnum.Enum<'t>
 let Union<'t> = AutoUnion.Union<'t>
 let Interface<'t> = AutoInterface.Interface<'t>

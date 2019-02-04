@@ -22,6 +22,7 @@
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Auto/Base.fs" />
+    <Compile Include="Auto/Scalar.fs" />
     <Compile Include="Auto/Enum.fs" />
     <Compile Include="Auto/Interface.fs" />
     <Compile Include="Auto/Union.fs" />

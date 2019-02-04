@@ -36,7 +36,7 @@ let rec unwrapType checkNullability graphTypeGetter ``type`` =
     then NonNullGraphType graphType :> IGraphType
     else graphType
 
-let private graphType (f: unit -> #IGraphType) = f >> (fun graph -> graph :> IGraphType)
+let private graphType (f: unit -> #ScalarGraphType) = f >> (fun graph -> graph :> ScalarGraphType)
 
 let defaultTypes = dict [
     typeof<string>, graphType StringGraphType
@@ -65,6 +65,7 @@ let getDefaultType ``type`` =
 
 let getDefaultTypeOrReference ``type`` =
     getDefaultType ``type``
+    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
     |> Some
 

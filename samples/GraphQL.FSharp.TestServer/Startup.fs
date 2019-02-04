@@ -15,6 +15,8 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Builder
 
 module Model =
+    type PhoneNumber = PhoneNumber of string
+
     type IUser =
         abstract member GetName: Guid List -> string
 
@@ -22,6 +24,7 @@ module Model =
     type User =
         {
             Name: string
+            PhoneNumber: PhoneNumber
         }
         interface IUser with
             member this.GetName id = sprintf "%s-%s" this.Name (String.Join (' ', id |> Seq.map (fun id -> id.ToString ())))
@@ -49,21 +52,36 @@ module Model =
 module Schema =
     open Model
 
+    let PhoneNumberGraph = Auto.Scalar<PhoneNumber>
     let IUserGraph = Auto.Interface<IUser>
     let UserGraph = Auto.Object<User>
     let WebsiteGraph = Auto.Object<Website>
     let UserUnionGraph = Auto.Union<UserUnion>
     let ResultClassGraph = Auto.Object<ResultClass>
 
-    let user = {Name = "sup"}
+    let user = {Name = "sup"; PhoneNumber = PhoneNumber "12121"}
     let website = {Users = [user]}
 
     let Query = query [
         endpoint "getUser" {
             arguments [
                 Define.Argument<string> "name"
+                Define.Argument<PhoneNumber> "phoneNumber"
             ]
-            resolve (fun ctx -> {Name = ctx.GetArgument<string> "name"})
+            resolve (fun ctx -> {Name = ctx.GetArgument<string> "name"; PhoneNumber = ctx.GetArgument<PhoneNumber> "phoneNumber"})
+        }
+        endpoint "getPhoneNumberOk" {
+            arguments [
+                Define.Argument<PhoneNumber> "phoneNumber"
+            ]
+            resolve (fun ctx -> Ok (ctx.GetArgument<PhoneNumber> "phoneNumber"))
+        }
+        endpoint "getPhoneNumberError" {
+            arguments [
+                Define.Argument<PhoneNumber> "phoneNumber"
+            ]
+            resolve (fun ctx ->
+                Error (ctx.GetArgument<PhoneNumber> "phoneNumber") : Result<PhoneNumber, PhoneNumber> )
         }
         endpoint "getUserUnion" {
             resolve (fun _ -> DescriptionUser (user, "Sup"))
@@ -86,6 +104,7 @@ module Schema =
             query Query
             subscription Subscription
             types [
+                PhoneNumberGraph
                 IUserGraph
                 ResultClassGraph
                 UserGraph
