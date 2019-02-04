@@ -3,7 +3,6 @@ module GraphQL.FSharp.Resolvers
 open System.Collections
 open System.Collections.Generic
 open System.Threading.Tasks
-open FSharp.Control.Tasks.V2
 open FSharp.Reflection
 open GraphQL
 open GraphQL.Resolvers
@@ -61,10 +60,13 @@ module Handlers =
         else None
 
 let private taskMap f (t: _ Task) =
-    task {
-        let! result = t
-        return f result
-    }
+    let source = TaskCompletionSource ()
+    t.ContinueWith (fun (t: _ Task) ->
+        if t.IsCanceled then source.SetCanceled ()
+        elif t.IsFaulted then source.SetException t.Exception
+        else source.SetResult (f t.Result)
+    ) |> ignore
+    source.Task
 
 let inline private resolveHandler handler f =
     {
