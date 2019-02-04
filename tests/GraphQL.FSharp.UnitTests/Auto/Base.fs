@@ -1,7 +1,7 @@
 module GraphQL.FSharp.UnitTests.Auto.Base
 
 open System
-open System.Reflection
+open FSharp.Reflection
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -67,3 +67,45 @@ module ``Update`` =
             tryGetAttribute<TestAttribute> <| seq {
                 yield OtherAttribute ()
             } =! None
+
+module ``Field`` =
+    open GraphQL.FSharp.AutoBase.Field
+
+    module ``properties`` =
+        type MyType () =
+            member __.MyProp = 2
+
+        [<Test>]
+        let ``validProp success`` () =
+            typeof<MyType>.GetProperty "MyProp"
+            |> validProp
+            =! true
+
+        [<Test>]
+        let ``properties success`` () =
+            properties<MyType>
+            =! [|typeof<MyType>.GetProperty "MyProp"|]
+
+        type MyRecord = {
+            name: string
+            age: int
+        }
+
+        [<Test>]
+        let ``properties record`` () =
+            properties<MyRecord>
+            =! FSharpType.GetRecordFields typeof<MyRecord>
+
+
+    // module ``setInfo`` =
+    //     type MyType = {
+    //         Age: int
+    //         mutable Name: string
+    //     }
+
+    //     [<Test>]
+    //     let ``success`` () =
+    //         let myTypeInstance = {Age = 12; Name = "test"}
+    //         {Age = 0; Name = "original"}
+    //         |> setInfo myTypeInstance
+    //         =! {Age = 0; Name = "test"}

@@ -5,8 +5,6 @@ open GraphQL.Types
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Inference
 
-// TODO: Subscriptions
-
 let setIsTypeOf (object: ObjectGraphType<'object>) =
     object.IsTypeOf <- fun x -> x :? 'object
     object

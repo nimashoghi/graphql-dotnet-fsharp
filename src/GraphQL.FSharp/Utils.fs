@@ -38,7 +38,6 @@ module Type =
         then Some ``type``.GenericTypeArguments.[0]
         else None
 
-    // TODO: Add proper validation using the result type
     let (|Result|_|) (``type``: Type) =
         if ``type``.IsGenericType &&
             ``type``.GetGenericTypeDefinition () = typedefof<Result<_, _>>
@@ -50,7 +49,6 @@ module Type =
         then Some``type``.GenericTypeArguments.[0]
         else None
 
-    // TODO: Add proper inference of IObservable types
     let (|Observable|_|) (``type``: Type) =
         ``type``.GetInterfaces ()
         |> Array.tryFind (fun ``interface`` ->

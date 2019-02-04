@@ -2,6 +2,7 @@ namespace GraphQL.FSharp.TestServer
 
 open System
 open System.Collections.Generic
+open System.Reactive.Linq
 open System.Threading.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -9,7 +10,6 @@ open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open GraphQL.Types
 open GraphQL.Server
-open GraphQL.Server.Ui.GraphiQL
 open GraphQL.Server.Ui.Playground
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
@@ -58,29 +58,30 @@ module Schema =
     let user = {Name = "sup"}
     let website = {Users = [user]}
 
-    let Query =
-        query [
-            field {
-                name "getUser"
-                resolve (fun _ -> user :> IUser)
-            }
-            field {
-                name "getUserUnion"
-                resolve (fun _ -> DescriptionUser (user, "Sup"))
-            }
-            field {
-                name "getWebsite"
-                resolve (fun _ -> website)
-            }
-            field {
-                name "getResult"
-                resolve (fun _ -> ResultClass ())
-            }
-        ]
+    let Query = query [
+        endpoint "getUser" {
+            resolve (fun _ -> user :> IUser)
+        }
+        endpoint "getUserUnion" {
+            resolve (fun _ -> DescriptionUser (user, "Sup"))
+        }
+        endpoint "getWebsite" {
+            resolve (fun _ -> website)
+        }
+        endpoint "getResult" {
+            resolve (fun _ -> ResultClass ())
+        }
+    ]
+    let Subscription = subscription [
+        endpoint "getOne" {
+            subscribe (fun _ -> Observable.Range(0, 10).SelectMany(fun x -> Observable.Return(DescriptionUser (user, sprintf "%i" x)).Delay(TimeSpan.FromSeconds(float x))))
+        }
+    ]
 
     let Schema =
         schema {
             query Query
+            subscription Subscription
             types [
                 IUserGraph
                 ResultClassGraph
@@ -110,6 +111,5 @@ type Startup() =
         app.UseGraphQL<Schema> "/graphql" |> ignore
         app.UseGraphQLWebSockets<Schema> "/graphql" |> ignore
         GraphQLPlaygroundOptions () |> app.UseGraphQLPlayground |> ignore
-        GraphiQLOptions () |> app.UseGraphiQLServer |> ignore
 
         app.Run(fun context -> context.Response.WriteAsync("Hello World!")) |> ignore

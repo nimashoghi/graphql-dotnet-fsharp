@@ -58,6 +58,9 @@ let FieldTypeMetadataName = "FieldType"
 [<Literal>]
 let HasDefaultValueMetadataName = "HasDefaultValue"
 
+let resolverForSubscription<'field, 'input> (field: TypedFieldType<'input>) =
+    set (fun field -> field.Resolver <- FuncFieldResolver<_, _> (Func<_, _> (fun (ctx: ResolveFieldContext<'input>) -> unbox<'field> ctx.Source))) field
+
 let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
     field.Metadata.[FieldTypeMetadataName] <- box typeof<'field>
     field
@@ -72,8 +75,8 @@ let hasDefaultValue (field: TypedFieldType<_>) =
     | true, value when unbox<bool> value -> true
     | _ -> false
 
-type FieldBuilder<'source>(?ofType) =
-    inherit BuilderMetadataBase<TypedFieldType<'source>>()
+type FieldBuilder<'source> (?name, ?ofType) =
+    inherit BuilderMetadataBase<TypedFieldType<'source>> ()
 
     [<CustomOperation "ofType">]
     member __.Type (field: TypedFieldType<'source>, ``type``) =
@@ -131,7 +134,7 @@ type FieldBuilder<'source>(?ofType) =
         )
 
     [<CustomOperation "resolve">]
-    member inline __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
+    member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- resolve resolver)
@@ -142,21 +145,23 @@ type FieldBuilder<'source>(?ofType) =
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- resolveAsync resolver)
 
-    // TODO: Test this
     [<CustomOperation "subscribe">]
     member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         field
         |> setFieldType<'field, _>
+        |> resolverForSubscription<'field, _>
         |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
-    // TODO: Test this
     [<CustomOperation "subscribeAsync">]
     member __.SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         field
         |> setFieldType<'field, _>
+        |> resolverForSubscription<'field, _>
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))
 
     member __.Run (field: TypedFieldType<'source>) =
+        Option.iter (fun name -> field.Name <- name) name
+
         let hasDefaultValue = hasDefaultValue field
         Option.iter (fun ofType ->
             field.ResolvedType <-
@@ -174,5 +179,6 @@ type FieldBuilder<'source>(?ofType) =
         field
 
 let field<'source when 'source: (new: unit -> 'source)> = FieldBuilder<'source> ()
+let endpoint<'source when 'source: (new: unit -> 'source)> name = FieldBuilder<'source> (name = name)
 // TODO: Add tests for fieldOf
-let fieldOf ofType = FieldBuilder<obj> ofType
+let fieldOf ofType = FieldBuilder<obj> (ofType = ofType)
