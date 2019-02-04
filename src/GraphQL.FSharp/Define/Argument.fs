@@ -10,8 +10,9 @@ type Define with
         if name = null || name = ""
         then invalidArg "name" "value cannot be null"
 
+        // TODO: Add test for NonNull checks
         let arg =
-            createReferenceNoChecks typeof<'arg>
+            createReference typeof<'arg>
             |> QueryArgument
 
         arg.Name <- name

@@ -7,6 +7,22 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+type IObjectInterface =
+    abstract member Name: string
+    abstract member PhoneNumber: int
+    abstract member OtherPhoneNumber: unit -> float
+    abstract member GetThirdPhoneNumber: AreaCode: int -> string
+
+[<Test>]
+let ``Auto Object with interface underlying type`` () =
+    Auto.Object<IObjectInterface>
+    |> objectEqual "IObjectInterface" [
+        "Name", nonNull StringGraphType
+        "PhoneNumber", nonNull IntGraphType
+        "OtherPhoneNumber", nonNull FloatGraphType
+        "GetThirdPhoneNumber", nonNull StringGraphType
+    ]
+
 type TaskMethodType() =
     member __.TaskMethod () = Task.FromResult "test"
 

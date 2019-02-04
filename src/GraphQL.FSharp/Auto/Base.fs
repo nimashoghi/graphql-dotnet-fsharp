@@ -254,7 +254,6 @@ module internal Field =
             |> QueryArguments
 
         field.ResolvedType <- infer method.ReturnType
-        printfn "method.ReturnType = %s; ResolvedType %s" method.ReturnType.Name (graphTypeName field.ResolvedType)
 
         let field = updateField method.MethodAttributes field
 

@@ -60,7 +60,10 @@ module Schema =
 
     let Query = query [
         endpoint "getUser" {
-            resolve (fun _ -> user :> IUser)
+            arguments [
+                Define.Argument<string> "name"
+            ]
+            resolve (fun ctx -> {Name = ctx.GetArgument<string> "name"})
         }
         endpoint "getUserUnion" {
             resolve (fun _ -> DescriptionUser (user, "Sup"))

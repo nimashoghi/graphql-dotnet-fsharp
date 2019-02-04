@@ -1995,9 +1995,13 @@ let ExpectedIntrospectionResult = """
                       "name": "myArg",
                       "description": null,
                       "type": {
-                        "kind": "SCALAR",
-                        "name": "Int",
-                        "ofType": null
+                        "kind": "NON_NULL",
+                        "name": null,
+                        "ofType": {
+                          "kind": "SCALAR",
+                          "name": "Int",
+                          "ofType": null
+                        }
                       },
                       "defaultValue": "1"
                     }
@@ -2046,9 +2050,13 @@ let ExpectedIntrospectionResult = """
                       "name": "myArg",
                       "description": null,
                       "type": {
-                        "kind": "INPUT_OBJECT",
-                        "name": "MyTypeInput",
-                        "ofType": null
+                        "kind": "NON_NULL",
+                        "name": null,
+                        "ofType": {
+                          "kind": "INPUT_OBJECT",
+                          "name": "MyTypeInput",
+                          "ofType": null
+                        }
                       },
                       "defaultValue": "null"
                     }

@@ -10,9 +10,6 @@ let setIsTypeOf (object: ObjectGraphType<'object>) =
     object
 
 let Object<'object> =
-    if typeof<'object>.IsInterface || typeof<'object>.IsAbstract
-    then invalidArg "'object" "Type parameter cannot be abstract"
-
     ObjectGraphType<'object> ()
     |> setInfo typeof<'object>
     |> addProperties createReference
