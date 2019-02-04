@@ -6,10 +6,6 @@ open System.Collections.Generic
 
 // TODO: Add attribute targets here
 
-[<AttributeUsage (AttributeTargets.Parameter)>]
-type ContextAttribute () =
-    inherit Attribute ()
-
 // FIXME: Should Inherited be true here?
 [<AttributeUsage (AttributeTargets.All, Inherited = true)>]
 type IgnoreAttribute () =

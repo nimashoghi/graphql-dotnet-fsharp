@@ -34,8 +34,7 @@ let internal setIsTypeOf<'union>
     object
 
 let internal makeUnionCase<'union> (case: UnionCaseInfo) =
-    ObjectGraphType<obj> ()
-    |> setInfo case
+    ObjectGraphType<obj> (Name = case.Name)
     |> addMethods createReference
     |> addFields<'union> case
     |> setIsTypeOf<'union> case
@@ -52,7 +51,6 @@ let Union<'union> =
     if not isValidUnion<'union>
     then invalidArg "union" "type parameter must be a discriminated union"
 
-    UnionGraphType<'union> ()
-    |> setInfo typeof<'union>
+    UnionGraphType<'union> (Name = typeof<'union>.Name)
     |> updateType typeof<'union>.TypeAttributes
     |> addUnionFields<'union>

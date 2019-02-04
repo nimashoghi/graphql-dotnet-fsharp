@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.Reflection
 open System.Runtime.CompilerServices
+open System.Text.RegularExpressions
 open FSharp.Reflection
 open GraphQL.Types
 
@@ -119,14 +120,8 @@ module internal Field =
         |]
         |> Array.filter (fun prop -> not <| shouldIgnore prop.PropertyAttributes)
 
-    let inline setInfo (prop: ^t) (x: ^event) =
-        let name = (^t: (member Name: string) prop)
-        (^event: (member set_Name: string -> unit) (x, name))
-
-        x
-
     let makePropField infer (prop: PropertyInfo) =
-        let field = EventStreamFieldType () |> setInfo prop
+        let field = EventStreamFieldType (Name = prop.Name)
 
         field.Resolver <- (withSource >> resolve) prop.GetValue
         field.ResolvedType <- infer prop.PropertyType
@@ -177,8 +172,16 @@ module internal Field =
         | Argument of QueryArgument
         | Context
 
-    let (|ContextParameter|ArgumentParameter|) (parameter: ParameterInfo) =
-        if parameter.ParameterAttributes |> Seq.exists (fun attribute -> attribute :? ContextAttribute)
+    let isContextParam (parameter: ParameterInfo) =
+        if parameter.ParameterType = typeof<ResolveFieldContext>
+            || (parameter.ParameterType.IsGenericType
+                && parameter.ParameterType.GetGenericTypeDefinition ()
+                    = typedefof<ResolveFieldContext<_>>)
+        then true
+        else false
+
+    let (|ContextParameter|ArgumentParameter|) parameter =
+        if isContextParam parameter
         then ContextParameter
         else ArgumentParameter
 
@@ -209,6 +212,8 @@ module internal Field =
         then sprintf "%c%s" name.[0] (name.[1..].ToLower())
         else name
 
+    let log x = printfn "%A" x; x
+
     let checkArgumentName (argument: QueryArgument) =
         if isNull argument.Name || argument.Name = "" then
             let unwrapedType = unwrapGraphType argument.ResolvedType
@@ -218,6 +223,17 @@ module internal Field =
             argument
         else argument
 
+    let rec removeBadChars x =
+        Regex.Replace(x, @"[^_a-zA-Z0-9]", "")
+
+    let getTypeName (``type``: Type) =
+        removeBadChars ``type``.Name
+
+    let getParamName (parameter: ParameterInfo) =
+        if isNull parameter.Name || parameter.Name = ""
+        then getTypeName parameter.ParameterType
+        else parameter.Name
+
     let makeArgument infer (parameter: ParameterInfo) =
         match parameter with
         | ContextParameter ->
@@ -226,15 +242,14 @@ module internal Field =
 
             Context
         | ArgumentParameter ->
-            QueryArgument invalidGraphType
-            |> setInfo parameter
+            QueryArgument (invalidGraphType, Name = getParamName parameter)
             |> updateArgument parameter.ParameterAttributes
             |> setArgumentType infer parameter
             |> checkArgumentName
             |> Argument
 
     let makeMethodField infer (method: MethodInfo) =
-        let field = EventStreamFieldType () |> setInfo method
+        let field = EventStreamFieldType (Name = method.Name)
 
         let arguments = method.GetParameters ()
         let queryArguemnts = arguments |> Array.map (makeArgument infer)

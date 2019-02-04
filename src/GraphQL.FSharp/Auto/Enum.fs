@@ -39,8 +39,7 @@ let addCases<'enum> (enum: EnumerationGraphType) =
     enum
 
 let unionEnum<'enum> () =
-    EnumerationGraphType ()
-    |> setInfo typeof<'enum>
+    EnumerationGraphType (Name = typeof<'enum>.Name)
     |> addCases<'enum>
 
 let Enum<'enum> =

@@ -34,7 +34,7 @@ let ``Auto Object field of method returning task`` () =
     ]
 
 type ContextParameterTest () =
-    member __.TestContext ([<Context>] _ctx: ResolveFieldContext, name: int) = ""
+    member __.TestContext (_ctx: ResolveFieldContext, name: int) = ""
 
 [<Test>]
 let ``Auto Object context parameter`` () =

@@ -10,8 +10,7 @@ let setIsTypeOf (object: ObjectGraphType<'object>) =
     object
 
 let Object<'object> =
-    ObjectGraphType<'object> ()
-    |> setInfo typeof<'object>
+    ObjectGraphType<'object> (Name = typeof<'object>.Name)
     |> addProperties createReference
     |> addMethods createReference
     |> updateType typeof<'object>.TypeAttributes
