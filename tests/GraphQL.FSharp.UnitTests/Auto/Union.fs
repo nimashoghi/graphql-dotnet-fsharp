@@ -16,6 +16,7 @@ type MyAttributeUnion =
 [<Test>]
 let ``Auto Union union with attributes`` () =
     Auto.Union<MyAttributeUnion>
+    :> UnionGraphType
     |> Assert.UnionGraphEqual (
         name = "MyAttributeUnionCustom",
         description = "My attribute union description",

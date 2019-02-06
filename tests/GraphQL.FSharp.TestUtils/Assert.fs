@@ -146,8 +146,9 @@ let fieldEqual name ``type`` field =
         ``type`` = ``type``
     )
 
-let unionEqual name cases union =
+let unionEqual name cases (union: #UnionGraphType) =
     union
+    :> UnionGraphType
     |> Assert.UnionGraphEqual (
         name = name,
         cases = cases

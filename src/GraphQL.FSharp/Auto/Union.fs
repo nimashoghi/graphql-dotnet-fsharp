@@ -53,7 +53,7 @@ let makeUnionCase<'union> (case: UnionCaseInfo) =
     |> setIsTypeOf<'union> case
     |> updateType case.CaseAttributes
 
-let addUnionFields<'union> (union: UnionGraphType) =
+let addUnionFields (union: UnionGraphType<'union>) =
     FSharpType.GetUnionCases typeof<'union>
     |> Array.map makeUnionCase<'union>
     |> Array.iter union.AddPossibleType
@@ -66,4 +66,4 @@ let Union<'union> =
 
     UnionGraphType<'union> (Name = transformTypeName typeof<'union> typeof<'union>.Name)
     |> updateType typeof<'union>.TypeAttributes
-    |> addUnionFields<'union>
+    |> addUnionFields
