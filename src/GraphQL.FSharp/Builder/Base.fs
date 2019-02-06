@@ -3,45 +3,25 @@ module GraphQL.FSharp.Builder.Base
 
 open System.Collections.Generic
 
-[<AbstractClass>]
-type BuilderBase< ^t when
-                  ^t : (new: unit -> ^t) and
-                  ^t : (member set_Name: string -> unit) and
-                  ^t : (member set_Description: string -> unit)> () =
-    member inline __.Yield _ = new ^t ()
+let inline setName value (x: ^t) =
+    (^t : (member set_Name: string -> unit) x, value)
+    x
 
-    [<CustomOperation "name">]
-    member inline __.Name (x: ^t, name) =
-        (^t : (member set_Name: string -> unit) x, name)
-        x
+let inline setDescription value (x: ^t) =
+    (^t : (member set_Description: string -> unit) x, value)
+    x
 
-    [<CustomOperation "description">]
-    member inline __.Description (x: ^t, description) =
-        (^t : (member set_Description: string -> unit) x, description)
-        x
-[<AbstractClass>]
-type BuilderDeprecationReasonBase< ^t when
-                                   ^t : (new: unit -> ^t) and
-                                   ^t : (member set_Name: string -> unit) and
-                                   ^t : (member set_Description: string -> unit) and
-                                   ^t : (member set_DeprecationReason: string -> unit)> () =
-    inherit BuilderBase< ^t> ()
+let inline setDeprecationReason value (x: ^t) =
+    (^t : (member set_DeprecationReason: string -> unit) x, value)
+    x
 
-    [<CustomOperation "deprecationReason">]
-    member inline __.DeprecationReason (x: ^t, deprecationReason) =
-        (^t : (member set_DeprecationReason: string -> unit) x, deprecationReason)
-        x
+let merge (lhs: IDictionary<'a, 'b>) (rhs: IDictionary<'a, 'b>) =
+    dict [
+        for pair in lhs do yield pair.Key, pair.Value
+        for pair in rhs do yield pair.Key, pair.Value
+    ]
 
-[<AbstractClass>]
-type BuilderMetadataBase< ^t when
-                          ^t : (new: unit -> ^t) and
-                          ^t : (member set_Name: string -> unit) and
-                          ^t : (member set_Description: string -> unit) and
-                          ^t : (member set_DeprecationReason: string -> unit) and
-                          ^t : (member set_Metadata: IDictionary<string, obj> -> unit)> () =
-    inherit BuilderDeprecationReasonBase< ^t> ()
-
-    [<CustomOperation "metadata">]
-    member inline __.Metadata (x: ^t, metadata: _ list) =
-        (^t : (member set_Metadata: IDictionary<string, obj> -> unit) x, dict metadata)
-        x
+let inline setMetadata value (x: ^t) =
+    let metadata = (^t : (member Metadata: IDictionary<string, obj>) x)
+    (^t : (member set_Metadata: IDictionary<string, obj> -> unit) x, merge metadata value)
+    x

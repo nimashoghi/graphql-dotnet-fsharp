@@ -75,17 +75,33 @@ let hasDefaultValue (field: TypedFieldType<_>) =
     | true, value when unbox<bool> value -> true
     | _ -> false
 
-type FieldBuilder<'source> (?name, ?ofType) =
-    inherit BuilderMetadataBase<TypedFieldType<'source>> ()
+type TypedFieldType<'source> with
+    member this.Yield (_: unit) = this
+
+    [<CustomOperation "name">]
+    member __.CustomOperation_Name (this: TypedFieldType<'source>, name) =
+        this |> setName name
+
+    [<CustomOperation "description">]
+    member __.CustomOperation_Description (this: TypedFieldType<'source>, description) =
+        this |> setDescription description
+
+    [<CustomOperation "deprecationReason">]
+    member __.CustomOperation_DeprecationReason (this: TypedFieldType<'source>, deprecationReason) =
+        this |> setDeprecationReason deprecationReason
+
+    [<CustomOperation "metadata">]
+    member __.CustomOperation_Metadata (this: TypedFieldType<'source>, metadata) =
+        this |> setMetadata metadata
 
     [<CustomOperation "ofType">]
-    member __.Type (field: TypedFieldType<'source>, ``type``) =
+    member __.CustomOperation_Type (field: TypedFieldType<'source>, ``type``) =
         set (fun x -> x.Type <- ``type``) field
-    member __.Type (field: TypedFieldType<'source>, ``type``) =
+    member __.CustomOperation_Type (field: TypedFieldType<'source>, ``type``) =
         set (fun x -> x.ResolvedType <- ``type``) field
 
     [<CustomOperation "defaultValue">]
-    member __.DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
+    member __.CustomOperation_DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
         field
         |> setFieldType<'field, _>
         |> set (fun x ->
@@ -94,11 +110,11 @@ type FieldBuilder<'source> (?name, ?ofType) =
         )
 
     [<CustomOperation "arguments">]
-    member __.Arguments (field: TypedFieldType<'source>, arguments: _ list) =
+    member __.CustomOperation_Arguments (field: TypedFieldType<'source>, arguments: _ list) =
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]
-    member __.Get (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field>) =
+    member __.CustomOperation_Get (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field>) =
         let getterFunc =
             LeafExpressionConverter
                 .QuotationToLambdaExpression(<@ Func<_, _> %getter @>)
@@ -116,7 +132,7 @@ type FieldBuilder<'source> (?name, ?ofType) =
         )
 
     [<CustomOperation "getAsync">]
-    member __.GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> Task<'field>>) =
+    member __.CustomOperation_GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> Task<'field>>) =
         let getterFn =
             LeafExpressionConverter
                 .QuotationToLambdaExpression(<@ Func<_, _> %getter @>)
@@ -134,40 +150,40 @@ type FieldBuilder<'source> (?name, ?ofType) =
         )
 
     [<CustomOperation "resolve">]
-    member __.Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
+    member __.CustomOperation_Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- resolve resolver)
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
+    member __.CustomOperation_ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         field
         |> setFieldType<'field, _>
         |> set (fun x -> x.Resolver <- resolveAsync resolver)
 
     [<CustomOperation "subscribe">]
-    member __.Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+    member __.CustomOperation_Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         field
         |> setFieldType<'field, _>
         |> resolverForSubscription<'field, _>
         |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
     [<CustomOperation "subscribeAsync">]
-    member __.SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+    member __.CustomOperation_SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         field
         |> setFieldType<'field, _>
         |> resolverForSubscription<'field, _>
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))
 
     member __.Run (field: TypedFieldType<'source>) =
-        Option.iter (fun name -> field.Name <- name) name
-
         let hasDefaultValue = hasDefaultValue field
-        Option.iter (fun ofType ->
+        field.ResolvedType
+        |> Option.ofObj
+        |> Option.iter (fun ofType ->
             field.ResolvedType <-
                 if hasDefaultValue
-                then ofType :> IGraphType
-                else NonNullGraphType ofType :> IGraphType) ofType
+                then ofType
+                else NonNullGraphType ofType :> IGraphType)
 
         field
         |> getFieldType
@@ -178,7 +194,7 @@ type FieldBuilder<'source> (?name, ?ofType) =
 
         field
 
-let field<'source when 'source: (new: unit -> 'source)> = FieldBuilder<'source> ()
-let endpoint<'source when 'source: (new: unit -> 'source)> name = FieldBuilder<'source> (name = name)
+let field<'source when 'source: (new: unit -> 'source)> = TypedFieldType<'source> ()
+let endpoint<'source when 'source: (new: unit -> 'source)> name = TypedFieldType<'source> (Name = name)
 // TODO: Add tests for fieldOf
-let fieldOf ofType = FieldBuilder<obj> (ofType = ofType)
+let fieldOf ofType = TypedFieldType<obj> (ResolvedType = ofType)

@@ -71,6 +71,17 @@ let getDefaultTypeOrReference ``type`` =
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
     |> Some
 
+let getDefaultTypeOrInputReference ``type`` =
+    getDefaultType ``type``
+    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
+    |> Option.defaultValue (
+        sprintf "%sInput" ``type``.Name
+        |> GraphQLTypeReference
+        :> IGraphType
+    )
+    |> Some
+
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``
+let createReferenceInput ``type`` = unwrapType true getDefaultTypeOrInputReference ``type``
 let createReferenceNoChecks ``type`` = unwrapType false getDefaultTypeOrReference ``type``
 let createReferenceConfigure ``type`` checkNullability = unwrapType checkNullability getDefaultTypeOrReference ``type``

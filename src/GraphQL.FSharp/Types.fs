@@ -42,6 +42,22 @@ type DirectiveLocationUnion =
         | InputObject -> GraphQL.Types.DirectiveLocation.InputObject
         | InputFieldDefinition -> GraphQL.Types.DirectiveLocation.InputFieldDefinition
 
+let invalidGraphType =
+    {
+        new GraphType () with
+            override __.Equals _ = false
+    }
+    :> IGraphType
+
+type TypedQueryArgument<'source> (?``type``) =
+    inherit QueryArgument (
+        ``type``
+        |> Option.defaultValue invalidGraphType
+    )
+
+type TypedQueryArgument (?``type``) =
+    inherit TypedQueryArgument<obj> (?``type`` = ``type``)
+
 type TypedFieldType<'source> () =
     inherit EventStreamFieldType ()
 

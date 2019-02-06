@@ -58,23 +58,23 @@ let handleInterfaces (types: IGraphType list) =
 
     types
 
-type SchemaBuilder () =
-    member __.Yield _ = new Schema ()
+type Schema with
+    member this.Yield (_: unit) = this
 
     [<CustomOperation "query">]
-    member __.Query (schema, query: Query) =
+    member __.CustomOperation_Query (schema, query: Query) =
         set (fun schema -> schema.Query <- query) schema
 
     [<CustomOperation "mutation">]
-    member __.Mutation (schema, mutation: Mutation) =
+    member __.CustomOperation_Mutation (schema, mutation: Mutation) =
         set (fun schema -> schema.Mutation <- mutation) schema
 
     [<CustomOperation "subscription">]
-    member __.Subscription (schema, subscription: Subscription) =
+    member __.CustomOperation_Subscription (schema, subscription: Subscription) =
         set (fun schema -> schema.Subscription <- subscription) schema
 
     [<CustomOperation "types">]
-    member __.Types (schema, types: IGraphType list) =
+    member __.CustomOperation_Types (schema, types: IGraphType list) =
         set (fun schema ->
             types
             |> handleInterfaces
@@ -85,4 +85,4 @@ type SchemaBuilder () =
         schema.Initialize ()
         schema
 
-let schema = SchemaBuilder ()
+let schema = new Schema ()

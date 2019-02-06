@@ -1,53 +1,40 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Directive
 
+open System.Collections.Generic
+open System.Reflection
 open GraphQL.Types
 
-open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
-[<CLIMutable>]
-type DirectiveBuilderState = {
-    mutable Name: string
-    mutable Description: string
-    mutable Arguments: QueryArgument list
-    mutable Locations: DirectiveLocationUnion list
-}
+let internal getDirectiveLocations (x: DirectiveGraphType) =
+    box x
+    |> typeof<DirectiveGraphType>.GetField("_directiveLocations", BindingFlags.NonPublic ||| BindingFlags.Instance).GetValue
+    :?> List<DirectiveLocation>
 
-let internal (|Nullable|) x =
-    match box x with
-    | null -> None
-    | _ -> Some x
+let inline private set f (x: DirectiveGraphType) = f x; x
 
-let inline private set f (x: DirectiveBuilderState) = f x; x
+type DirectiveGraphType with
+    member this.Yield (_: unit) = this
 
-type DirectiveBuilder () =
-    inherit BuilderBase<DirectiveBuilderState> ()
+    [<CustomOperation "name">]
+    member __.CustomOperation_Name (this: DirectiveGraphType, name) =
+        this |> setName name
+
+    [<CustomOperation "description">]
+    member __.CustomOperation_Description (this: DirectiveGraphType, description) =
+        this |> setDescription description
 
     [<CustomOperation "arguments">]
-    member __.Arguments (x, arguments) = set (fun x -> x.Arguments <- arguments) x
+    member __.CustomOperation_Arguments (this: DirectiveGraphType, arguments) =
+        set (fun this -> this.Arguments <- arguments) this
 
     [<CustomOperation "locations">]
-    member __.Locations (x, locations) = set (fun x -> x.Locations <- locations) x
-
-    member __.Run
-        {
-            Name = Nullable name
-            Description = Nullable description
-            Arguments = Nullable arguments
-            Locations = Nullable locations
-        } =
-        let name = Option.defaultValue "" name
-        let locations =
-            Option.defaultValue [] locations
-            |> List.map (fun location -> location.GraphQLDirectiveLocation)
+    member __.CustomOperation_Locations (this: DirectiveGraphType, locations) =
+        set (fun this ->
+            locations
             |> List.toSeq
+            |> (getDirectiveLocations this).AddRange
+        ) this
 
-        let directive = DirectiveGraphType (name, locations)
-
-        description |> Option.iter (fun description -> directive.Description <- description)
-        arguments |> Option.iter (fun arguments -> directive.Arguments <- QueryArguments arguments)
-
-        directive
-
-let directive = DirectiveBuilder ()
+let directive = DirectiveGraphType ("", [])
