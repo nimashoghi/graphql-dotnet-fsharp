@@ -6,6 +6,18 @@ open System.Collections.Generic
 
 // TODO: Add attribute targets here
 
+[<AttributeUsage (AttributeTargets.Method, Inherited = true)>]
+type GetterAttribute () =
+    inherit Attribute ()
+
+[<AttributeUsage (AttributeTargets.Class, Inherited = true)>]
+type AutoAttribute () =
+    inherit Attribute ()
+
+[<AttributeUsage (AttributeTargets.All, Inherited = true)>]
+type FieldAttribute () =
+    inherit Attribute ()
+
 // FIXME: Should Inherited be true here?
 [<AttributeUsage (AttributeTargets.All, Inherited = true)>]
 type IgnoreAttribute () =

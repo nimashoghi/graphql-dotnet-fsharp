@@ -4,11 +4,14 @@ open System
 open System.Collections.Generic
 open System.Threading.Tasks
 open System.Text.RegularExpressions
+open System.Reflection
+open FSharp.Reflection
 open GraphQL.Types
 
 let graphTypeName (x: #IGraphType) =
     let rec run (x: IGraphType) =
         match x with
+        | :? GraphQLTypeReference as x -> x.TypeName
         | :? NonNullGraphType as x ->
             x.ResolvedType
             |> run
@@ -30,6 +33,34 @@ let (|Regex|_|) pattern input =
         |> List.tail
         |> Some
     | _ -> None
+
+module Attributes =
+    type Type with
+        member this.TypeAttributes = this.GetCustomAttributes ()
+
+    type MethodInfo with
+        member this.MethodAttributes = this.GetCustomAttributes ()
+
+    type PropertyInfo with
+        member this.PropertyAttributes = this.GetCustomAttributes ()
+
+    type ParameterInfo with
+        member this.ParameterAttributes = this.GetCustomAttributes ()
+
+    type UnionCaseInfo with
+        member this.CaseAttributes =
+            this.GetCustomAttributes ()
+            |> Seq.filter (fun x -> x :? Attribute)
+            |> Seq.map (fun x -> x :?> Attribute)
+
+    let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: seq<Attribute>) =
+        attributes
+        |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
+        |> Option.map (fun attribute ->  attribute :?> 'attribute)
+
+    let hasAttribute<'attribute when 'attribute :> Attribute> attributes =
+        tryGetAttribute<'attribute> attributes
+        |> Option.isSome
 
 module Type =
     let (|Option|_|) (``type``: Type) =

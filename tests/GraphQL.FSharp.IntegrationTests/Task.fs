@@ -9,6 +9,7 @@ open GraphQL.FSharp.TestUtils.Assert
 
 [<AutoOpen>]
 module GraphTypes =
+    [<Auto>]
     type MyType() =
         member __.GetSomethingSync () = "hello world"
         member __.GetSomethingAsync () = Task.FromResult "hello world async"

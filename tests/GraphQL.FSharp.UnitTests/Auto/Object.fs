@@ -7,6 +7,7 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+[<Auto>]
 type IObjectInterface =
     abstract member Name: string
     abstract member PhoneNumber: int
@@ -23,6 +24,7 @@ let ``Auto Object with interface underlying type`` () =
         "GetThirdPhoneNumber", nonNull StringGraphType
     ]
 
+[<Auto>]
 type TaskMethodType() =
     member __.TaskMethod () = Task.FromResult "test"
 
@@ -33,6 +35,7 @@ let ``Auto Object field of method returning task`` () =
         "TaskMethod", nonNull StringGraphType
     ]
 
+[<Auto>]
 type ContextParameterTest () =
     member __.TestContext (_ctx: ResolveFieldContext, name: int) = ""
 
@@ -51,7 +54,7 @@ let ``Auto Object context parameter`` () =
             |> Seq.exists (fun arg -> arg.Name = "name" && arg.ResolvedType = upcast NonNullGraphType (IntGraphType ()))
         @>
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type IgnoredFieldObject =
     {
         Name: string
@@ -70,7 +73,7 @@ let ``Auto Object ignored fields`` () =
         "GetName", nonNull StringGraphType
     ]
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type NullableFieldObject = {
     Name: string option
     Age: int option
@@ -86,7 +89,7 @@ let ``Auto Object nullable fields`` () =
         "Height", nonNull FloatGraphType
     ]
 
-[<Name "MyCustomName"; Description "My custom description">]
+[<Auto; Name "MyCustomName"; Description "My custom description">]
 type AttributeClass() =
     [<Name "MyCustomNameField"; Description "My custom description field">]
     member val Name = "" with get, set
@@ -103,12 +106,12 @@ let ``Auto Object class with attributes`` () =
         ]
     )
 
-[<Name "MyCustomName"; Description "My custom description">]
+[<Auto; Name "MyCustomName"; Description "My custom description">]
 type IAttributeInterface =
     [<Name "MyCustomNameField"; Description "My custom description field">]
     abstract member Name: string with get, set
 
-[<Name "MyCustomNameImpl"; Description "My custom impl description">]
+[<Auto; Name "MyCustomNameImpl"; Description "My custom impl description">]
 type AttributeClassExtended() =
     interface IAttributeInterface with
         member val Name = "" with get, set
@@ -125,6 +128,7 @@ let ``Auto Object class implementing an interface with attributes`` () =
         ]
     )
 
+[<Auto>]
 type EmptyObject() = class end
 
 [<Test>]
@@ -132,7 +136,7 @@ let ``Auto Object empty class`` () =
     Auto.Object<EmptyObject>
     |> objectEqual "EmptyObject" []
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithProps = {
     Name: string
     Count: int
@@ -146,7 +150,7 @@ let ``Auto Object record with properties`` () =
         "Count", nonNull IntGraphType
     ]
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithPropsAndMethods =
     {
         Name: string
@@ -167,7 +171,7 @@ let ``Auto Object record with properties and methods`` () =
 type IUserInterface =
     abstract member GetAbstract: unit -> int
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithInterface =
     {
         Name: string
@@ -186,6 +190,7 @@ let ``Auto Object record implementing an interface`` () =
         "GetAbstract", nonNull IntGraphType
     ]
 
+[<Auto>]
 type RegularClassWithMethodsAndProps() =
     member __.Name = "Hello"
     member __.Count = 1

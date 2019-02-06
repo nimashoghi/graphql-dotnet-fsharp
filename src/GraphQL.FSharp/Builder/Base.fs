@@ -7,8 +7,8 @@ open System.Collections.Generic
 type BuilderBase< ^t when
                   ^t : (new: unit -> ^t) and
                   ^t : (member set_Name: string -> unit) and
-                  ^t : (member set_Description: string -> unit)>() =
-    member inline __.Yield _ = new ^t()
+                  ^t : (member set_Description: string -> unit)> () =
+    member inline __.Yield _ = new ^t ()
 
     [<CustomOperation "name">]
     member inline __.Name (x: ^t, name) =
@@ -24,8 +24,8 @@ type BuilderDeprecationReasonBase< ^t when
                                    ^t : (new: unit -> ^t) and
                                    ^t : (member set_Name: string -> unit) and
                                    ^t : (member set_Description: string -> unit) and
-                                   ^t : (member set_DeprecationReason: string -> unit)>() =
-    inherit BuilderBase< ^t>()
+                                   ^t : (member set_DeprecationReason: string -> unit)> () =
+    inherit BuilderBase< ^t> ()
 
     [<CustomOperation "deprecationReason">]
     member inline __.DeprecationReason (x: ^t, deprecationReason) =
@@ -38,8 +38,8 @@ type BuilderMetadataBase< ^t when
                           ^t : (member set_Name: string -> unit) and
                           ^t : (member set_Description: string -> unit) and
                           ^t : (member set_DeprecationReason: string -> unit) and
-                          ^t : (member set_Metadata: IDictionary<string, obj> -> unit)>() =
-    inherit BuilderDeprecationReasonBase< ^t>()
+                          ^t : (member set_Metadata: IDictionary<string, obj> -> unit)> () =
+    inherit BuilderDeprecationReasonBase< ^t> ()
 
     [<CustomOperation "metadata">]
     member inline __.Metadata (x: ^t, metadata: _ list) =

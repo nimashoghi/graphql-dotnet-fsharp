@@ -7,7 +7,7 @@ open GraphQL.FSharp.Builder
 
 open GraphQL.FSharp.TestUtils.Assert
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type ReturnType = {
     Id: Guid
     Name: string

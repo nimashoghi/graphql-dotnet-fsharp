@@ -5,6 +5,8 @@ open FSharp.Reflection
 open NUnit.Framework
 open Swensen.Unquote
 
+open GraphQL.FSharp
+
 module ``Attribute`` =
     open GraphQL.FSharp.AutoBase.Attribute
 
@@ -33,45 +35,44 @@ module ``Update`` =
     open GraphQL.FSharp.AutoBase.Update
 
     module ``shouldIgnore`` =
-        open GraphQL.FSharp.Attributes
-
         type SomeOtherAttribute () = inherit Attribute ()
 
+        type OptInType () = class end
+        [<Auto>]
+        type OptOutType () = class end
+
         [<Test>]
-        let ``has ignore case`` () =
-            shouldIgnore <| seq {
+        let ``OptIn has ignore case`` () =
+            shouldIgnore typeof<OptInType> <| seq {
+                yield SomeOtherAttribute ()
+            } =! true
+
+        [<Test>]
+        let ``OptIn no ignore case`` () =
+            shouldIgnore typeof<OptInType> <| seq {
+                yield SomeOtherAttribute ()
+                yield FieldAttribute ()
+            } =! false
+
+        [<Test>]
+        let ``OptOut default has ignore case`` () =
+            shouldIgnore typeof<OptOutType> <| seq {
                 yield SomeOtherAttribute ()
                 yield IgnoreAttribute ()
             } =! true
 
         [<Test>]
-        let ``no ignore case`` () =
-            shouldIgnore <| seq {
+        let ``OptOut default no ignore case`` () =
+            shouldIgnore typeof<OptOutType> <| seq {
                 yield SomeOtherAttribute ()
                 yield SomeOtherAttribute ()
             } =! false
-
-    module ``tryGetAttribute`` =
-        type TestAttribute () = inherit Attribute ()
-        type OtherAttribute () = inherit Attribute ()
-
-        [<Test>]
-        let ``success`` () =
-            tryGetAttribute<TestAttribute> <| seq {
-                yield TestAttribute ()
-                yield OtherAttribute ()
-            } =! (Some (TestAttribute ()))
-
-        [<Test>]
-        let ``fail`` () =
-            tryGetAttribute<TestAttribute> <| seq {
-                yield OtherAttribute ()
-            } =! None
 
 module ``Field`` =
     open GraphQL.FSharp.AutoBase.Field
 
     module ``properties`` =
+        [<Auto>]
         type MyType () =
             member __.MyProp = 2
 
@@ -86,6 +87,7 @@ module ``Field`` =
             properties<MyType>
             =! [|typeof<MyType>.GetProperty "MyProp"|]
 
+        [<Auto>]
         type MyRecord = {
             name: string
             age: int
@@ -95,17 +97,3 @@ module ``Field`` =
         let ``properties record`` () =
             properties<MyRecord>
             =! FSharpType.GetRecordFields typeof<MyRecord>
-
-
-    // module ``setInfo`` =
-    //     type MyType = {
-    //         Age: int
-    //         mutable Name: string
-    //     }
-
-    //     [<Test>]
-    //     let ``success`` () =
-    //         let myTypeInstance = {Age = 12; Name = "test"}
-    //         {Age = 0; Name = "original"}
-    //         |> setInfo myTypeInstance
-    //         =! {Age = 0; Name = "test"}

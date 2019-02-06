@@ -52,3 +52,12 @@ type EnumerationGraphTypeEx<'t> () =
 
 type UnionGraphType<'t> () =
     inherit UnionGraphType ()
+
+type UnitGraphType () as this =
+    inherit ScalarGraphType ()
+
+    do this.Name <- "Unit"
+
+    override __.Serialize _ = box "{}"
+    override __.ParseValue _ = box ()
+    override __.ParseLiteral _ = box ()

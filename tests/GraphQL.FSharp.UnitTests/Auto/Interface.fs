@@ -9,6 +9,7 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+[<Auto>]
 type IInterfaceWithNullableMembers =
     abstract member Name: string option with get, set
     abstract member GetInteger: unit -> int option
@@ -21,7 +22,7 @@ let ``Auto Interface with nullable members`` () =
         "GetInteger", nullable IntGraphType
     ]
 
-[<Name "MyCustomName"; Description "My custom description">]
+[<Auto; Name "MyCustomName"; Description "My custom description">]
 type IAttributeInterface =
     [<Name "MyCustomNameField"; Description "My custom description field">]
     abstract member Name: string with get, set
@@ -38,6 +39,7 @@ let ``Auto Interface interface with attributes`` () =
         ]
     )
 
+[<Auto>]
 type IEmptyInterface = interface end
 
 [<Test>]
@@ -45,6 +47,7 @@ let ``Auto Interface empty class`` () =
     Auto.Interface<IEmptyInterface>
     |> objectEqual "IEmptyInterface" []
 
+[<Auto>]
 type IMethodPropInterface =
     abstract member Name: string
     abstract member GetCount: unit -> int
@@ -57,6 +60,7 @@ let ``Auto Interface interface with methods and properties`` () =
         "GetCount", nonNull IntGraphType
     ]
 
+[<Auto>]
 type INestedInterfaceWithMethodPropInterface =
     inherit IMethodPropInterface
 
@@ -73,6 +77,7 @@ let ``Auto Interface nested interface with methods and properties`` () =
         "SecondCount", nonNull IntGraphType
     ]
 
+[<Auto>]
 type MethodPropInterface() =
     interface IMethodPropInterface with
         member __.Name = "sup"

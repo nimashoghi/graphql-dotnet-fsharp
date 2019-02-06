@@ -6,7 +6,7 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.TestUtils.Assert
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type NullableFieldObject = {
     Name: string option
     Age: int option
@@ -22,7 +22,7 @@ let ``Auto InputObject nullable fields`` () =
         "Height", nonNull FloatGraphType
     ]
 
-[<Name "MyCustomName"; Description "My custom description">]
+[<Auto; Name "MyCustomName"; Description "My custom description">]
 type AttributeClass() =
     [<Name "MyCustomNameField"; Description "My custom description field">]
     member val Name = "" with get, set
@@ -39,6 +39,7 @@ let ``Auto InputObject class with attributes`` () =
         ]
     )
 
+[<Auto>]
 type EmptyObject() = class end
 
 [<Test>]
@@ -46,7 +47,7 @@ let ``Auto InputObject empty class`` () =
     Auto.InputObject<EmptyObject>
     |> objectEqual "EmptyObject" []
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithProps = {
     Name: string
     Count: int
@@ -60,7 +61,7 @@ let ``Auto InputObject record with properties`` () =
         "Count", nonNull IntGraphType
     ]
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithPropsAndMethods =
     {
         Name: string
@@ -81,7 +82,7 @@ let ``Auto InputObject record with properties and methods`` () =
 type IUserInterface =
     abstract member GetAbstract: unit -> int
 
-[<CLIMutable>]
+[<Auto; CLIMutable>]
 type UserWithInterface =
     {
         Name: string
@@ -100,6 +101,7 @@ let ``Auto InputObject record implementing an interface`` () =
         "GetAbstract", nonNull IntGraphType
     ]
 
+[<Auto>]
 type RegularClassWithMethodsAndProps() =
     member __.Name = "Hello"
     member __.Count = 1

@@ -6,6 +6,8 @@ open GraphQL.Types
 
 open GraphQL.FSharp.AutoBase
 open GraphQL.FSharp.Types
+open GraphQL.FSharp.NameTransformers
+open GraphQL.FSharp.Utils.Attributes
 
 let isValidEnum<'enum> =
     typeof<'enum>.IsEnum ||
@@ -39,7 +41,7 @@ let addCases<'enum> (enum: EnumerationGraphType) =
     enum
 
 let unionEnum<'enum> () =
-    EnumerationGraphType (Name = typeof<'enum>.Name)
+    EnumerationGraphType (Name = transformTypeName typeof<'enum> typeof<'enum>.Name)
     |> addCases<'enum>
 
 let Enum<'enum> =

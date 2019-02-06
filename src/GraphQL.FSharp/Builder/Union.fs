@@ -5,8 +5,8 @@ open GraphQL.Types
 
 let inline private set f (x: UnionGraphType) = f x; x
 
-type UnionBuilder() =
-    inherit BuilderMetadataBase<UnionGraphType>()
+type UnionBuilder () =
+    inherit BuilderMetadataBase<UnionGraphType> ()
 
     [<CustomOperation "cases">]
     member __.Cases (union, cases: IObjectGraphType list) =

@@ -21,6 +21,7 @@
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder/Schema.fs" />
+    <Compile Include="NameTransformers.fs" />
     <Compile Include="Auto/Base.fs" />
     <Compile Include="Auto/Scalar.fs" />
     <Compile Include="Auto/Enum.fs" />

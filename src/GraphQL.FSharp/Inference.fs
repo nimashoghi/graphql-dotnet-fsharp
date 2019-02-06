@@ -3,6 +3,7 @@ module GraphQL.FSharp.Inference
 open System
 open GraphQL.Types
 
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils.Type
 
 let rec unwrapType checkNullability graphTypeGetter ``type`` =
@@ -39,19 +40,20 @@ let rec unwrapType checkNullability graphTypeGetter ``type`` =
 let private graphType (f: unit -> #ScalarGraphType) = f >> (fun graph -> graph :> ScalarGraphType)
 
 let defaultTypes = dict [
+    typeof<unit>, graphType UnitGraphType
     typeof<string>, graphType StringGraphType
     typeof<bool>, graphType BooleanGraphType
     typeof<float>, graphType FloatGraphType
     typeof<float32>, graphType FloatGraphType
     typeof<decimal>, graphType DecimalGraphType
     typeof<int8>, graphType IntGraphType
-    typeof<int16>, graphType ShortGraphType
+    typeof<int16>, graphType IntGraphType
     typeof<int32>, graphType IntGraphType
-    typeof<int64>, graphType ULongGraphType
-    typeof<uint8>, graphType UIntGraphType
-    typeof<uint16>, graphType UShortGraphType
-    typeof<uint32>, graphType UIntGraphType
-    typeof<uint64>, graphType ULongGraphType
+    typeof<int64>, graphType IntGraphType
+    typeof<uint8>, graphType IntGraphType
+    typeof<uint16>, graphType IntGraphType
+    typeof<uint32>, graphType IntGraphType
+    typeof<uint64>, graphType IntGraphType
     typeof<Guid>, graphType IdGraphType
     typeof<DateTime>, graphType DateTimeGraphType
     typeof<DateTimeOffset>, graphType DateTimeOffsetGraphType

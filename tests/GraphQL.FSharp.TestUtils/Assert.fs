@@ -30,7 +30,10 @@ type Assert with
                 ||> Seq.zip
                 |> Seq.iter (fun ((name, fields), object) ->
                     let fields =
-                        fields
+                        [
+                            yield! fields
+                            yield "Tag", nonNull IntGraphType
+                        ]
                         |> List.map (fun (name, value) -> name, null, value)
 
                     object

@@ -4,13 +4,14 @@ open System
 open System.Collections.Generic
 open System.Reflection
 open System.Runtime.CompilerServices
-open System.Text.RegularExpressions
 open FSharp.Reflection
 open GraphQL.Types
 
 open GraphQL.FSharp
+open GraphQL.FSharp.NameTransformers
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Utils
+open GraphQL.FSharp.Utils.Attributes
 
 // TODO: Subscriptions
 
@@ -22,32 +23,20 @@ module Attribute =
 
 [<AutoOpen>]
 module internal Update =
-    type Type with
-        member this.TypeAttributes = this.GetCustomAttributes ()
+    let (|OptIn|OptOut|) (``type``: Type) =
+        let attributes = ``type``.TypeAttributes
+        if hasAttribute<AutoAttribute> attributes then OptOut
+        else OptIn
 
-    type MethodInfo with
-        member this.MethodAttributes = this.GetCustomAttributes ()
-
-    type PropertyInfo with
-        member this.PropertyAttributes = this.GetCustomAttributes ()
-
-    type ParameterInfo with
-        member this.ParameterAttributes = this.GetCustomAttributes ()
-
-    type UnionCaseInfo with
-        member this.CaseAttributes =
-            this.GetCustomAttributes ()
-            |> Seq.filter (fun x -> x :? Attribute)
-            |> Seq.map (fun x -> x :?> Attribute)
-
-    let shouldIgnore (attributes: seq<Attribute>) =
-        attributes
-        |> Seq.exists (fun attribute -> attribute :? IgnoreAttribute)
-
-    let tryGetAttribute<'attribute when 'attribute :> Attribute> (attributes: seq<Attribute>) =
-        attributes
-        |> Seq.tryFind (fun attribute -> attribute :? 'attribute)
-        |> Option.map (fun attribute ->  attribute :?> 'attribute)
+    let shouldIgnore ``type`` (attributes: seq<Attribute>) =
+        match ``type`` with
+        | OptOut ->
+            attributes
+            |> Seq.exists (fun attribute -> attribute :? IgnoreAttribute)
+        | OptIn ->
+            attributes
+            |> Seq.exists (fun attribute -> attribute :? FieldAttribute)
+            |> not
 
     let update<'attribute, 't when 'attribute :> AttributeWithValue<'t>> f (attributes: seq<Attribute>) =
         attributes
@@ -88,16 +77,14 @@ module internal Update =
 
         x
 
-    let (|Pair|) (pair: KeyValuePair<_, _>) = (pair.Key, pair.Value)
-
     let updateType attributes (x: #IGraphType)  =
         attributes
         |> update<NameAttribute, _> x.set_Name
         |> update<DescriptionAttribute, _> x.set_Description
         |> update<DeprecationReasonAttribute, _> x.set_DeprecationReason
         |> update<MetadataAttribute, _> (fun metadata ->
-            for Pair (key, value) in metadata do
-                x.Metadata.[key] <- value)
+            for pair in metadata do
+                x.Metadata.[pair.Key] <- pair.Value)
         |> ignore
 
         x
@@ -114,14 +101,17 @@ module internal Field =
 
     let properties<'object> =
         [|
-            yield! validProps typeof<'object>
+            if FSharpType.IsRecord typeof<'object>
+            then yield! FSharpType.GetRecordFields typeof<'object>
+            else yield! validProps typeof<'object>
+
             for ``interface`` in typeof<'object>.GetInterfaces () do
                 yield! validProps ``interface``
         |]
-        |> Array.filter (fun prop -> not <| shouldIgnore prop.PropertyAttributes)
+        |> Array.filter (fun prop -> not <| shouldIgnore typeof<'object> prop.PropertyAttributes)
 
     let makePropField infer (prop: PropertyInfo) =
-        let field = EventStreamFieldType (Name = prop.Name)
+        let field = EventStreamFieldType (Name = transformPropertyName prop prop.Name)
 
         field.Resolver <- (withSource >> resolve) prop.GetValue
         field.ResolvedType <- infer prop.PropertyType
@@ -152,7 +142,7 @@ module internal Field =
             for ``interface`` in typeof<'object>.GetInterfaces () do
                 yield! validMethods ``interface``
         |]
-        |> Array.filter (fun method -> not <| shouldIgnore method.MethodAttributes)
+        |> Array.filter (fun method -> not <| shouldIgnore typeof<'object> method.MethodAttributes)
 
     let invalidGraphType =
         {
@@ -212,27 +202,26 @@ module internal Field =
         then sprintf "%c%s" name.[0] (name.[1..].ToLower())
         else name
 
-    let log x = printfn "%A" x; x
+    let getTypeName (``type``: #IGraphType) =
+        match unwrapGraphType ``type`` with
+        | :? GraphQLTypeReference as ``type`` -> ``type``.TypeName
+        | ``type`` -> ``type``.Name
 
     let checkArgumentName (argument: QueryArgument) =
         if isNull argument.Name || argument.Name = "" then
-            let unwrapedType = unwrapGraphType argument.ResolvedType
-            argument.Name <- normalizeName unwrapedType.Name
+            argument.Name <- normalizeName (getTypeName argument.ResolvedType)
             if isList argument.ResolvedType
             then argument.Name <- sprintf "%sList" argument.Name
             argument
         else argument
 
-    let rec removeBadChars x =
-        Regex.Replace(x, @"[^_a-zA-Z0-9]", "")
+    // let removeBadChars x =
+    //     Regex.Replace(x, @"[^_a-zA-Z0-9]", "")
 
-    let getTypeName (``type``: Type) =
-        removeBadChars ``type``.Name
-
-    let getParamName (parameter: ParameterInfo) =
-        if isNull parameter.Name || parameter.Name = ""
-        then getTypeName parameter.ParameterType
-        else parameter.Name
+    // let getParamName (parameter: ParameterInfo) =
+    //     if isNull parameter.Name
+    //     then parameter.ParameterType.Name
+    //     else parameter.Name
 
     let makeArgument infer (parameter: ParameterInfo) =
         match parameter with
@@ -242,14 +231,14 @@ module internal Field =
 
             Context
         | ArgumentParameter ->
-            QueryArgument (invalidGraphType, Name = getParamName parameter)
+            QueryArgument (invalidGraphType, Name = parameter.Name)
             |> updateArgument parameter.ParameterAttributes
             |> setArgumentType infer parameter
             |> checkArgumentName
             |> Argument
 
     let makeMethodField infer (method: MethodInfo) =
-        let field = EventStreamFieldType (Name = method.Name)
+        let field = EventStreamFieldType (Name = transformMethodName method method.Name)
 
         let arguments = method.GetParameters ()
         let queryArguemnts = arguments |> Array.map (makeArgument infer)

@@ -48,16 +48,16 @@ let ``Auto Union single member case`` () =
 
     Auto.Union<MyUnion>
     |> unionEqual "MyUnion" [
-        "NamedUser", [
+        "MyUnionNamedUser", [
             "User", liftNonNull user
         ]
-        "UnnamedUser", [
+        "MyUnionUnnamedUser", [
             "Item", liftNonNull user
         ]
-        "UnnamedInteger", [
+        "MyUnionUnnamedInteger", [
             "Item", nonNull IntGraphType
         ]
-        "NamedInteger", [
+        "MyUnionNamedInteger", [
             "Name", nonNull IntGraphType
         ]
     ]
@@ -70,10 +70,10 @@ type ValidUnion =
 let ``Auto Union valid test graph type name`` () =
     Auto.Union<ValidUnion>
     |> unionEqual "ValidUnion" [
-        "First", [
+        "ValidUnionFirst", [
             "Name", nonNull IntGraphType
         ]
-        "Second", [
+        "ValidUnionSecond", [
             "Fst", nonNull StringGraphType
             "Snd", nonNull FloatGraphType
         ]

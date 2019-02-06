@@ -7,8 +7,8 @@ open GraphQL.FSharp.Types
 
 let inline private set f (x: InputObjectGraphType<_>) = f x; x
 
-type InputObjectBuilder<'source>() =
-    inherit BuilderMetadataBase<InputObjectGraphType<'source>>()
+type InputObjectBuilder<'source> () =
+    inherit BuilderMetadataBase<InputObjectGraphType<'source>> ()
 
     [<CustomOperation "fields">]
     member __.Fields (object: InputObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
