@@ -5,11 +5,13 @@
   <ItemGroup>
     <Compile Include="Utils.fs" />
     <Compile Include="Types.fs" />
+    <Compile Include="Logging.fs" />
     <Compile Include="Attributes.fs" />
     <Compile Include="Resolvers.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Define.fs" />
     <Compile Include="Define/Argument.fs" />
+    <Compile Include="Define/EnumCase.fs" />
     <Compile Include="Define/Directive.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Directive.fs" />
@@ -34,5 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="Serilog" Version="2.8.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
 </Project>

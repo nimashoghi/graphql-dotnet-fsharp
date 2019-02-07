@@ -17,10 +17,11 @@ open GraphQL.FSharp.Builder
 module Model =
     type PhoneNumber = PhoneNumber of string
 
+    [<Auto>]
     type IUser =
         abstract member GetName: Guid List -> string
 
-    [<CLIMutable>]
+    [<Auto; CLIMutable>]
     type User =
         {
             Name: string
@@ -29,7 +30,7 @@ module Model =
         interface IUser with
             member this.GetName id = sprintf "%s-%s" this.Name (String.Join (' ', id |> Seq.map (fun id -> id.ToString ())))
 
-    [<CLIMutable>]
+    [<Auto; CLIMutable>]
     type Website = {
         Users: User list
     }
@@ -39,6 +40,7 @@ module Model =
         code: int
     }
 
+    [<Auto>]
     type ResultClass () =
         member __.Ok (x: int) : Result<int, MyError> = Ok x
         member __.Error (x: int) : Result<int, MyError> = Error {description = "messed up"; code = x}

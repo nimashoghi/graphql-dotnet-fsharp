@@ -4,7 +4,11 @@ module GraphQL.FSharp.Builder.Schema
 open System
 open GraphQL.Types
 
-let inline private set f (x: Schema) = f x; x
+open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.Logging
+open GraphQL.FSharp.Types
+
+let inline private set f (x: #Schema) = f x; x
 
 let (|InterfaceGraphType|_|) (``type``: IGraphType) =
     match ``type`` with
@@ -59,22 +63,22 @@ let handleInterfaces (types: IGraphType list) =
     types
 
 type Schema with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "query">]
-    member __.CustomOperation_Query (schema, query: Query) =
+    member __.CustomOperation_Query (schema: Schema, query: Query) =
         set (fun schema -> schema.Query <- query) schema
 
     [<CustomOperation "mutation">]
-    member __.CustomOperation_Mutation (schema, mutation: Mutation) =
+    member __.CustomOperation_Mutation (schema: Schema, mutation: Mutation) =
         set (fun schema -> schema.Mutation <- mutation) schema
 
     [<CustomOperation "subscription">]
-    member __.CustomOperation_Subscription (schema, subscription: Subscription) =
+    member __.CustomOperation_Subscription (schema: Schema, subscription: Subscription) =
         set (fun schema -> schema.Subscription <- subscription) schema
 
     [<CustomOperation "types">]
-    member __.CustomOperation_Types (schema, types: IGraphType list) =
+    member __.CustomOperation_Types (schema: Schema, types: IGraphType list) =
         set (fun schema ->
             types
             |> handleInterfaces
@@ -82,7 +86,9 @@ type Schema with
             |> schema.RegisterTypes) schema
 
     member __.Run (schema: Schema) =
+        (logSchema >> Logger.information) schema
+
         schema.Initialize ()
         schema
 
-let schema = new Schema ()
+let schema = builder (fun () -> new Schema ())

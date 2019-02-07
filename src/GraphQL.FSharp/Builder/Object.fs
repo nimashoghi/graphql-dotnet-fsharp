@@ -3,16 +3,13 @@ module GraphQL.FSharp.Builder.Object
 
 open GraphQL.Types
 
+open GraphQL.FSharp.Builder.Base
 open GraphQL.FSharp.Types
 
-type Query = ObjectGraphType<obj>
-type Mutation = ObjectGraphType<obj>
-type Subscription = ObjectGraphType<obj>
-
-let inline private set f (x: ObjectGraphType<_>) = f x; x
+let inline private set f (x: #ObjectGraphType<_>) = f x; x
 
 type ObjectGraphType<'source> with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: ObjectGraphType<'source>, name) =
@@ -42,19 +39,22 @@ type ObjectGraphType<'source> with
             ``interface``
             |> List.iter x.AddResolvedInterface) object
 
-let object<'source> = ObjectGraphType<'source> ()
-let query lst : Query =
+let object<'source> = builder (fun () -> ObjectGraphType<'source> ())
+let query lst: Query =  builder (fun () ->
     object<obj> {
         name "Query"
         fields lst
     }
-let mutation lst : Mutation =
+)
+let mutation lst: Mutation =  builder (fun () ->
     object<obj> {
         name "Mutation"
         fields lst
     }
-let subscription lst : Subscription =
+)
+let subscription lst: Subscription =  builder (fun () ->
     object<obj> {
         name "Subscription"
         fields lst
     }
+)

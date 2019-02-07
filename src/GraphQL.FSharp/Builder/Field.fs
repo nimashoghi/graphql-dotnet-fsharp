@@ -10,11 +10,13 @@ open GraphQL.Types
 open GraphQL.Subscription
 open GraphQL.Resolvers
 
+open GraphQL.FSharp
+open GraphQL.FSharp.Builder.Base
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 
-let inline private set f (x: TypedFieldType<_>) = f x; x
+let inline private set f (x: #TypedFieldType<_>) = f x; x
 
 let (|PropertyNameGetter|_|) expr =
     match expr with
@@ -53,30 +55,32 @@ let (|FieldName|_|) expr =
 let (|AsyncFieldName|_|) expr = (|MethodNameBasic|_|) expr
 
 [<Literal>]
-let FieldTypeMetadataName = "FieldType"
-
-[<Literal>]
 let HasDefaultValueMetadataName = "HasDefaultValue"
 
-let resolverForSubscription<'field, 'input> (field: TypedFieldType<'input>) =
-    set (fun field -> field.Resolver <- FuncFieldResolver<_, _> (Func<_, _> (fun (ctx: ResolveFieldContext<'input>) -> unbox<'field> ctx.Source))) field
+let resolverForSubscription<'field, 'source> (field: TypedFieldType<'source>) =
+    set (fun field -> field.Resolver <- FuncFieldResolver<_, _> (Func<_, _> (fun (ctx: ResolveFieldContext<'source>) -> unbox<'field> ctx.Source))) field
 
 let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
-    field.Metadata.[FieldTypeMetadataName] <- box typeof<'field>
+    if isNull field.ResolvedType
+    then field.ResolvedType <- createReference typeof<'field>
     field
-
-let getFieldType (field: TypedFieldType<_>) =
-    match field.Metadata.TryGetValue FieldTypeMetadataName with
-    | true, (:? Type as ``type``) when isNull field.Type && isNull field.ResolvedType -> Some ``type``
-    | _ -> None
 
 let hasDefaultValue (field: TypedFieldType<_>) =
     match field.Metadata.TryGetValue HasDefaultValueMetadataName with
     | true, value when unbox<bool> value -> true
     | _ -> false
 
+// TODO: Add support for field.Type as well as field.ResolvedType
+let handleNonNullTypes (field: TypedFieldType<_>) =
+    if hasDefaultValue field then
+        match field.ResolvedType with
+        | :? NonNullGraphType as ``type`` ->
+            field.ResolvedType <- ``type``.ResolvedType
+        | _ -> ()
+    field
+
 type TypedFieldType<'source> with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: TypedFieldType<'source>, name) =
@@ -103,7 +107,7 @@ type TypedFieldType<'source> with
     [<CustomOperation "defaultValue">]
     member __.CustomOperation_DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
         field
-        |> setFieldType<'field, _>
+        |> setFieldType<'field, 'source>
         |> set (fun x ->
             x.DefaultValue <- ``default``
             x.Metadata.[HasDefaultValueMetadataName] <- true
@@ -125,7 +129,7 @@ type TypedFieldType<'source> with
             | _ -> invalidArg "getter" "Could not find field name from getter expression. Get only supports simple expressions. Use resolve instead."
         let resolver = (withSource >> resolve) getterFunc.Invoke
         field
-        |> setFieldType<'field, _>
+        |> setFieldType<'field, 'source>
         |> set (fun x ->
             x.Name <- fieldName
             x.Resolver <- resolver
@@ -143,7 +147,7 @@ type TypedFieldType<'source> with
             | AsyncFieldName value -> value
             | _ -> invalidArg "getter" "Could not find field name from async getter expression. GetAsync only supports simple expressions. Use resolve instead."
         field
-        |> setFieldType<'field, _>
+        |> setFieldType<'field, 'source>
         |> set (fun x ->
             x.Name <- fieldName
             x.Resolver <- (withSource >> resolveAsync) getterFn
@@ -152,49 +156,36 @@ type TypedFieldType<'source> with
     [<CustomOperation "resolve">]
     member __.CustomOperation_Resolve (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
         field
-        |> setFieldType<'field, _>
+        |> setFieldType<'field, 'source>
         |> set (fun x -> x.Resolver <- resolve resolver)
 
     [<CustomOperation "resolveAsync">]
     member __.CustomOperation_ResolveAsync (field: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         field
-        |> setFieldType<'field, _>
+        |> setFieldType<'field, 'source>
         |> set (fun x -> x.Resolver <- resolveAsync resolver)
 
     [<CustomOperation "subscribe">]
     member __.CustomOperation_Subscribe (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         field
-        |> setFieldType<'field, _>
-        |> resolverForSubscription<'field, _>
+        |> setFieldType<'field, 'source>
+        |> resolverForSubscription<'field, 'source>
         |> set (fun x -> x.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe))
 
     [<CustomOperation "subscribeAsync">]
     member __.CustomOperation_SubscribeAsync (field: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         field
-        |> setFieldType<'field, _>
-        |> resolverForSubscription<'field, _>
+        |> setFieldType<'field, 'source>
+        |> resolverForSubscription<'field, 'source>
         |> set (fun x -> x.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe))
 
     member __.Run (field: TypedFieldType<'source>) =
-        let hasDefaultValue = hasDefaultValue field
-        field.ResolvedType
-        |> Option.ofObj
-        |> Option.iter (fun ofType ->
-            field.ResolvedType <-
-                if hasDefaultValue
-                then ofType
-                else NonNullGraphType ofType :> IGraphType)
+        (logField >> Logger.information) field
 
         field
-        |> getFieldType
-        |> Option.iter (fun ``type`` ->
-            field.ResolvedType <-
-                not hasDefaultValue
-                |> createReferenceConfigure ``type``)
+        |> handleNonNullTypes
 
-        field
-
-let field<'source when 'source: (new: unit -> 'source)> = TypedFieldType<'source> ()
-let endpoint<'source when 'source: (new: unit -> 'source)> name = TypedFieldType<'source> (Name = name)
+let field<'source when 'source: (new: unit -> 'source)> = builder (fun () -> TypedFieldType<'source> ())
+let endpoint<'source when 'source: (new: unit -> 'source)> name = builder (fun () -> TypedFieldType<'source> (Name = name))
 // TODO: Add tests for fieldOf
-let fieldOf ofType = TypedFieldType<obj> (ResolvedType = ofType)
+let fieldOf ofType = builder (fun () -> TypedFieldType<obj> (ResolvedType = ofType))

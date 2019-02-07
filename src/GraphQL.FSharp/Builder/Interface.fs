@@ -3,12 +3,14 @@ module GraphQL.FSharp.Builder.Interface
 
 open GraphQL.Types
 
+open GraphQL.FSharp.Builder.Base
 open GraphQL.FSharp.Types
 
-let inline private set f (x: InterfaceGraphType<_>) = f x; x
+// TODO: Should we remove the type parameter?
+let inline private set f (x: #InterfaceGraphType<_>) = f x; x
 
 type InterfaceGraphType<'source> with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: InterfaceGraphType<'source>, name) =
@@ -32,5 +34,5 @@ type InterfaceGraphType<'source> with
             fields
             |> List.iter (x.AddField >> ignore)) object
 
-// TODO: rename?
-let ``interface``<'source> = InterfaceGraphType<'source> ()
+// FIXME: rename?
+let ``interface``<'source> = builder (fun () -> InterfaceGraphType<'source> ())

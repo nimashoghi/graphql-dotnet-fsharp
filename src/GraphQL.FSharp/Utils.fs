@@ -8,10 +8,13 @@ open System.Reflection
 open FSharp.Reflection
 open GraphQL.Types
 
-let graphTypeName (x: #IGraphType) =
+let graphTypeNameConfig detailed (x: #IGraphType) =
     let rec run (x: IGraphType) =
         match x with
-        | :? GraphQLTypeReference as x -> x.TypeName
+        | :? GraphQLTypeReference as x ->
+            if detailed
+            then sprintf "(%s ref)" x.TypeName
+            else x.TypeName
         | :? NonNullGraphType as x ->
             x.ResolvedType
             |> run
@@ -22,6 +25,9 @@ let graphTypeName (x: #IGraphType) =
             |> sprintf "[%s]"
         | x -> sprintf "%s" x.Name
     run (x :> IGraphType)
+
+let graphTypeName x = graphTypeNameConfig false x
+let graphTypeNameDetailed x = graphTypeNameConfig true x
 
 let (|Regex|_|) pattern input =
     match Regex.Match (input, pattern) with

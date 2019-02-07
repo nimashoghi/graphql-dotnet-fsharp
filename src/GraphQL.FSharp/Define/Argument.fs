@@ -7,7 +7,7 @@ open GraphQL.FSharp.Inference
 
 type Define with
     static member Argument<'arg> (name, ?defaultValue: 'arg) =
-        if name = null || name = ""
+        if isNull name || name = ""
         then invalidArg "name" "value cannot be null"
 
         // TODO: Add test for NonNull checks

@@ -4,6 +4,7 @@ open System
 open NUnit.Framework
 open GraphQL.FSharp
 open GraphQL.FSharp.Builder
+open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
@@ -61,7 +62,7 @@ module GraphTypes =
     let MyEnumGraph = enum {
         name "myEnum"
         cases [
-            "MyFirstCase", "MyFirstCase"
+            Define.EnumCase ("MyFirstCase", "MyFirstCase")
         ]
     }
 
@@ -94,9 +95,17 @@ module GraphTypes =
                     Define.Argument<int> ("myArg", 1)
                 ]
             }
+            fieldOf (NonNullGraphType MyEnumGraph) {
+                name "myEnumNonNull"
+                resolve (fun _ -> "MyFirstCase")
+            }
             fieldOf MyEnumGraph {
                 name "myEnum"
                 resolve (fun _ -> "MyFirstCase")
+            }
+            field {
+                name "mySecondEnumNonNull"
+                resolve (fun _ -> First)
             }
             fieldOf MySecondEnumGraph {
                 name "mySecondEnum"
@@ -166,7 +175,7 @@ let Query = """
         }
         myEnum
         mySecondEnum
-        withInput(myArg: { name: "sup bitch" }) {
+        withInput(myArg: { name: "sup" }) {
             name
             __typename
         }
@@ -230,7 +239,7 @@ let ExpectedResult = """
       "myEnum": "MyFirstCase",
       "mySecondEnum": "First",
       "withInput": {
-        "name": "sup bitch",
+        "name": "sup",
         "__typename": "MyType"
       },
       "myImpl": {
@@ -1955,6 +1964,18 @@ let ExpectedIntrospectionResult = """
                 "description": null,
                 "args": [],
                 "type": {
+                  "kind": "ENUM",
+                  "name": "myEnum",
+                  "ofType": null
+                },
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "myEnumNonNull",
+                "description": null,
+                "args": [],
+                "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
@@ -2063,6 +2084,18 @@ let ExpectedIntrospectionResult = """
               },
               {
                 "name": "mySecondEnum",
+                "description": null,
+                "args": [],
+                "type": {
+                  "kind": "ENUM",
+                  "name": "MySecondEnum",
+                  "ofType": null
+                },
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "mySecondEnumNonNull",
                 "description": null,
                 "args": [],
                 "type": {

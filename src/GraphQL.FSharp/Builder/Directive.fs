@@ -5,6 +5,7 @@ open System.Collections.Generic
 open System.Reflection
 open GraphQL.Types
 
+open GraphQL.FSharp.Builder.Base
 open GraphQL.FSharp.Utils
 
 let internal getDirectiveLocations (x: DirectiveGraphType) =
@@ -12,10 +13,10 @@ let internal getDirectiveLocations (x: DirectiveGraphType) =
     |> typeof<DirectiveGraphType>.GetField("_directiveLocations", BindingFlags.NonPublic ||| BindingFlags.Instance).GetValue
     :?> List<DirectiveLocation>
 
-let inline private set f (x: DirectiveGraphType) = f x; x
+let inline private set f (x: #DirectiveGraphType) = f x; x
 
 type DirectiveGraphType with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: DirectiveGraphType, name) =
@@ -37,4 +38,4 @@ type DirectiveGraphType with
             |> (getDirectiveLocations this).AddRange
         ) this
 
-let directive = DirectiveGraphType ("", [])
+let directive = builder (fun () -> DirectiveGraphType ("", []))

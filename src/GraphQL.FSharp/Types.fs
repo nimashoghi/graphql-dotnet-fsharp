@@ -49,14 +49,11 @@ let invalidGraphType =
     }
     :> IGraphType
 
-type TypedQueryArgument<'source> (?``type``) =
+type TypedQueryArgument<'t> (?``type``) =
     inherit QueryArgument (
         ``type``
         |> Option.defaultValue invalidGraphType
     )
-
-type TypedQueryArgument (?``type``) =
-    inherit TypedQueryArgument<obj> (?``type`` = ``type``)
 
 type TypedFieldType<'source> () =
     inherit EventStreamFieldType ()
@@ -77,3 +74,7 @@ type UnitGraphType () as this =
     override __.Serialize _ = box "{}"
     override __.ParseValue _ = box ()
     override __.ParseLiteral _ = box ()
+
+type Query = ObjectGraphType<obj>
+type Mutation = ObjectGraphType<obj>
+type Subscription = ObjectGraphType<obj>

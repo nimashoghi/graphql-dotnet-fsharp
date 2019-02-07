@@ -91,11 +91,17 @@ type Assert with
             defaultValue |> Option.iter (fun defaultValue -> argument.DefaultValue =! defaultValue)
 
     static member JsonEqual (expected, result) =
+        let cut x =
+            x
+            // if String.length x >= 256
+            // then sprintf "%s..." x.[0 .. (255 - String.length "...")]
+            // else x
         let toString (token: JToken) =
             JsonConvert.SerializeObject (
                 token,
                 Formatting.Indented
             )
+            |> cut
         let replaceNewLines (str: string) = str.Replace (@"\r\n", @"\n")
 
         let result = JObject.Parse (replaceNewLines result)
@@ -105,7 +111,7 @@ type Assert with
                 "expected\n\n%s\n\nbut got\n\n%s\n\ndiff:\n\n%s"
                 (toString expected)
                 (toString result)
-                (string <| JsonDiffPatch().Diff (result, expected))
+                (toString <| JsonDiffPatch().Diff (result, expected))
             |> Assert.Fail
 
     static member QueryEqual (query, expected, ?root) =

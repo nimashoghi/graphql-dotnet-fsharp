@@ -3,10 +3,12 @@ module GraphQL.FSharp.Builder.Union
 
 open GraphQL.Types
 
-let inline private set f (x: UnionGraphType) = f x; x
+open GraphQL.FSharp.Builder.Base
+
+let inline private set f (x: #UnionGraphType) = f x; x
 
 type UnionGraphType with
-    member this.Yield (_: unit) = this
+    member this.Yield (_: unit) = ``yield`` this
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: UnionGraphType, name) =
@@ -28,4 +30,4 @@ type UnionGraphType with
     member __.CustomOperation_Cases (union, cases: IObjectGraphType list) =
         set (fun union -> union.PossibleTypes <- cases) union
 
-let union = UnionGraphType ()
+let union = builder (fun () -> UnionGraphType ())

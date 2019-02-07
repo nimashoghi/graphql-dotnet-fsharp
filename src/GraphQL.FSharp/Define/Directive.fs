@@ -8,7 +8,7 @@ open GraphQL.FSharp.Utils
 
 type Define with
     static member Directive (name, locations, ?description, ?arguments) =
-        if name = null || name = ""
+        if isNull name || name = ""
         then invalidArg "name" "value cannot be null"
 
         if List.isEmpty locations
