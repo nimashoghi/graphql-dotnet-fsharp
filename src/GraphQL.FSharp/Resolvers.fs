@@ -10,7 +10,6 @@ open GraphQL.Types
 open Newtonsoft.Json
 
 open GraphQL.FSharp.Utils
-open GraphQL.FSharp.Utils.Type
 
 let private getSource (ctx: ResolveFieldContext<_>) = ctx.Source
 
@@ -27,22 +26,22 @@ module Handlers =
 
     let optionValue x =
         unionValue
-            (fun case args ->
-                let value = match args with [|value|] -> value | _ -> invalidArg "args" "Option expects only 1 field."
+            (fun case [|value|] ->
                 match case with
                 | CaseTag 0 -> Some value
                 | CaseTag 1 -> None
-                | _ -> invalidArg "x" "Could not find proper case")
+                | _ -> invalidArg "x" "Could not find proper case"
+            )
             x
 
     let resultValue x =
         unionValue
-            (fun case args ->
-                let value = match args with [|value|] -> value | _ -> invalidArg "args" "Result expects only 1 field."
+            (fun case [|value|] ->
                 match case with
                 | CaseTag 0 -> Ok value
                 | CaseTag 1 -> Error value
-                | _ -> invalidArg "x" "Could not find proper case")
+                | _ -> invalidArg "x" "Could not find proper case"
+            )
             x
 
     let (|Option|_|) (x: obj) =
@@ -94,6 +93,11 @@ let getDict x =
         |> JsonConvert.DeserializeObject<Dictionary<string, obj>>
         |> Some
     with _ -> None
+
+// let getDict x = dict [
+//     for prop in x.GetType().GetProperties() do
+//         yield prop.Name, prop.GetValue x
+// ]
 
 // TODO: Add tests for this
 let handleObject (ctx: ResolveFieldContext) x =

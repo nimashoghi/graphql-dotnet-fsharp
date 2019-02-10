@@ -1,14 +1,13 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Enum
+module GraphQL.FSharp.BuilderEnum
 
 open GraphQL.Types
 
-open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.BuilderBase
 
 let inline private set f (x: #EnumerationGraphType) = f x; x
 
-type EnumerationGraphType with
-    member this.Yield (_: unit) = ``yield`` this
+type EnumerationBuilder () =
+    member __.Yield (_: unit) = EnumerationGraphType ()
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: EnumerationGraphType, name) =
@@ -29,7 +28,5 @@ type EnumerationGraphType with
     [<CustomOperation "cases">]
     member __.CustomOperation_Cases (this: EnumerationGraphType, values) =
         set (fun this ->
-            values |> List.iter this.AddValue
+            for value in values do this.AddValue value
         ) this
-
-let enum = builder (fun () -> EnumerationGraphType ())

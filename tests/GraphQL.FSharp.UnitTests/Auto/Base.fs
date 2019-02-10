@@ -6,10 +6,9 @@ open NUnit.Framework
 open Swensen.Unquote
 
 open GraphQL.FSharp
+open GraphQL.FSharp.AutoBase
 
 module ``Attribute`` =
-    open GraphQL.FSharp.AutoBase.Attribute
-
     module ``getMemberAttribute`` =
         type SomeAttribute () = inherit Attribute ()
 
@@ -32,8 +31,6 @@ module ``Attribute`` =
             =! None
 
 module ``Update`` =
-    open GraphQL.FSharp.AutoBase.Update
-
     module ``shouldIgnore`` =
         type SomeOtherAttribute () = inherit Attribute ()
 

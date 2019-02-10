@@ -5,6 +5,10 @@ open System.Reflection
 
 open GraphQL.FSharp.Utils.Attributes
 
+type MethodTransformer = MethodInfo -> string -> string option
+type PropertyTransformer = PropertyInfo -> string -> string option
+type TypeTransformer = Type -> string -> string option
+
 let getterMethod (methodInfo: MethodInfo) (name: string) =
     if hasAttribute<GetterAttribute> methodInfo.MethodAttributes then
         if name.StartsWith "Get"
@@ -12,9 +16,9 @@ let getterMethod (methodInfo: MethodInfo) (name: string) =
         else None
     else None
 
-let methodTransformers: (MethodInfo -> string -> string option) list = [getterMethod]
-let propertyTransformers: (PropertyInfo -> string -> string option) list = []
-let typeTransformers: (Type -> string -> string option) list = []
+let methodTransformers: MethodTransformer list = [getterMethod]
+let propertyTransformers: PropertyTransformer list = []
+let typeTransformers: TypeTransformer list = []
 
 let rec runTransformers transformers info name =
     match transformers with

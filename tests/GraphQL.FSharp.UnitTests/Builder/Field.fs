@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.BuilderField
 open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert

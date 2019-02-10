@@ -4,7 +4,7 @@ open System
 open GraphQL.Types
 
 open GraphQL.FSharp.Types
-open GraphQL.FSharp.Utils.Type
+open GraphQL.FSharp.Utils
 
 let rec unwrapType checkNullability graphTypeGetter ``type`` =
     let graphType, isNull =

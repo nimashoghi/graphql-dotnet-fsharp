@@ -1,34 +1,33 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Directive
+module GraphQL.FSharp.BuilderDirective
 
 open System.Collections.Generic
 open System.Reflection
 open GraphQL.Types
 
-open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Utils
+
+let inline private set f (x: #DirectiveGraphType) = f x; x
 
 let internal getDirectiveLocations (x: DirectiveGraphType) =
     box x
     |> typeof<DirectiveGraphType>.GetField("_directiveLocations", BindingFlags.NonPublic ||| BindingFlags.Instance).GetValue
     :?> List<DirectiveLocation>
 
-let inline private set f (x: #DirectiveGraphType) = f x; x
-
-type DirectiveGraphType with
-    member this.Yield (_: unit) = ``yield`` this
+type DirectiveBuilder () =
+    member __.Yield (_: unit) = DirectiveGraphType ("", [])
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: DirectiveGraphType, name) =
-        this |> setName name
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: DirectiveGraphType, description) =
-        this |> setDescription description
+        setDescription description this
 
     [<CustomOperation "arguments">]
     member __.CustomOperation_Arguments (this: DirectiveGraphType, arguments) =
-        set (fun this -> this.Arguments <- arguments) this
+        setArguments arguments this
 
     [<CustomOperation "locations">]
     member __.CustomOperation_Locations (this: DirectiveGraphType, locations) =
@@ -37,5 +36,3 @@ type DirectiveGraphType with
             |> List.toSeq
             |> (getDirectiveLocations this).AddRange
         ) this
-
-let directive = builder (fun () -> DirectiveGraphType ("", []))

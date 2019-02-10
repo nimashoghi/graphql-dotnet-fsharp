@@ -10,9 +10,6 @@ type Define with
         if isNull name || name = ""
         then invalidArg "name" "name cannot be null or empty"
 
-        if isNull value
-        then invalidArg "value" "value cannot be null"
-
         let enumValue = EnumValueDefinition ()
 
         enumValue.Name <- name

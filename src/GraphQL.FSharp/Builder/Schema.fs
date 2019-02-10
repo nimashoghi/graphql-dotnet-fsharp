@@ -1,10 +1,8 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Schema
+module GraphQL.FSharp.BuilderSchema
 
 open System
 open GraphQL.Types
 
-open GraphQL.FSharp.Builder.Base
 open GraphQL.FSharp.Logging
 open GraphQL.FSharp.Types
 
@@ -62,8 +60,8 @@ let handleInterfaces (types: IGraphType list) =
 
     types
 
-type Schema with
-    member this.Yield (_: unit) = ``yield`` this
+type SchemaBuilder () =
+    member __.Yield (_: unit) = new Schema ()
 
     [<CustomOperation "query">]
     member __.CustomOperation_Query (schema: Schema, query: Query) =
@@ -90,5 +88,3 @@ type Schema with
 
         schema.Initialize ()
         schema
-
-let schema = builder (fun () -> new Schema ())

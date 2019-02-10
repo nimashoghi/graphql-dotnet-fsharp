@@ -1,33 +1,34 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Argument
+module GraphQL.FSharp.BuilderArgument
 
 open GraphQL.Types
 
-open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 
-let inline private set f (x: #QueryArgument) = f (x :> QueryArgument); x
 // TODO: Fix problem with FSharp list type as an argument
 
-type TypedQueryArgument<'t> with
-    member this.Yield (_: unit) = ``yield`` this
+let inline private set f (x: #QueryArgument) = f x; x
+
+type ArgumentBuilder<'t> (?``type``) =
+    member __.Yield (_: unit) =
+        let ``type`` =
+            ``type``
+            |> Option.defaultValue (createReference typeof<'t>)
+        TypedQueryArgument<'t> ``type``
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: TypedQueryArgument<'t>, name) =
-        set (fun x -> x.Name <- name) this
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: TypedQueryArgument<'t>, description) =
-        set (fun x -> x.Description <- description) this
+        setDescription description this
 
     [<CustomOperation "defaultValue">]
-    member __.CustomOperation_DefaultValue (this: TypedQueryArgument<'t>, ``default``: 't) =
-        set (fun x -> x.DefaultValue <- ``default``) this
+    member __.CustomOperation_DefaultValue (this: TypedQueryArgument<'t>, value: 't) =
+        setDefaultValue value this
 
     [<CustomOperation "typed">]
     member __.CustomOperation_Type (this: TypedQueryArgument<'t>, ``type``) =
-        set (fun x -> x.ResolvedType <- ``type``) this
-
-let argument<'t> = builder (fun () -> TypedQueryArgument<'t> (createReference typeof<'t>))
-let argumentOf ``type`` = builder (fun () -> TypedQueryArgument<obj> ``type``)
+        setResolvedType ``type`` this

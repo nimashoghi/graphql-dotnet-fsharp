@@ -1,22 +1,23 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Field
+module GraphQL.FSharp.BuilderField
 
 open System
 open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
-open FSharp.Linq.RuntimeHelpers
 open GraphQL.Types
 open GraphQL.Subscription
 open GraphQL.Resolvers
 
 open GraphQL.FSharp
-open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
+open GraphQL.FSharp.Utils
 
+// TODO: Extract quotation functions into their own module
 let inline private set f (x: #TypedFieldType<_>) = f x; x
+
 
 let (|PropertyNameGetter|_|) expr =
     match expr with
@@ -79,8 +80,16 @@ let handleNonNullTypes (field: TypedFieldType<_>) =
         | _ -> ()
     field
 
-type TypedFieldType<'source> with
-    member this.Yield (_: unit) = ``yield`` this
+let createNewField<'source> () = TypedFieldType<'source> ()
+let createNewEndpoint<'source> name = TypedFieldType<'source> (Name = name)
+let createNewFieldOf ``type`` = TypedFieldType<obj> (ResolvedType = ``type``)
+
+type FieldBuilder<'source> (?``type``, ?name) =
+    member __.Yield (_: unit) =
+        TypedFieldType<'source> (
+            ResolvedType = Option.toObj ``type``,
+            Name = Option.toObj name
+        )
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: TypedFieldType<'source>, name) =
@@ -103,6 +112,8 @@ type TypedFieldType<'source> with
         set (fun x -> x.Type <- ``type``) field
     member __.CustomOperation_Type (field: TypedFieldType<'source>, ``type``) =
         set (fun x -> x.ResolvedType <- ``type``) field
+    member __.CustomOperation_Type (field: TypedFieldType<'source>, ``type``) =
+        set (fun x -> x.ResolvedType <- ``type`` ()) field
 
     [<CustomOperation "defaultValue">]
     member __.CustomOperation_DefaultValue (field: TypedFieldType<'source>, ``default``: 'field) =
@@ -118,34 +129,24 @@ type TypedFieldType<'source> with
         set (fun x -> x.Arguments <- QueryArguments arguments) field
 
     [<CustomOperation "get">]
-    member __.CustomOperation_Get (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> 'field>) =
-        let getterFunc =
-            LeafExpressionConverter
-                .QuotationToLambdaExpression(<@ Func<_, _> %getter @>)
-                .Compile()
-        let fieldName =
-            match getter with
-            | FieldName value -> value
-            | _ -> invalidArg "getter" "Could not find field name from getter expression. Get only supports simple expressions. Use resolve instead."
-        let resolver = (withSource >> resolve) getterFunc.Invoke
+    member __.CustomOperation_Get (field: TypedFieldType<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+        let fieldName, getterFn =
+            match expr with
+            | WithValueTyped (getterFn, FieldName value) -> value, getterFn
+            | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. Get only supports simple expressions. Use resolve instead."
         field
         |> setFieldType<'field, 'source>
         |> set (fun x ->
             x.Name <- fieldName
-            x.Resolver <- resolver
+            x.Resolver <- (withSource >> resolve) getterFn
         )
 
     [<CustomOperation "getAsync">]
-    member __.CustomOperation_GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition>] getter: Expr<'source -> Task<'field>>) =
-        let getterFn =
-            LeafExpressionConverter
-                .QuotationToLambdaExpression(<@ Func<_, _> %getter @>)
-                .Compile()
-                .Invoke
-        let fieldName =
-            match getter with
-            | AsyncFieldName value -> value
-            | _ -> invalidArg "getter" "Could not find field name from async getter expression. GetAsync only supports simple expressions. Use resolve instead."
+    member __.CustomOperation_GetAsync (field: TypedFieldType<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+        let fieldName, getterFn =
+            match expr with
+            | WithValueTyped (getterFn, AsyncFieldName value) -> value, getterFn
+            | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. GetAsync only supports simple expressions. Use resolve instead."
         field
         |> setFieldType<'field, 'source>
         |> set (fun x ->
@@ -184,8 +185,3 @@ type TypedFieldType<'source> with
 
         field
         |> handleNonNullTypes
-
-let field<'source when 'source: (new: unit -> 'source)> = builder (fun () -> TypedFieldType<'source> ())
-let endpoint<'source when 'source: (new: unit -> 'source)> name = builder (fun () -> TypedFieldType<'source> (Name = name))
-// TODO: Add tests for fieldOf
-let fieldOf ofType = builder (fun () -> TypedFieldType<obj> (ResolvedType = ofType))

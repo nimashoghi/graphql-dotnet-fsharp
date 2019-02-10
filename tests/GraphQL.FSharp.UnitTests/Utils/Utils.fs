@@ -1,4 +1,4 @@
-module GraphQL.FSharp.UnitTests.Util
+module GraphQL.FSharp.UnitTests.Util.Utils
 
 open System
 open NUnit.Framework
@@ -6,11 +6,6 @@ open Swensen.Unquote
 
 open GraphQL.FSharp.Utils
 open GraphQL.FSharp.Utils.Attributes
-
-[<Test>]
-let ``Regex active patten phone test`` () =
-    let value = (|Regex|_|) @"\(([0-9]{3})\)[-. ]?([0-9]{3})[-. ]?([0-9]{4})" "(555) 444-2222"
-    value =! Some ["555"; "444"; "2222"]
 
 module Option =
     [<Test>]

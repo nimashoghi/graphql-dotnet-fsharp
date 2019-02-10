@@ -1,53 +1,9 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.Base
+module GraphQL.FSharp.BuilderBase
 
-open System
 open System.Collections.Generic
-open System.Runtime.CompilerServices
+open GraphQL.Types
 
-// TODO: test this properly
-[<AutoOpen>]
-module Instance =
-    (*
-        let instanceDict<'t when 't: equality> =
-            Dictionary<'t, unit -> 't>
-                {
-                    new IEqualityComparer<'t> with
-                        member __.Equals (x, y) = Object.ReferenceEquals (x, y)
-                        member __.GetHashCode x = RuntimeHelpers.GetHashCode x
-                }
-
-        let builder (f: unit -> 't) =
-            let instance = f ()
-            instanceDict<'t>.[instance] <- f
-            instance
-
-        let ``yield`` (x: 't) =
-            match instanceDict<'t>.TryGetValue x with
-            | true, f -> f ()
-            | _ -> x
-    *)
-
-    let instanceDict =
-        Dictionary<obj, unit -> obj>
-            {
-                new IEqualityComparer<obj> with
-                    member __.Equals (x, y) = Object.ReferenceEquals (x, y)
-                    member __.GetHashCode x = x.GetHashCode ()
-            }
-
-    let builder (f: unit -> 't) : 't =
-        let instance = f ()
-        instanceDict.[box instance] <- f >> box
-        instance
-
-    let ``yield`` (x: 't) =
-        match instanceDict.TryGetValue x with
-        | true, f ->
-            match f () with
-            | :? 't as value -> value
-            | _ -> x
-        | _ -> x
+open GraphQL.FSharp.Utils
 
 let inline setName value (x: ^t) =
     (^t : (member set_Name: string -> unit) x, value)
@@ -61,13 +17,19 @@ let inline setDeprecationReason value (x: ^t) =
     (^t : (member set_DeprecationReason: string -> unit) x, value)
     x
 
-let merge (lhs: IDictionary<'a, 'b>) (rhs: IDictionary<'a, 'b>) =
-    dict [
-        for pair in lhs do yield pair.Key, pair.Value
-        for pair in rhs do yield pair.Key, pair.Value
-    ]
+let inline setDefaultValue value (x: ^t) =
+    (^t : (member set_DefaultValue: obj -> unit) x, value)
+    x
+
+let inline setArguments value (x: ^t) =
+    (^t : (member set_Arguments: QueryArguments -> unit) x, value)
+    x
+
+let inline setResolvedType value (x: ^t) =
+    (^t : (member set_ResolvedType: IGraphType -> unit) x, value)
+    x
 
 let inline setMetadata value (x: ^t) =
     let metadata = (^t : (member Metadata: IDictionary<string, obj>) x)
-    (^t : (member set_Metadata: IDictionary<string, obj> -> unit) x, merge metadata value)
+    (^t : (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata value)
     x

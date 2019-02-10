@@ -7,8 +7,10 @@
     <ProjectReference Include="..\GraphQL.FSharp.TestUtils\GraphQL.FSharp.TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
+    <Compile Include="Utils/Utils.fs" />
+    <Compile Include="Utils/Quotations.fs" />
     <Compile Include="Define/Argument.fs" />
+    <Compile Include="Define/EnumCase.fs" />
     <Compile Include="Auto/Base.fs" />
     <Compile Include="Auto/Scalar.fs" />
     <Compile Include="Auto/Enum.fs" />

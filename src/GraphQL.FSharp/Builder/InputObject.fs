@@ -1,15 +1,14 @@
-[<AutoOpen>]
-module GraphQL.FSharp.Builder.InputObject
+module GraphQL.FSharp.BuilderInputObject
 
 open GraphQL.Types
 
-open GraphQL.FSharp.Builder.Base
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
 let inline private set f (x: #InputObjectGraphType<_>) = f x; x
 
-type InputObjectGraphType<'source> with
-    member this.Yield (_: unit) = ``yield`` this
+type InputObjectBuilder<'source> () =
+    member __.Yield (_: unit) = InputObjectGraphType<'source> ()
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: InputObjectGraphType<'source>, name) =
@@ -31,6 +30,5 @@ type InputObjectGraphType<'source> with
     member __.CustomOperation_Fields (object: InputObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
         set (fun x ->
             fields
-            |> List.iter (x.AddField >> ignore)) object
-
-let input<'source> = builder (fun () -> InputObjectGraphType<'source> ())
+            |> List.iter (x.AddField >> ignore)
+        ) object
