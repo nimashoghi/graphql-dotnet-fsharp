@@ -1,9 +1,8 @@
 [<AutoOpen>]
 module GraphQL.FSharp.DefineArgument
 
-open GraphQL.Types
-
 open GraphQL.FSharp.Inference
+open GraphQL.FSharp.Types
 
 type Define with
     static member Argument<'arg> (name, ?defaultValue: 'arg) =
@@ -11,9 +10,7 @@ type Define with
         then invalidArg "name" "value cannot be null"
 
         // TODO: Add test for NonNull checks
-        let arg =
-            createReference typeof<'arg>
-            |> QueryArgument
+        let arg = TypedQueryArgument<'arg> (createReference typeof<'arg>)
 
         arg.Name <- name
 

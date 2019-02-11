@@ -130,7 +130,7 @@ let getTask (obj: obj) =
         .ContinueWith(fun t ->
             if t.IsCanceled then source.SetCanceled ()
             elif t.IsFaulted then source.SetException t.Exception
-            else source.SetResult (t.GetType().GetProperty("Result").GetValue(t))
+            else source.SetResult (t.GetType().GetProperty("Result").GetValue t)
         )
         |> ignore
     source.Task

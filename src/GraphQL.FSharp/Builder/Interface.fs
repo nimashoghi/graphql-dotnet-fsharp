@@ -6,29 +6,30 @@ open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
 // TODO: Should we remove the type parameter?
-let inline private set f (x: #InterfaceGraphType<_>) = f x; x
-
-type InterfaceBuilder<'source> () =
-    member __.Yield (_: unit) = InterfaceGraphType<'source> ()
+type InterfaceBuilder<'source> (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (InterfaceGraphType<'source> ())
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: InterfaceGraphType<'source>, name) =
-        this |> setName name
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: InterfaceGraphType<'source>, description) =
-        this |> setDescription description
+        setDescription description this
 
     [<CustomOperation "deprecationReason">]
     member __.CustomOperation_DeprecationReason (this: InterfaceGraphType<'source>, deprecationReason) =
-        this |> setDeprecationReason deprecationReason
+        setDeprecationReason deprecationReason this
 
     [<CustomOperation "metadata">]
     member __.CustomOperation_Metadata (this: InterfaceGraphType<'source>, metadata) =
-        this |> setMetadata metadata
+        setMetadata metadata this
 
     [<CustomOperation "fields">]
-    member __.CustomOperation_Fields (object: InterfaceGraphType<'source>, fields: TypedFieldType<'source> list) =
-        set (fun x ->
-            fields
-            |> List.iter (x.AddField >> ignore)) object
+    member __.CustomOperation_Fields (this: InterfaceGraphType<'source>, fields: TypedFieldType<'source> list) =
+        fields
+        |> List.iter (this.AddField >> ignore)
+
+        this

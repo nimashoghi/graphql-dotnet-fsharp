@@ -10,11 +10,9 @@ type Define with
         if isNull name || name = ""
         then invalidArg "name" "name cannot be null or empty"
 
-        let enumValue = EnumValueDefinition ()
-
-        enumValue.Name <- name
-        enumValue.Value <- box value
-        description |> Option.iter (fun description -> enumValue.Description <- description)
-        deprecationReason |> Option.iter (fun deprecationReason -> enumValue.DeprecationReason <- deprecationReason)
-
-        enumValue
+        EnumValueDefinition (
+            Name = name,
+            Value = box value,
+            Description = Option.toObj description,
+            DeprecationReason = Option.toObj deprecationReason
+        )

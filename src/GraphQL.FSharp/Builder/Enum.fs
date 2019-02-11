@@ -4,29 +4,31 @@ open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
 
-let inline private set f (x: #EnumerationGraphType) = f x; x
+type EnumerationBuilder (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (EnumerationGraphType ())
 
-type EnumerationBuilder () =
-    member __.Yield (_: unit) = EnumerationGraphType ()
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: EnumerationGraphType, name) =
-        this |> setName name
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: EnumerationGraphType, description) =
-        this |> setDescription description
+        setDescription description this
 
     [<CustomOperation "deprecationReason">]
     member __.CustomOperation_DeprecationReason (this: EnumerationGraphType, deprecationReason) =
-        this |> setDeprecationReason deprecationReason
+        setDeprecationReason deprecationReason this
 
     [<CustomOperation "metadata">]
     member __.CustomOperation_Metadata (this: EnumerationGraphType, metadata) =
-        this |> setMetadata metadata
+        setMetadata metadata this
 
     [<CustomOperation "cases">]
     member __.CustomOperation_Cases (this: EnumerationGraphType, values) =
-        set (fun this ->
-            for value in values do this.AddValue value
-        ) this
+        values
+        |> List.iter this.AddValue
+
+        this

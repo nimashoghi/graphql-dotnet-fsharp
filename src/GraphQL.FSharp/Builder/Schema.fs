@@ -5,30 +5,7 @@ open GraphQL.Types
 
 open GraphQL.FSharp.Logging
 open GraphQL.FSharp.Types
-
-let inline private set f (x: #Schema) = f x; x
-
-let (|InterfaceGraphType|_|) (``type``: IGraphType) =
-    match ``type`` with
-    | :? IInterfaceGraphType as ``interface`` ->
-        let interfaceType = ``interface``.GetType ()
-        if interfaceType.IsGenericType
-            && interfaceType.GetGenericTypeDefinition ()
-                = typedefof<InterfaceGraphType<_>>
-        then Some (``interface``, interfaceType.GenericTypeArguments.[0])
-        else None
-    | _ -> None
-
-let (|ObjectGraphType|_|) (``type``: IGraphType) =
-    match ``type`` with
-    | :? IObjectGraphType as object ->
-        let objectType = object.GetType ()
-        if objectType.IsGenericType
-            && objectType.GetGenericTypeDefinition ()
-                = typedefof<ObjectGraphType<_>>
-        then Some (object, objectType.GenericTypeArguments.[0])
-        else None
-    | _ -> None
+open GraphQL.FSharp.Utils
 
 let abstractClasses ``type`` =
     let rec run (``type``: Type) = [
@@ -39,13 +16,13 @@ let abstractClasses ``type`` =
     ]
     run ``type``
 
-let interfaces (``type``: Type) = [
+let baseTypes (``type``: Type) = [
     yield! ``type``.GetInterfaces ()
     yield! abstractClasses ``type``
 ]
 
 let extends (object: Type) (``base``: Type) =
-    interfaces object
+    baseTypes object
     |> List.exists ((=) ``base``)
 
 let handleInterfaces (types: IGraphType list) =
@@ -60,31 +37,37 @@ let handleInterfaces (types: IGraphType list) =
 
     types
 
-type SchemaBuilder () =
-    member __.Yield (_: unit) = new Schema ()
+type SchemaBuilder (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (new Schema ())
 
     [<CustomOperation "query">]
-    member __.CustomOperation_Query (schema: Schema, query: Query) =
-        set (fun schema -> schema.Query <- query) schema
+    member __.CustomOperation_Query (this: Schema, query: Query) =
+        this.Query <- query
+        this
 
     [<CustomOperation "mutation">]
-    member __.CustomOperation_Mutation (schema: Schema, mutation: Mutation) =
-        set (fun schema -> schema.Mutation <- mutation) schema
+    member __.CustomOperation_Mutation (this: Schema, mutation: Mutation) =
+        this.Mutation <- mutation
+        this
 
     [<CustomOperation "subscription">]
-    member __.CustomOperation_Subscription (schema: Schema, subscription: Subscription) =
-        set (fun schema -> schema.Subscription <- subscription) schema
+    member __.CustomOperation_Subscription (this: Schema, subscription: Subscription) =
+        this.Subscription <- subscription
+        this
 
     [<CustomOperation "types">]
-    member __.CustomOperation_Types (schema: Schema, types: IGraphType list) =
-        set (fun schema ->
-            types
-            |> handleInterfaces
-            |> List.toArray
-            |> schema.RegisterTypes) schema
+    member __.CustomOperation_Types (this: Schema, types: IGraphType list) =
+        types
+        |> handleInterfaces
+        |> List.toArray
+        |> this.RegisterTypes
 
-    member __.Run (schema: Schema) =
-        (logSchema >> Logger.information) schema
+        this
 
-        schema.Initialize ()
-        schema
+    member __.Run (this: Schema) =
+        (logSchema >> Logger.information) this
+
+        this.Initialize ()
+        this

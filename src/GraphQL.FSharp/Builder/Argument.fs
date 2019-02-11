@@ -8,14 +8,11 @@ open GraphQL.FSharp.Types
 
 // TODO: Fix problem with FSharp list type as an argument
 
-let inline private set f (x: #QueryArgument) = f x; x
-
-type ArgumentBuilder<'t> (?``type``) =
+type ArgumentBuilder<'t> (?``type``, ?value) =
     member __.Yield (_: unit) =
-        let ``type`` =
-            ``type``
-            |> Option.defaultValue (createReference typeof<'t>)
-        TypedQueryArgument<'t> ``type``
+        value
+        |> Option.orElse (Option.map TypedQueryArgument<'t> ``type``)
+        |> Option.defaultValue (TypedQueryArgument<'t> (createReference typeof<'t>))
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: TypedQueryArgument<'t>, name) =
@@ -29,6 +26,6 @@ type ArgumentBuilder<'t> (?``type``) =
     member __.CustomOperation_DefaultValue (this: TypedQueryArgument<'t>, value: 't) =
         setDefaultValue value this
 
-    [<CustomOperation "typed">]
+    [<CustomOperation "type">]
     member __.CustomOperation_Type (this: TypedQueryArgument<'t>, ``type``) =
         setResolvedType ``type`` this

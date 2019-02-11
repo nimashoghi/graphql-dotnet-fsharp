@@ -9,7 +9,7 @@ open GraphQL.FSharp.Utils.Attributes
 
 let Interface<'object> =
     if not typeof<'object>.IsInterface && not typeof<'object>.IsAbstract
-    then invalidArg "interface_" "type parameter must be abstract"
+    then invalidArg "object" "type parameter must be abstract"
 
     InterfaceGraphType<'object> (Name = transformTypeName typeof<'object> typeof<'object>.Name)
     |> addProperties createReference

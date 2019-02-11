@@ -5,30 +5,30 @@ open GraphQL.Types
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
-let inline private set f (x: #InputObjectGraphType<_>) = f x; x
-
-type InputObjectBuilder<'source> () =
-    member __.Yield (_: unit) = InputObjectGraphType<'source> ()
+type InputObjectBuilder<'source> (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (InputObjectGraphType<'source> ())
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: InputObjectGraphType<'source>, name) =
-        this |> setName name
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: InputObjectGraphType<'source>, description) =
-        this |> setDescription description
+        setDescription description this
 
     [<CustomOperation "deprecationReason">]
     member __.CustomOperation_DeprecationReason (this: InputObjectGraphType<'source>, deprecationReason) =
-        this |> setDeprecationReason deprecationReason
+        setDeprecationReason deprecationReason this
 
     [<CustomOperation "metadata">]
     member __.CustomOperation_Metadata (this: InputObjectGraphType<'source>, metadata) =
-        this |> setMetadata metadata
+        setMetadata metadata this
 
     [<CustomOperation "fields">]
-    member __.CustomOperation_Fields (object: InputObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
-        set (fun x ->
-            fields
-            |> List.iter (x.AddField >> ignore)
-        ) object
+    member __.CustomOperation_Fields (this: InputObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
+        fields
+        |> List.iter (this.AddField >> ignore)
+
+        this

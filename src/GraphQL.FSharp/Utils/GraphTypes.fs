@@ -23,3 +23,25 @@ let graphTypeNameConfig detailed (x: #IGraphType) =
 
 let graphTypeName x = graphTypeNameConfig false x
 let graphTypeNameDetailed x = graphTypeNameConfig true x
+
+let (|InterfaceGraphType|_|) (``type``: IGraphType) =
+    match ``type`` with
+    | :? IInterfaceGraphType as ``interface`` ->
+        let interfaceType = ``interface``.GetType ()
+        if interfaceType.IsGenericType
+            && interfaceType.GetGenericTypeDefinition ()
+                = typedefof<InterfaceGraphType<_>>
+        then Some (``interface``, interfaceType.GenericTypeArguments.[0])
+        else None
+    | _ -> None
+
+let (|ObjectGraphType|_|) (``type``: IGraphType) =
+    match ``type`` with
+    | :? IObjectGraphType as object ->
+        let objectType = object.GetType ()
+        if objectType.IsGenericType
+            && objectType.GetGenericTypeDefinition ()
+                = typedefof<ObjectGraphType<_>>
+        then Some (object, objectType.GenericTypeArguments.[0])
+        else None
+    | _ -> None

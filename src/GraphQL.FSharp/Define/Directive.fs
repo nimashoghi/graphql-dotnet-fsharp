@@ -14,19 +14,18 @@ type Define with
         if List.isEmpty locations
         then invalidArg "locations" "locations cannot be empty"
 
-        let directive =
-            DirectiveGraphType (
-                name,
-                locations
-                |> List.map (fun (location: DirectiveLocationUnion) -> location.GraphQLDirectiveLocation)
-                |> List.toSeq
-            )
+        let locations =
+            locations
+            |> List.map (fun (location: DirectiveLocationUnion) -> location.GraphQLDirectiveLocation)
+            |> List.toSeq
 
-        description
-        |> Option.iter (fun description -> directive.Description <- description)
+        let arguments =
+            arguments
+            |> Option.map (List.toSeq >> QueryArguments)
 
-        arguments
-        |> Option.map List.toSeq
-        |> Option.iter (fun arguments -> directive.Arguments <- QueryArguments arguments)
-
-        directive
+        DirectiveGraphType (
+            name,
+            locations,
+            Description = Option.toObj description,
+            Arguments = Option.toObj arguments
+        )

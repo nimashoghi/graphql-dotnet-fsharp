@@ -4,27 +4,29 @@ open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
 
-let inline private set f (x: #UnionGraphType) = f x; x
-
-type UnionBuilder () =
-    member __.Yield (_: unit) = UnionGraphType ()
+type UnionBuilder (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (UnionGraphType ())
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: UnionGraphType, name) =
-        this |> setName name
+        setName name this
 
     [<CustomOperation "description">]
     member __.CustomOperation_Description (this: UnionGraphType, description) =
-        this |> setDescription description
+        setDescription description this
 
     [<CustomOperation "deprecationReason">]
     member __.CustomOperation_DeprecationReason (this: UnionGraphType, deprecationReason) =
-        this |> setDeprecationReason deprecationReason
+        setDeprecationReason deprecationReason this
 
     [<CustomOperation "metadata">]
     member __.CustomOperation_Metadata (this: UnionGraphType, metadata) =
-        this |> setMetadata metadata
+        setMetadata metadata this
 
     [<CustomOperation "cases">]
-    member __.CustomOperation_Cases (union, cases: IObjectGraphType list) =
-        set (fun union -> union.PossibleTypes <- cases) union
+    member __.CustomOperation_Cases (this: UnionGraphType, cases: IObjectGraphType list) =
+        this.PossibleTypes <- cases
+
+        this

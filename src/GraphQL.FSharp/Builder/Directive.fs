@@ -7,15 +7,15 @@ open GraphQL.Types
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Utils
 
-let inline private set f (x: #DirectiveGraphType) = f x; x
-
 let internal getDirectiveLocations (x: DirectiveGraphType) =
     box x
     |> typeof<DirectiveGraphType>.GetField("_directiveLocations", BindingFlags.NonPublic ||| BindingFlags.Instance).GetValue
     :?> List<DirectiveLocation>
 
-type DirectiveBuilder () =
-    member __.Yield (_: unit) = DirectiveGraphType ("", [])
+type DirectiveBuilder (?value) =
+    member __.Yield (_: unit) =
+        value
+        |> Option.defaultValue (DirectiveGraphType ("", []))
 
     [<CustomOperation "name">]
     member __.CustomOperation_Name (this: DirectiveGraphType, name) =
@@ -31,8 +31,8 @@ type DirectiveBuilder () =
 
     [<CustomOperation "locations">]
     member __.CustomOperation_Locations (this: DirectiveGraphType, locations) =
-        set (fun this ->
-            locations
-            |> List.toSeq
-            |> (getDirectiveLocations this).AddRange
-        ) this
+        locations
+        |> List.toSeq
+        |> (getDirectiveLocations this).AddRange
+
+        this

@@ -22,8 +22,8 @@
     <Compile Include="Builder/Directive.fs" />
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Interface.fs" />
-    <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/InputObject.fs" />
+    <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Object.fs" />
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Builder/Union.fs" />
