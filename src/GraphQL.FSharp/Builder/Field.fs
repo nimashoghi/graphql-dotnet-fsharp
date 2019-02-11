@@ -25,6 +25,8 @@ let resolverForSubscription<'field, 'source> (field: TypedFieldType<'source>) =
             )
         )
 
+    field
+
 let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
     if isNull field.ResolvedType
     then field.ResolvedType <- createReference typeof<'field>
