@@ -7,9 +7,14 @@ open GraphQL.Types
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Utils
 
+[<Literal>]
+let DirectiveLocationsFieldName = "_directiveLocations"
+
 let internal getDirectiveLocations (x: DirectiveGraphType) =
     box x
-    |> typeof<DirectiveGraphType>.GetField("_directiveLocations", BindingFlags.NonPublic ||| BindingFlags.Instance).GetValue
+    |> typeof<DirectiveGraphType>
+        .GetField(DirectiveLocationsFieldName, BindingFlags.NonPublic ||| BindingFlags.Instance)
+        .GetValue
     :?> List<DirectiveLocation>
 
 type DirectiveBuilder (?value) =

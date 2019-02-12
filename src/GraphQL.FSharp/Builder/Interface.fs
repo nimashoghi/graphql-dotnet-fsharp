@@ -7,6 +7,8 @@ open GraphQL.FSharp.Types
 
 // TODO: Should we remove the type parameter?
 type InterfaceBuilder<'source> (?value) =
+    inherit ComplexBuilder<'source> ()
+
     member __.Yield (_: unit) =
         value
         |> Option.defaultValue (InterfaceGraphType<'source> ())

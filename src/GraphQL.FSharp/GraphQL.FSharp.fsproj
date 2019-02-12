@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <NoWarn>25</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils/Attributes.fs" />
@@ -9,7 +10,6 @@
     <Compile Include="Utils/Types.fs" />
     <Compile Include="Utils/Utils.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="Logging.fs" />
     <Compile Include="Attributes.fs" />
     <Compile Include="Resolvers.fs" />
     <Compile Include="Inference.fs" />
@@ -42,7 +42,5 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL" Version="2.4.0" />
-    <PackageReference Include="Serilog" Version="2.8.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
 </Project>

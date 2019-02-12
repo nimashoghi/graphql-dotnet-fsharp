@@ -6,6 +6,8 @@ open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
 type InputObjectBuilder<'source> (?value) =
+    inherit ComplexBuilder<'source> ()
+
     member __.Yield (_: unit) =
         value
         |> Option.defaultValue (InputObjectGraphType<'source> ())

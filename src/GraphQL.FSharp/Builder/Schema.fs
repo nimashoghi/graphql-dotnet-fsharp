@@ -3,7 +3,6 @@ module GraphQL.FSharp.BuilderSchema
 open System
 open GraphQL.Types
 
-open GraphQL.FSharp.Logging
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
@@ -67,7 +66,5 @@ type SchemaBuilder (?value) =
         this
 
     member __.Run (this: Schema) =
-        (logSchema >> Logger.information) this
-
         this.Initialize ()
         this

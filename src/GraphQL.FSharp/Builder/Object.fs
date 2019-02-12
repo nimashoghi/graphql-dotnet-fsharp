@@ -6,6 +6,8 @@ open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
 type ObjectBuilder<'source> (?value) =
+    inherit ComplexBuilder<'source> ()
+
     // TODO: Make it so we return a new object here
     member __.Yield (_: unit) =
         value

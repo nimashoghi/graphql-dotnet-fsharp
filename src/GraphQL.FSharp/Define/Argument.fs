@@ -9,13 +9,12 @@ type Define with
         if isNull name || name = ""
         then invalidArg "name" "value cannot be null"
 
-        // TODO: Add test for NonNull checks
-        let arg = TypedQueryArgument<'arg> (createReference typeof<'arg>)
+        let defaultValue =
+            defaultValue
+            |> Option.map box
 
-        arg.Name <- name
-
-        defaultValue
-        |> Option.map box
-        |> Option.iter (fun defaultValue -> arg.DefaultValue <- defaultValue)
-
-        arg
+        TypedQueryArgument<'arg> (
+            createReference typeof<'arg>,
+            Name = name,
+            DefaultValue = Option.toObj defaultValue
+        )

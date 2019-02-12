@@ -5,6 +5,8 @@ open GraphQL.Types
 
 open GraphQL.FSharp.Utils
 
+type ComplexBuilder<'t> () = class end
+
 let inline setName value (x: ^t) =
     (^t : (member set_Name: string -> unit) x, value)
     x

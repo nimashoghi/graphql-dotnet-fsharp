@@ -160,7 +160,5 @@ type FieldBuilder<'source> (?``type``, ?name, ?value) =
 
 
     member __.Run (this: TypedFieldType<'source>) =
-        (logField >> Logger.information) this
-
         this
         |> handleNonNullTypes

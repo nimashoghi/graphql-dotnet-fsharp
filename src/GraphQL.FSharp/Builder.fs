@@ -51,22 +51,3 @@ let subscription list =
 let schema = SchemaBuilder ()
 
 let union = UnionBuilder ()
-
-// module Edit =
-//     let argument value = ArgumentBuilder (value = value)
-
-//     let directive value = DirectiveBuilder (value = value)
-
-//     let enum value = EnumerationBuilder (value = value)
-
-//     let field value = FieldBuilder (value = value)
-
-//     let input value = InputObjectBuilder (value = value)
-
-//     let ``interface`` value = InterfaceBuilder (value = value)
-
-//     let object value = ObjectBuilder (value = value)
-
-//     let schema value = SchemaBuilder (value = value)
-
-//     let union value = UnionBuilder (value = value)

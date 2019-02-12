@@ -1,5 +1,6 @@
 module GraphQL.FSharp.Types
 
+open System
 open GraphQL.Types
 
 type DirectiveLocationUnion =
@@ -49,14 +50,29 @@ let invalidGraphType =
     }
     :> IGraphType
 
+type IProcessable<'t> =
+    abstract member Process: ('t -> 't) -> 't
+
+type IHasAttributes =
+    abstract member Attributes: Attribute list with get, set
+
 type TypedQueryArgument<'t> (?``type``) =
     inherit QueryArgument (
         ``type``
         |> Option.defaultValue invalidGraphType
     )
 
+    interface IHasAttributes with
+        member val Attributes = [] with get, set
+
 type TypedFieldType<'source> () =
     inherit EventStreamFieldType ()
+
+    interface IHasAttributes with
+        member val Attributes = [] with get, set
+
+    interface IProcessable<TypedFieldType<'source>> with
+        member this.Process f = f this
 
 type EnumerationGraphTypeEx<'t> () =
     inherit EnumerationGraphType<'t> ()
@@ -78,3 +94,19 @@ type UnitGraphType () as this =
 type Query = ObjectGraphType<obj>
 type Mutation = ObjectGraphType<obj>
 type Subscription = ObjectGraphType<obj>
+
+module Instances =
+    let BooleanGraph = BooleanGraphType ()
+    let DateGraph = DateGraphType ()
+    let DateTimeGraph = DateTimeGraphType ()
+    let DateTimeOffsetGraph = DateTimeOffsetGraphType ()
+    let DecimalGraph = DecimalGraphType ()
+    let FloatGraph = FloatGraphType ()
+    let IdGraph = IdGraphType ()
+    let IntGraph = IntGraphType ()
+    let StringGraph = StringGraphType ()
+    let TimeSpanMillisecondsGraph = TimeSpanMillisecondsGraphType ()
+    let TimeSpanSecondsGraph = TimeSpanSecondsGraphType ()
+    let UriGraph = UriGraphType ()
+    let NonNullGraph (x: #IGraphType) = NonNullGraphType (x :> IGraphType)
+    let ListGraph (x: #IGraphType) = ListGraphType (x :> IGraphType)

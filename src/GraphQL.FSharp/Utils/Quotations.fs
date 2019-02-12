@@ -13,7 +13,6 @@ let (|WithValueTyped|_|) (expr: Expr<'t>) =
         Some (value :?> 't, expr :?> Expr<'t>)
     | _ -> None
 
-
 let (|PropertyNameGetter|_|) expr =
     match expr with
     | PropertyGet (Some (Var sourceVar), prop, []) -> Some (prop.Name, sourceVar)
