@@ -8,12 +8,12 @@ type DirectiveBuilderBase () =
     inherit EntityBuilder<DirectiveGraphTypeEx> ()
 
     [<CustomOperation "arguments">]
-    member __.CustomOperation_Arguments (state: State<DirectiveGraphTypeEx>, arguments) =
+    member __.Arguments (state: State<DirectiveGraphTypeEx>, arguments) =
         state
         |> operation (setArguments arguments)
 
     [<CustomOperation "locations">]
-    member __.CustomOperation_Locations (state: State<DirectiveGraphTypeEx>, locations) =
+    member __.Locations (state: State<DirectiveGraphTypeEx>, locations) =
         state
         |> unitOperation (fun this ->
             locations

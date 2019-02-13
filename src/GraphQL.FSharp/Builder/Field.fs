@@ -62,7 +62,7 @@ type FieldBuilderBase<'source> () =
     inherit TypedFieldBuilder<TypedFieldType<'source>> ()
 
     [<CustomOperation "arguments">]
-    member __.CustomOperation_Arguments (state: State<TypedFieldType<'source>>, arguments) =
+    member __.Arguments (state: State<TypedFieldType<'source>>, arguments) =
         state
         |> operation (fun this ->
             let arguments = QueryArguments (List.toSeq arguments)
@@ -70,7 +70,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "get">]
-    member __.CustomOperation_Get (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+    member __.Get (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
         state
         |> operation (fun this ->
             let f, name =
@@ -86,7 +86,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "getAsync">]
-    member __.CustomOperation_GetAsync (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+    member __.GetAsync (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
         state
         |> operation (fun this ->
             let f, name =
@@ -102,7 +102,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "resolve">]
-    member __.CustomOperation_Resolve (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> 'field) =
+    member __.Resolve (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> 'field) =
         state
         |> operation (fun this ->
             this.Resolver <- resolve resolver
@@ -112,7 +112,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "resolveAsync">]
-    member __.CustomOperation_ResolveAsync (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
+    member __.ResolveAsync (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         state
         |> operation (fun this ->
             this.Resolver <- resolveAsync resolver
@@ -122,7 +122,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "subscribe">]
-    member __.CustomOperation_Subscribe (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+    member __.Subscribe (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         state
         |> operation (fun this ->
             this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
@@ -133,7 +133,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "subscribeAsync">]
-    member __.CustomOperation_SubscribeAsync (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+    member __.SubscribeAsync (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         state
         |> operation (fun this ->
             this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)

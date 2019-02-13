@@ -8,7 +8,7 @@ type UnionBaseBuilder () =
     inherit BasicGraphTypeBuilder<UnionGraphType> ()
 
     [<CustomOperation "cases">]
-    member __.CustomOperation_Cases (state: State<UnionGraphType>, cases) =
+    member __.Cases (state: State<UnionGraphType>, cases) =
         state
         |> unitOperation (fun this -> this.PossibleTypes <- List.toSeq cases)
 

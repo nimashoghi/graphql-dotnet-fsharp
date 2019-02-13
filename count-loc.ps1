@@ -1,6 +1,18 @@
+param (
+    [switch]
+    $SourceOnly = $false
+)
+
 $totalLoc = 0
 
-foreach ($item in Get-ChildItem *.fs, *.fsproj -Recurse -Force) {
+if ($SourceOnly) {
+    $items = Get-ChildItem .\src\**\*.fs -Recurse -Force
+}
+else {
+    $items = Get-ChildItem *.fs, *.fsproj -Recurse -Force
+}
+
+foreach ($item in $items) {
     $totalLoc += (Get-Content -Path $item.FullName | Measure-Object -Line).Lines
 }
 

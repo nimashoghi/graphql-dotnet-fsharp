@@ -46,22 +46,22 @@ type SchemaBuilderBase () =
     member __.Yield (_: unit) = [] : SchemaBuilderState
 
     [<CustomOperation "query">]
-    member __.CustomOperation_Query (state: SchemaBuilderState, query: Query) =
+    member __.Query (state: SchemaBuilderState, query: Query) =
         state
         |> unitOperation (fun this -> this.Query <- query)
 
     [<CustomOperation "mutation">]
-    member __.CustomOperation_Mutation (state: SchemaBuilderState, mutation: Mutation) =
+    member __.Mutation (state: SchemaBuilderState, mutation: Mutation) =
         state
         |> unitOperation (fun this -> this.Mutation <- mutation)
 
     [<CustomOperation "subscription">]
-    member __.CustomOperation_Subscription (state: SchemaBuilderState, subscription: Subscription) =
+    member __.Subscription (state: SchemaBuilderState, subscription: Subscription) =
         state
         |> unitOperation (fun this -> this.Subscription <- subscription)
 
     [<CustomOperation "types">]
-    member __.CustomOperation_Types (state: SchemaBuilderState, types: IGraphType list) =
+    member __.Types (state: SchemaBuilderState, types: IGraphType list) =
         state
         |> unitOperation (fun this ->
             types

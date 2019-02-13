@@ -8,7 +8,7 @@ type ObjectBuilderBase<'source> () =
     inherit ComplexGraphTypeBuilder<ObjectGraphType<'source>, 'source> ()
 
     [<CustomOperation "interfaces">]
-    member __.CustomOperation_Interfaces (state: State<ObjectGraphType<'source>>, interfaces) =
+    member __.Interfaces (state: State<ObjectGraphType<'source>>, interfaces) =
         state
         |> unitOperation (fun this ->
             interfaces

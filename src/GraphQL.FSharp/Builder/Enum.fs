@@ -8,7 +8,7 @@ type EnumerationBuilderBase () =
     inherit BasicGraphTypeBuilder<EnumerationGraphType> ()
 
     [<CustomOperation "cases">]
-    member __.CustomOperation_Cases (state: State<EnumerationGraphType>, values) =
+    member __.Cases (state: State<EnumerationGraphType>, values) =
         state
         |> unitOperation (fun this ->
             values
