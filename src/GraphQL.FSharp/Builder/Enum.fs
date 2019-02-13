@@ -4,31 +4,51 @@ open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
 
-type EnumerationBuilder (?value) =
-    member __.Yield (_: unit) =
-        value
-        |> Option.defaultValue (EnumerationGraphType ())
+type EnumerationBuilderOperation = EnumerationGraphType -> EnumerationGraphType
+type EnumerationBuilderState = EnumerationBuilderOperation list
 
+type EnumerationBuilderBase () =
+    inherit ConfigurableBuilder<EnumerationGraphType> ()
+
+    member __.Yield (_: unit) = [] : EnumerationBuilderState
 
     [<CustomOperation "name">]
-    member __.CustomOperation_Name (this: EnumerationGraphType, name) =
-        setName name this
+    member __.CustomOperation_Name (state: EnumerationBuilderState, name) =
+        state
+        |> operation (setName name)
 
     [<CustomOperation "description">]
-    member __.CustomOperation_Description (this: EnumerationGraphType, description) =
-        setDescription description this
+    member __.CustomOperation_Description (state: EnumerationBuilderState, description) =
+        state
+        |> operation (setDescription description)
 
     [<CustomOperation "deprecationReason">]
-    member __.CustomOperation_DeprecationReason (this: EnumerationGraphType, deprecationReason) =
-        setDeprecationReason deprecationReason this
+    member __.CustomOperation_DeprecationReason (state: EnumerationBuilderState, deprecationReason) =
+        state
+        |> operation (setDeprecationReason deprecationReason)
 
     [<CustomOperation "metadata">]
-    member __.CustomOperation_Metadata (this: EnumerationGraphType, metadata) =
-        setMetadata metadata this
+    member __.CustomOperation_Metadata (state: EnumerationBuilderState, metadata) =
+        state
+        |> operation (setMetadata metadata)
 
     [<CustomOperation "cases">]
-    member __.CustomOperation_Cases (this: EnumerationGraphType, values) =
-        values
-        |> List.iter this.AddValue
+    member __.CustomOperation_Cases (state: EnumerationBuilderState, values) =
+        state
+        |> unitOperation (fun this ->
+            values
+            |> List.iter this.AddValue
+        )
 
-        this
+type EnumerationBuilder (?value) =
+    inherit EnumerationBuilderBase ()
+
+    member __.Run (state: EnumerationBuilderState) =
+        value
+        |> Option.defaultValue (EnumerationGraphType ())
+        |> apply state
+
+type EnumerationEditBuilder () =
+    inherit EnumerationBuilderBase ()
+
+    member __.Run (state: EnumerationBuilderState) = apply state

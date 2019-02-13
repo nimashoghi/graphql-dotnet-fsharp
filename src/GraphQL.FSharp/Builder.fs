@@ -11,6 +11,10 @@ open GraphQL.FSharp.BuilderSchema
 open GraphQL.FSharp.BuilderUnion
 open GraphQL.FSharp.Types
 
+[<AutoOpen>]
+module Operators =
+    let inline (=>) lhs rhs = (lhs, rhs)
+
 let argument<'t> = ArgumentBuilder<'t> ()
 let argumentOf ``type`` = ArgumentBuilder<obj> ``type``
 
@@ -51,3 +55,14 @@ let subscription list =
 let schema = SchemaBuilder ()
 
 let union = UnionBuilder ()
+
+module Edit =
+    let argument<'t> = ArgumentEditorBuilder<'t> ()
+    let directive = DirectiveEditBuilder ()
+    let enum = EnumerationEditBuilder ()
+    let field<'source> = FieldEditBuilder<'source> ()
+    let input<'source> = InputObjectEditBuilder<'source> ()
+    let ``interface``<'source> = InterfaceEditBuilder<'source> ()
+    let object<'source> = ObjectEditBuilder<'source> ()
+    let schema = SchemaEditBuilder ()
+    let union = UnionEditBuilder ()

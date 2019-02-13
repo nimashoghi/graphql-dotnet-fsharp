@@ -8,24 +8,42 @@ open GraphQL.FSharp.Types
 
 // TODO: Fix problem with FSharp list type as an argument
 
+type ArgumentBuilderOperation<'t> = TypedQueryArgument<'t> -> TypedQueryArgument<'t>
+type ArgumentBuilderState<'t> = ArgumentBuilderOperation<'t> list
+
+type ArgumentBuilderBase<'t> () =
+    inherit ConfigurableBuilder<TypedQueryArgument<'t>> ()
+
+    member __.Yield (_: unit) = [] : ArgumentBuilderState<'t>
+
+    [<CustomOperation "name">]
+    member __.CustomOperation_Name (state: ArgumentBuilderState<'t>, name) =
+        operation (setName name) state
+
+    [<CustomOperation "description">]
+    member __.CustomOperation_Description (state: ArgumentBuilderState<'t>, description) =
+        operation (setDescription description) state
+
+    [<CustomOperation "defaultValue">]
+    member __.CustomOperation_DefaultValue (state: ArgumentBuilderState<'t>, value: 't) =
+        operation (setDefaultValue value) state
+
+    [<CustomOperation "type">]
+    member __.CustomOperation_Type (state: ArgumentBuilderState<'t>, ``type``) =
+        operation (setResolvedType ``type``) state
+    member __.CustomOperation_Type (state: ArgumentBuilderState<'t>, ``type``) =
+        operation (fun this -> this |> setResolvedType (``type`` ())) state
+
 type ArgumentBuilder<'t> (?``type``, ?value) =
-    member __.Yield (_: unit) =
+    inherit ArgumentBuilderBase<'t> ()
+
+    member __.Run (state: ArgumentBuilderState<'t>) =
         value
         |> Option.orElse (Option.map TypedQueryArgument<'t> ``type``)
         |> Option.defaultValue (TypedQueryArgument<'t> (createReference typeof<'t>))
+        |> apply state
 
-    [<CustomOperation "name">]
-    member __.CustomOperation_Name (this: TypedQueryArgument<'t>, name) =
-        setName name this
+type ArgumentEditorBuilder<'t> () =
+    inherit ArgumentBuilderBase<'t> ()
 
-    [<CustomOperation "description">]
-    member __.CustomOperation_Description (this: TypedQueryArgument<'t>, description) =
-        setDescription description this
-
-    [<CustomOperation "defaultValue">]
-    member __.CustomOperation_DefaultValue (this: TypedQueryArgument<'t>, value: 't) =
-        setDefaultValue value this
-
-    [<CustomOperation "type">]
-    member __.CustomOperation_Type (this: TypedQueryArgument<'t>, ``type``) =
-        setResolvedType ``type`` this
+    member __.Run (state: ArgumentBuilderState<'t>) = apply state

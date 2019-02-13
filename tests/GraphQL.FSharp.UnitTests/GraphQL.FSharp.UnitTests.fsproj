@@ -18,6 +18,7 @@
     <Compile Include="Auto/Object.fs" />
     <Compile Include="Auto/InputObject.fs" />
     <Compile Include="Auto/Union.fs" />
+    <Compile Include="Builder.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Schema.fs" />

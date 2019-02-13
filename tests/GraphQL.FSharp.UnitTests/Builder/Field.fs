@@ -10,6 +10,18 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+module ``configure test`` =
+    [<Test>]
+    let ``basic test`` () =
+        field {
+            name "getTask"
+            resolveAsync (fun _ -> Task.FromResult "Hello")
+            configure (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
+        }
+        |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
+
+
+
 module Quotations =
     type MyObjectType =
         {

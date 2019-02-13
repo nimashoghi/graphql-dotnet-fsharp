@@ -3,6 +3,7 @@ module GraphQL.FSharp.BuilderSchema
 open System
 open GraphQL.Types
 
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
@@ -36,35 +37,48 @@ let handleInterfaces (types: IGraphType list) =
 
     types
 
-type SchemaBuilder (?value) =
-    member __.Yield (_: unit) =
-        value
-        |> Option.defaultValue (new Schema ())
+type SchemaBuilderOperation = Schema -> Schema
+type SchemaBuilderState = SchemaBuilderOperation list
+
+type SchemaBuilderBase () =
+    inherit ConfigurableBuilder<Schema> ()
+
+    member __.Yield (_: unit) = [] : SchemaBuilderState
 
     [<CustomOperation "query">]
-    member __.CustomOperation_Query (this: Schema, query: Query) =
-        this.Query <- query
-        this
+    member __.CustomOperation_Query (state: SchemaBuilderState, query: Query) =
+        state
+        |> unitOperation (fun this -> this.Query <- query)
 
     [<CustomOperation "mutation">]
-    member __.CustomOperation_Mutation (this: Schema, mutation: Mutation) =
-        this.Mutation <- mutation
-        this
+    member __.CustomOperation_Mutation (state: SchemaBuilderState, mutation: Mutation) =
+        state
+        |> unitOperation (fun this -> this.Mutation <- mutation)
 
     [<CustomOperation "subscription">]
-    member __.CustomOperation_Subscription (this: Schema, subscription: Subscription) =
-        this.Subscription <- subscription
-        this
+    member __.CustomOperation_Subscription (state: SchemaBuilderState, subscription: Subscription) =
+        state
+        |> unitOperation (fun this -> this.Subscription <- subscription)
 
     [<CustomOperation "types">]
-    member __.CustomOperation_Types (this: Schema, types: IGraphType list) =
-        types
-        |> handleInterfaces
-        |> List.toArray
-        |> this.RegisterTypes
+    member __.CustomOperation_Types (state: SchemaBuilderState, types: IGraphType list) =
+        state
+        |> unitOperation (fun this ->
+            types
+            |> handleInterfaces
+            |> List.toArray
+            |> this.RegisterTypes
+        )
 
-        this
+type SchemaBuilder (?value) =
+    inherit SchemaBuilderBase ()
 
-    member __.Run (this: Schema) =
-        this.Initialize ()
-        this
+    member __.Run (state: SchemaBuilderState) =
+        value
+        |> Option.defaultValue (new Schema ())
+        |> apply state
+
+type SchemaEditBuilder () =
+    inherit SchemaBuilderBase ()
+
+    member __.Run (state: SchemaBuilderState) = apply state

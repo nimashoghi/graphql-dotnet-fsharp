@@ -1,6 +1,7 @@
 module GraphQL.FSharp.Types
 
 open System
+open System.Collections.Generic
 open GraphQL.Types
 
 type DirectiveLocationUnion =
@@ -61,6 +62,8 @@ type TypedQueryArgument<'t> (?``type``) =
         ``type``
         |> Option.defaultValue invalidGraphType
     )
+
+    member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
 
     interface IHasAttributes with
         member val Attributes = [] with get, set

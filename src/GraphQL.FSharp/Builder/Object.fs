@@ -5,40 +5,60 @@ open GraphQL.Types
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Types
 
-type ObjectBuilder<'source> (?value) =
-    inherit ComplexBuilder<'source> ()
+type ObjectBuilderOperation<'source> = ObjectGraphType<'source> -> ObjectGraphType<'source>
+type ObjectBuilderState<'source> = ObjectBuilderOperation<'source> list
+
+type ObjectBuilderBase<'source> () =
+    inherit ComplexBuilder<ObjectGraphType<'source>> ()
 
     // TODO: Make it so we return a new object here
-    member __.Yield (_: unit) =
-        value
-        |> Option.defaultValue (ObjectGraphType<'source> ())
+    member __.Yield (_: unit) = [] : ObjectBuilderState<'source>
 
     [<CustomOperation "name">]
-    member __.CustomOperation_Name (this: ObjectGraphType<'source>, name) =
-        setName name this
+    member __.CustomOperation_Name (state: ObjectBuilderState<'source>, name) =
+        state
+        |> operation (setName name)
 
     [<CustomOperation "description">]
-    member __.CustomOperation_Description (this: ObjectGraphType<'source>, description) =
-        setDescription description this
+    member __.CustomOperation_Description (state: ObjectBuilderState<'source>, description) =
+        state
+        |> operation (setDescription description)
 
     [<CustomOperation "deprecationReason">]
-    member __.CustomOperation_DeprecationReason (this: ObjectGraphType<'source>, deprecationReason) =
-        setDeprecationReason deprecationReason this
+    member __.CustomOperation_DeprecationReason (state: ObjectBuilderState<'source>, deprecationReason) =
+        state
+        |> operation (setDeprecationReason deprecationReason)
 
     [<CustomOperation "metadata">]
-    member __.CustomOperation_Metadata (this: ObjectGraphType<'source>, metadata) =
-        setMetadata metadata this
+    member __.CustomOperation_Metadata (state: ObjectBuilderState<'source>, metadata) =
+        state
+        |> operation (setMetadata metadata)
 
     [<CustomOperation "fields">]
-    member __.CustomOperation_Fields (this: ObjectGraphType<'source>, fields: TypedFieldType<'source> list) =
-        fields
-        |> List.iter (this.AddField >> ignore)
-
-        this
+    member __.CustomOperation_Fields (state: ObjectBuilderState<'source>, fields: TypedFieldType<'source> list) =
+        state
+        |> unitOperation (fun this ->
+            fields
+            |> List.iter (this.AddField >> ignore)
+        )
 
     [<CustomOperation "interfaces">]
-    member __.CustomOperation_Interfaces (this: ObjectGraphType<'source>, ``interface``) =
-        ``interface``
-        |> List.iter this.AddResolvedInterface
+    member __.CustomOperation_Interfaces (state: ObjectBuilderState<'source>, ``interface``) =
+        state
+        |> unitOperation (fun this ->
+            ``interface``
+            |> List.iter this.AddResolvedInterface
+        )
 
-        this
+type ObjectBuilder<'source> (?value) =
+    inherit ObjectBuilderBase<'source> ()
+
+    member __.Run (state: ObjectBuilderState<'source>) =
+        value
+        |> Option.defaultValue (ObjectGraphType<'source> ())
+        |> apply state
+
+type ObjectEditBuilder<'source> () =
+    inherit ObjectBuilderBase<'source> ()
+
+    member __.Run (state: ObjectBuilderState<'source>) = apply state

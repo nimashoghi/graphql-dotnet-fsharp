@@ -5,6 +5,7 @@ open System.Reflection
 open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
 [<Literal>]
@@ -17,27 +18,48 @@ let internal getDirectiveLocations (x: DirectiveGraphType) =
         .GetValue
     :?> List<DirectiveLocation>
 
-type DirectiveBuilder (?value) =
-    member __.Yield (_: unit) =
-        value
-        |> Option.defaultValue (DirectiveGraphType ("", []))
+type DirectiveBuilderOperation = DirectiveGraphType -> DirectiveGraphType
+type DirectiveBuilderState = DirectiveBuilderOperation list
+
+type DirectiveBuilderBase () =
+    inherit ConfigurableBuilder<DirectiveGraphType> ()
+
+    member __.Yield (_: unit) = [] : DirectiveBuilderState
 
     [<CustomOperation "name">]
-    member __.CustomOperation_Name (this: DirectiveGraphType, name) =
-        setName name this
+    member __.CustomOperation_Name (state: DirectiveBuilderState, name) =
+        state
+        |> operation (setName name)
 
     [<CustomOperation "description">]
-    member __.CustomOperation_Description (this: DirectiveGraphType, description) =
-        setDescription description this
+    member __.CustomOperation_Description (state: DirectiveBuilderState, description) =
+        state
+        |> operation (setDescription description)
 
     [<CustomOperation "arguments">]
-    member __.CustomOperation_Arguments (this: DirectiveGraphType, arguments) =
-        setArguments arguments this
+    member __.CustomOperation_Arguments (state: DirectiveBuilderState, arguments) =
+        state
+        |> operation (setArguments arguments)
 
     [<CustomOperation "locations">]
-    member __.CustomOperation_Locations (this: DirectiveGraphType, locations) =
-        locations
-        |> List.toSeq
-        |> (getDirectiveLocations this).AddRange
+    member __.CustomOperation_Locations (state: DirectiveBuilderState, locations) =
+        state
+        |> unitOperation (fun this ->
+            locations
+            |> List.map (fun (x: DirectiveLocationUnion) -> x.GraphQLDirectiveLocation)
+            |> List.toSeq
+            |> (getDirectiveLocations this).AddRange
+        )
 
-        this
+type DirectiveBuilder (?value) =
+    inherit DirectiveBuilderBase ()
+
+    member __.Run (state: DirectiveBuilderState) =
+        value
+        |> Option.defaultValue (DirectiveGraphType ("", []))
+        |> apply state
+
+type DirectiveEditBuilder () =
+    inherit DirectiveBuilderBase ()
+
+    member __.Run (state: DirectiveBuilderState) = apply state

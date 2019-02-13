@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <NoWarn>25</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils/Attributes.fs" />
@@ -23,8 +22,8 @@
     <Compile Include="Builder/Enum.fs" />
     <Compile Include="Builder/Interface.fs" />
     <Compile Include="Builder/InputObject.fs" />
-    <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Object.fs" />
+    <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Schema.fs" />
     <Compile Include="Builder/Union.fs" />
     <Compile Include="Builder.fs" />

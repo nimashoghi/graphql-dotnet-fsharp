@@ -14,9 +14,6 @@ open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
-[<Literal>]
-let HasDefaultValueMetadataName = "HasDefaultValue"
-
 let resolverForSubscription<'field, 'source> (field: TypedFieldType<'source>) =
     field.Resolver <-
         FuncFieldResolver<_, _> (
@@ -32,14 +29,14 @@ let setFieldType<'field, 'source> (field: TypedFieldType<'source>) =
     then field.ResolvedType <- createReference typeof<'field>
     field
 
-let hasDefaultValue (field: TypedFieldType<_>) =
-    match field.Metadata.TryGetValue HasDefaultValueMetadataName with
-    | true, value when unbox<bool> value -> true
-    | _ -> false
+let setDefaultValue (value: 'field) (field: TypedFieldType<'source>) =
+    field.DefaultValue <- box value
+    field
+    |> setFieldType<'field, 'source>
 
 // TODO: Add support for field.Type as well as field.ResolvedType
 let handleNonNullTypes (field: TypedFieldType<_>) =
-    if hasDefaultValue field then
+    if not <| isNull field.DefaultValue then
         match field.ResolvedType with
         | :? NonNullGraphType as ``type`` ->
             field.ResolvedType <- ``type``.ResolvedType
@@ -50,8 +47,139 @@ let createNewField<'source> () = TypedFieldType<'source> ()
 let createNewEndpoint<'source> name = TypedFieldType<'source> (Name = name)
 let createNewFieldOf ``type`` = TypedFieldType<obj> (ResolvedType = ``type``)
 
+type FieldBulderOperation<'source> = TypedFieldType<'source> -> TypedFieldType<'source>
+type FieldBulderState<'source> = FieldBulderOperation<'source> list
+
+type FieldBuilderBase<'source> () =
+    inherit ConfigurableBuilder<TypedFieldType<'source>> ()
+
+    member __.Yield (_: unit) = [] : FieldBulderState<'source>
+
+    [<CustomOperation "name">]
+    member __.CustomOperation_Name (state: FieldBulderState<'source>, name) =
+        state
+        |> operation (setName name)
+
+    [<CustomOperation "description">]
+    member __.CustomOperation_Description (state: FieldBulderState<'source>, description) =
+        state
+        |> operation (setDescription description)
+
+    [<CustomOperation "deprecationReason">]
+    member __.CustomOperation_DeprecationReason (state: FieldBulderState<'source>, deprecationReason) =
+        state
+        |> operation (setDeprecationReason deprecationReason)
+
+    [<CustomOperation "metadata">]
+    member __.CustomOperation_Metadata (state: FieldBulderState<'source>, metadata) =
+        state
+        |> operation (setMetadata metadata)
+
+    [<CustomOperation "ofType">]
+    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
+        state
+        |> unitOperation (fun this -> this.Type <- ``type``)
+
+    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
+        state
+        |> unitOperation (fun this -> this.ResolvedType <- ``type``)
+
+    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
+        state
+        |> unitOperation (fun this -> this.ResolvedType <- ``type`` ())
+
+    [<CustomOperation "defaultValue">]
+    member __.CustomOperation_DefaultValue (state: FieldBulderState<'source>, value) =
+        state
+        |> operation (setDefaultValue value)
+
+    [<CustomOperation "arguments">]
+    member __.CustomOperation_Arguments (state: FieldBulderState<'source>, arguments) =
+        state
+        |> operation (fun this ->
+            let arguments = QueryArguments (List.toSeq arguments)
+            setArguments arguments this
+        )
+
+    [<CustomOperation "get">]
+    member __.CustomOperation_Get (state: FieldBulderState<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+        state
+        |> operation (fun this ->
+            let f, name =
+                match expr with
+                | WithValueTyped (f, FieldName name) -> f, name
+                | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. Get only supports simple expressions. Use resolve instead."
+
+            this.Name <- name
+            this.Resolver <- (withSource >> resolve) f
+
+            this
+            |> setFieldType<'field, 'source>
+        )
+
+    [<CustomOperation "getAsync">]
+    member __.CustomOperation_GetAsync (state: FieldBulderState<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+        state
+        |> operation (fun this ->
+            let f, name =
+                match expr with
+                | WithValueTyped (f, FieldName name) -> f, name
+                | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. GetAsync only supports simple expressions. Use resolveAsync instead."
+
+            this.Name <- name
+            this.Resolver <- (withSource >> resolveAsync) f
+
+            this
+            |> setFieldType<'field, 'source>
+        )
+
+    [<CustomOperation "resolve">]
+    member __.CustomOperation_Resolve (state: FieldBulderState<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
+        state
+        |> operation (fun this ->
+            this.Resolver <- resolve resolver
+
+            this
+            |> setFieldType<'field, 'source>
+        )
+
+    [<CustomOperation "resolveAsync">]
+    member __.CustomOperation_ResolveAsync (state: FieldBulderState<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
+        state
+        |> operation (fun this ->
+            this.Resolver <- resolveAsync resolver
+
+            this
+            |> setFieldType<'field, 'source>
+        )
+
+    [<CustomOperation "subscribe">]
+    member __.CustomOperation_Subscribe (state: FieldBulderState<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+        state
+        |> operation (fun this ->
+            this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
+
+            this
+            |> setFieldType<'field, 'source>
+            |> resolverForSubscription<'field, 'source>
+        )
+
+    [<CustomOperation "subscribeAsync">]
+    member __.CustomOperation_SubscribeAsync (state: FieldBulderState<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+        state
+        |> operation (fun this ->
+            this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
+
+            this
+            |> setFieldType<'field, 'source>
+            |> resolverForSubscription<'field, 'source>
+        )
+
 type FieldBuilder<'source> (?``type``, ?name, ?value) =
-    member __.Yield (_: unit) =
+    inherit FieldBuilderBase<'source> ()
+
+    member __.Run (state: FieldBulderState<'source>) =
+        let state = handleNonNullTypes :: state
         value
         |> Option.defaultValue (
             TypedFieldType<'source> (
@@ -59,106 +187,9 @@ type FieldBuilder<'source> (?``type``, ?name, ?value) =
                 Name = Option.toObj name
             )
         )
+        |> apply state
 
-    [<CustomOperation "name">]
-    member __.CustomOperation_Name (this: TypedFieldType<'source>, name) =
-        setName name this
+type FieldEditBuilder<'source> () =
+    inherit FieldBuilderBase<'source> ()
 
-    [<CustomOperation "description">]
-    member __.CustomOperation_Description (this: TypedFieldType<'source>, description) =
-        setDescription description this
-
-    [<CustomOperation "deprecationReason">]
-    member __.CustomOperation_DeprecationReason (this: TypedFieldType<'source>, deprecationReason) =
-        setDeprecationReason deprecationReason this
-
-    [<CustomOperation "metadata">]
-    member __.CustomOperation_Metadata (this: TypedFieldType<'source>, metadata) =
-        setMetadata metadata this
-
-    [<CustomOperation "ofType">]
-    member __.CustomOperation_Type (this: TypedFieldType<'source>, ``type``) =
-        this.Type <- ``type``
-        this
-
-    member __.CustomOperation_Type (this: TypedFieldType<'source>, ``type``) =
-        this.ResolvedType <- ``type``
-        this
-
-    member __.CustomOperation_Type (this: TypedFieldType<'source>, ``type``) =
-        this.ResolvedType <- ``type`` ()
-        this
-
-    [<CustomOperation "defaultValue">]
-    member __.CustomOperation_DefaultValue (this: TypedFieldType<'source>, ``default``: 'field) =
-        this.DefaultValue <- box ``default``
-        this.Metadata.[HasDefaultValueMetadataName] <- true
-
-        this
-        |> setFieldType<'field, 'source>
-
-    [<CustomOperation "arguments">]
-    member __.CustomOperation_Arguments (this: TypedFieldType<'source>, arguments) =
-        this.Arguments <- QueryArguments (List.toSeq arguments)
-        this
-
-    [<CustomOperation "get">]
-    member __.CustomOperation_Get (this: TypedFieldType<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
-        let fieldName, getterFn =
-            match expr with
-            | WithValueTyped (getterFn, FieldName value) -> value, getterFn
-            | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. Get only supports simple expressions. Use resolve instead."
-
-        this.Name <- fieldName
-        this.Resolver <- (withSource >> resolve) getterFn
-
-        this
-        |> setFieldType<'field, 'source>
-
-    [<CustomOperation "getAsync">]
-    member __.CustomOperation_GetAsync (this: TypedFieldType<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
-        let fieldName, getterFn =
-            match expr with
-            | WithValueTyped (getterFn, AsyncFieldName value) -> value, getterFn
-            | _ -> invalidArg "getter" "Could not find field name and/or getter function from async getter expression. GetAsync only supports simple expressions. Use resolve instead."
-
-        this.Name <- fieldName
-        this.Resolver <- (withSource >> resolveAsync) getterFn
-
-        this
-        |> setFieldType<'field, 'source>
-
-    [<CustomOperation "resolve">]
-    member __.CustomOperation_Resolve (this: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
-        this.Resolver <- resolve resolver
-
-        this
-        |> setFieldType<'field, 'source>
-
-    [<CustomOperation "resolveAsync">]
-    member __.CustomOperation_ResolveAsync (this: TypedFieldType<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
-        this.Resolver <- resolveAsync resolver
-
-        this
-        |> setFieldType<'field, 'source>
-
-    [<CustomOperation "subscribe">]
-    member __.CustomOperation_Subscribe (this: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
-        this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
-
-        this
-        |> setFieldType<'field, 'source>
-        |> resolverForSubscription<'field, 'source>
-
-    [<CustomOperation "subscribeAsync">]
-    member __.CustomOperation_SubscribeAsync (this: TypedFieldType<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
-        this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-
-        this
-        |> setFieldType<'field, 'source>
-        |> resolverForSubscription<'field, 'source>
-
-
-    member __.Run (this: TypedFieldType<'source>) =
-        this
-        |> handleNonNullTypes
+    member __.Run (state: FieldBulderState<'source>) = apply (handleNonNullTypes :: state)
