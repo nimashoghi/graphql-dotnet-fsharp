@@ -2,6 +2,7 @@ module GraphQL.FSharp.Types
 
 open System
 open System.Collections.Generic
+open System.Reflection
 open GraphQL.Types
 
 type DirectiveLocationUnion =
@@ -44,6 +45,28 @@ type DirectiveLocationUnion =
         | InputObject -> DirectiveLocation.InputObject
         | InputFieldDefinition -> DirectiveLocation.InputFieldDefinition
 
+    static member OfGraphQLDirectiveLocation (location: DirectiveLocation) =
+        match location with
+        | DirectiveLocation.Query -> Query
+        | DirectiveLocation.Mutation -> Mutation
+        | DirectiveLocation.Subscription -> Subscription
+        | DirectiveLocation.Field -> Field
+        | DirectiveLocation.FragmentDefinition -> FragmentDefinition
+        | DirectiveLocation.FragmentSpread -> FragmentSpread
+        | DirectiveLocation.InlineFragment -> InlineFragment
+        | DirectiveLocation.Schema -> Schema
+        | DirectiveLocation.Scalar -> Scalar
+        | DirectiveLocation.Object -> Object
+        | DirectiveLocation.FieldDefinition -> FieldDefinition
+        | DirectiveLocation.ArgumentDefinition -> ArgumentDefinition
+        | DirectiveLocation.Interface -> Interface
+        | DirectiveLocation.Union -> Union
+        | DirectiveLocation.Enum -> Enum
+        | DirectiveLocation.EnumValue -> EnumValue
+        | DirectiveLocation.InputObject -> InputObject
+        | DirectiveLocation.InputFieldDefinition -> InputFieldDefinition
+        | _ -> failwith "Invalid location"
+
 let invalidGraphType =
     {
         new GraphType () with
@@ -81,6 +104,44 @@ type EnumerationGraphTypeEx<'t> () =
     inherit EnumerationGraphType<'t> ()
 
     override __.ChangeEnumCase x = x
+
+[<Literal>]
+let DirectiveLocationsFieldName = "_directiveLocations"
+
+let internal getDirectiveLocations (x: DirectiveGraphType) =
+    box x
+    |> typeof<DirectiveGraphType>
+        .GetField(DirectiveLocationsFieldName, BindingFlags.NonPublic ||| BindingFlags.Instance)
+        .GetValue
+    :?> List<DirectiveLocation>
+
+let internal locationToSeq x =
+    x
+    |> List.map (fun (location: DirectiveLocationUnion) -> location.GraphQLDirectiveLocation)
+    |> List.toSeq
+
+// TODO: Rename
+type DirectiveGraphTypeEx (?name, ?locations) =
+    inherit DirectiveGraphType (
+        name |> Option.defaultValue "",
+        locations |> Option.defaultValue [] |> locationToSeq
+    )
+
+    member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
+
+    member this.PossibleLocations
+        with get () =
+            this.Locations
+            |> Seq.toList
+            |> List.map DirectiveLocationUnion.OfGraphQLDirectiveLocation
+        and set value =
+            let list = getDirectiveLocations this
+            list.Clear ()
+
+            value
+            |> locationToSeq
+            |> list.AddRange
+
 
 type UnionGraphType<'t> () =
     inherit UnionGraphType ()

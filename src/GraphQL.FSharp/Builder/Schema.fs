@@ -41,7 +41,7 @@ type SchemaBuilderOperation = Schema -> Schema
 type SchemaBuilderState = SchemaBuilderOperation list
 
 type SchemaBuilderBase () =
-    inherit ConfigurableBuilder<Schema> ()
+    inherit ConfigureBuilder<Schema> ()
 
     member __.Yield (_: unit) = [] : SchemaBuilderState
 

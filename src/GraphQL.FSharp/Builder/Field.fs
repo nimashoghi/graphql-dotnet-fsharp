@@ -7,7 +7,6 @@ open GraphQL.Types
 open GraphQL.Subscription
 open GraphQL.Resolvers
 
-open GraphQL.FSharp
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
@@ -47,54 +46,11 @@ let createNewField<'source> () = TypedFieldType<'source> ()
 let createNewEndpoint<'source> name = TypedFieldType<'source> (Name = name)
 let createNewFieldOf ``type`` = TypedFieldType<obj> (ResolvedType = ``type``)
 
-type FieldBulderOperation<'source> = TypedFieldType<'source> -> TypedFieldType<'source>
-type FieldBulderState<'source> = FieldBulderOperation<'source> list
-
 type FieldBuilderBase<'source> () =
-    inherit ConfigurableBuilder<TypedFieldType<'source>> ()
-
-    member __.Yield (_: unit) = [] : FieldBulderState<'source>
-
-    [<CustomOperation "name">]
-    member __.CustomOperation_Name (state: FieldBulderState<'source>, name) =
-        state
-        |> operation (setName name)
-
-    [<CustomOperation "description">]
-    member __.CustomOperation_Description (state: FieldBulderState<'source>, description) =
-        state
-        |> operation (setDescription description)
-
-    [<CustomOperation "deprecationReason">]
-    member __.CustomOperation_DeprecationReason (state: FieldBulderState<'source>, deprecationReason) =
-        state
-        |> operation (setDeprecationReason deprecationReason)
-
-    [<CustomOperation "metadata">]
-    member __.CustomOperation_Metadata (state: FieldBulderState<'source>, metadata) =
-        state
-        |> operation (setMetadata metadata)
-
-    [<CustomOperation "ofType">]
-    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
-        state
-        |> unitOperation (fun this -> this.Type <- ``type``)
-
-    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
-        state
-        |> unitOperation (fun this -> this.ResolvedType <- ``type``)
-
-    member __.CustomOperation_Type (state: FieldBulderState<'source>, ``type``) =
-        state
-        |> unitOperation (fun this -> this.ResolvedType <- ``type`` ())
-
-    [<CustomOperation "defaultValue">]
-    member __.CustomOperation_DefaultValue (state: FieldBulderState<'source>, value) =
-        state
-        |> operation (setDefaultValue value)
+    inherit TypedFieldBuilder<TypedFieldType<'source>> ()
 
     [<CustomOperation "arguments">]
-    member __.CustomOperation_Arguments (state: FieldBulderState<'source>, arguments) =
+    member __.CustomOperation_Arguments (state: State<TypedFieldType<'source>>, arguments) =
         state
         |> operation (fun this ->
             let arguments = QueryArguments (List.toSeq arguments)
@@ -102,7 +58,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "get">]
-    member __.CustomOperation_Get (state: FieldBulderState<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+    member __.CustomOperation_Get (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
         state
         |> operation (fun this ->
             let f, name =
@@ -118,7 +74,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "getAsync">]
-    member __.CustomOperation_GetAsync (state: FieldBulderState<'source>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+    member __.CustomOperation_GetAsync (state: State<TypedFieldType<'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
         state
         |> operation (fun this ->
             let f, name =
@@ -134,7 +90,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "resolve">]
-    member __.CustomOperation_Resolve (state: FieldBulderState<'source>, resolver: ResolveFieldContext<'source> -> 'field) =
+    member __.CustomOperation_Resolve (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> 'field) =
         state
         |> operation (fun this ->
             this.Resolver <- resolve resolver
@@ -144,7 +100,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "resolveAsync">]
-    member __.CustomOperation_ResolveAsync (state: FieldBulderState<'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
+    member __.CustomOperation_ResolveAsync (state: State<TypedFieldType<'source>>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
         state
         |> operation (fun this ->
             this.Resolver <- resolveAsync resolver
@@ -154,7 +110,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "subscribe">]
-    member __.CustomOperation_Subscribe (state: FieldBulderState<'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+    member __.CustomOperation_Subscribe (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         state
         |> operation (fun this ->
             this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
@@ -165,7 +121,7 @@ type FieldBuilderBase<'source> () =
         )
 
     [<CustomOperation "subscribeAsync">]
-    member __.CustomOperation_SubscribeAsync (state: FieldBulderState<'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+    member __.CustomOperation_SubscribeAsync (state: State<TypedFieldType<'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         state
         |> operation (fun this ->
             this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
@@ -178,7 +134,7 @@ type FieldBuilderBase<'source> () =
 type FieldBuilder<'source> (?``type``, ?name, ?value) =
     inherit FieldBuilderBase<'source> ()
 
-    member __.Run (state: FieldBulderState<'source>) =
+    member __.Run (state: State<TypedFieldType<'source>>) =
         let state = handleNonNullTypes :: state
         value
         |> Option.defaultValue (
@@ -192,4 +148,4 @@ type FieldBuilder<'source> (?``type``, ?name, ?value) =
 type FieldEditBuilder<'source> () =
     inherit FieldBuilderBase<'source> ()
 
-    member __.Run (state: FieldBulderState<'source>) = apply (handleNonNullTypes :: state)
+    member __.Run (state: State<TypedFieldType<'source>>) = apply (handleNonNullTypes :: state)

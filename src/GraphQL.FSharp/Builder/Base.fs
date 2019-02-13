@@ -3,6 +3,7 @@ module GraphQL.FSharp.BuilderBase
 open System.Collections.Generic
 open GraphQL.Types
 
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
 let inline operation (f: 'a -> 'a) (lst: ('a -> 'a) list) = f :: lst
@@ -11,17 +12,6 @@ let apply (lst: ('a -> 'a) list) x =
     lst
     |> List.rev
     |> List.fold (fun state f -> f state) x
-
-type ConfigurableBuilder<'t> () =
-    [<CustomOperation "configure">]
-    member __.CustomOperation_Configure (state: ('t -> 't) list, f: 't -> 't) =
-        f :: state
-
-    member __.CustomOperation_Configure (state: ('t -> 't) list, f: 't -> unit) =
-        (fun this -> f this; this) :: state
-
-type ComplexBuilder<'t> () =
-    inherit ConfigurableBuilder<'t> ()
 
 let inline setName value (x: ^t) =
     (^t : (member set_Name: string -> unit) x, value)
@@ -65,12 +55,11 @@ type ConfigureBuilder<'t> () =
         state
         |> operation (fun x -> f x; x)
 
-
-type NameDescriptionMetadataBuilder<'t when
-                                   't: (member set_Name: string -> unit) and
-                                   't: (member set_Description: string -> unit) and
-                                   't: (member Metadata: IDictionary<string, obj>) and
-                                   't: (member set_Metadata: IDictionary<string, obj> -> unit)> () =
+type EntityBuilder<'t when
+                         't: (member set_Name: string -> unit) and
+                         't: (member set_Description: string -> unit) and
+                         't: (member Metadata: IDictionary<string, obj>) and
+                         't: (member set_Metadata: IDictionary<string, obj> -> unit)> () =
    inherit ConfigureBuilder<'t> ()
 
     member inline __.Yield (_: unit) = [] : State<'t>
@@ -89,3 +78,71 @@ type NameDescriptionMetadataBuilder<'t when
     member inline __.Metadata (state: State<'t>, metadata) =
         state
         |> operation (setMetadata metadata)
+
+type TypedEntityBuilder<'t when
+                              't: (member set_Name: string -> unit) and
+                              't: (member set_Description: string -> unit) and
+                              't: (member Metadata: IDictionary<string, obj>) and
+                              't: (member set_Metadata: IDictionary<string, obj> -> unit) and
+                              't: (member set_DefaultValue: obj -> unit) and
+                              't: (member set_ResolvedType: IGraphType -> unit)> () =
+    inherit EntityBuilder<'t> ()
+
+    [<CustomOperation "defaultValue">]
+    member inline __.DefaultValue (state: State<'t>, value) =
+        state
+        |> operation (setDefaultValue value)
+
+    [<CustomOperation "type">]
+    member inline __.Type (state: State<'t>, ``type``) =
+        state
+        |> operation (setResolvedType ``type``)
+
+    member inline __.Type (state: State<'t>, ``type``) =
+        state
+        |> operation (fun this -> this |> setResolvedType (``type`` ()))
+
+type BasicGraphTypeBuilder<'t when
+                          't: (member set_Name: string -> unit) and
+                          't: (member set_Description: string -> unit) and
+                          't: (member Metadata: IDictionary<string, obj>) and
+                          't: (member set_Metadata: IDictionary<string, obj> -> unit) and
+                          't: (member set_DeprecationReason: string -> unit)> () =
+    inherit EntityBuilder<'t> ()
+
+    [<CustomOperation "deprecationReason">]
+    member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
+        state
+        |> operation (setDeprecationReason deprecationReason)
+
+type TypedFieldBuilder<'t when
+                      't: (member set_Name: string -> unit) and
+                      't: (member set_Description: string -> unit) and
+                      't: (member Metadata: IDictionary<string, obj>) and
+                      't: (member set_Metadata: IDictionary<string, obj> -> unit) and
+                      't: (member set_DefaultValue: obj -> unit) and
+                      't: (member set_ResolvedType: IGraphType -> unit) and
+                      't: (member set_DeprecationReason: string -> unit)> () =
+    inherit TypedEntityBuilder<'t> ()
+
+    [<CustomOperation "deprecationReason">]
+    member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
+        state
+        |> operation (setDeprecationReason deprecationReason)
+
+type ComplexGraphTypeBuilder<'t, 'source when
+                            't :> ComplexGraphType<'source> and
+                            't: (member set_Name: string -> unit) and
+                            't: (member set_Description: string -> unit) and
+                            't: (member Metadata: IDictionary<string, obj>) and
+                            't: (member set_Metadata: IDictionary<string, obj> -> unit) and
+                            't: (member set_DeprecationReason: string -> unit)> () =
+    inherit BasicGraphTypeBuilder<'t> ()
+
+    [<CustomOperation "fields">]
+    member inline __.Fields (state: State<'t>, fields: TypedFieldType<'source> list) =
+        state
+        |> unitOperation (fun this ->
+            fields
+            |> List.iter (this.AddField >> ignore)
+        )

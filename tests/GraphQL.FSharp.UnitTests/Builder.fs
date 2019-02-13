@@ -26,7 +26,7 @@ module ``edit`` =
 
     [<Test>]
     let ``directive`` () =
-        let old = DirectiveGraphType ("", [])
+        let old = DirectiveGraphTypeEx ()
         let directive =
             old
             |> Edit.directive {

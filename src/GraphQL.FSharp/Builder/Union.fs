@@ -4,43 +4,18 @@ open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
 
-type UnionBuilderOperation = UnionGraphType -> UnionGraphType
-type UnionBuilderState = UnionBuilderOperation list
-
 type UnionBaseBuilder () =
-    inherit ConfigurableBuilder<UnionGraphType> ()
-
-    member __.Yield (_: unit) = [] : UnionBuilderState
-
-    [<CustomOperation "name">]
-    member __.CustomOperation_Name (state: UnionBuilderState, name) =
-        state
-        |> operation (setName name)
-
-    [<CustomOperation "description">]
-    member __.CustomOperation_Description (state: UnionBuilderState, description) =
-        state
-        |> operation (setDescription description)
-
-    [<CustomOperation "deprecationReason">]
-    member __.CustomOperation_DeprecationReason (state: UnionBuilderState, deprecationReason) =
-        state
-        |> operation (setDeprecationReason deprecationReason)
-
-    [<CustomOperation "metadata">]
-    member __.CustomOperation_Metadata (state: UnionBuilderState, metadata) =
-        state
-        |> operation (setMetadata metadata)
+    inherit BasicGraphTypeBuilder<UnionGraphType> ()
 
     [<CustomOperation "cases">]
-    member __.CustomOperation_Cases (state: UnionBuilderState, cases: IObjectGraphType list) =
+    member __.CustomOperation_Cases (state: State<UnionGraphType>, cases) =
         state
-        |> unitOperation (fun this -> this.PossibleTypes <- cases)
+        |> unitOperation (fun this -> this.PossibleTypes <- List.toSeq cases)
 
 type UnionBuilder (?value) =
     inherit UnionBaseBuilder ()
 
-    member __.Run (state: UnionBuilderState) =
+    member __.Run (state: State<UnionGraphType>) =
         value
         |> Option.defaultValue (UnionGraphType ())
         |> apply state
@@ -48,4 +23,4 @@ type UnionBuilder (?value) =
 type UnionEditBuilder () =
     inherit UnionBaseBuilder ()
 
-    member __.Run (state: UnionBuilderState) = apply state
+    member __.Run (state: State<UnionGraphType>) = apply state
