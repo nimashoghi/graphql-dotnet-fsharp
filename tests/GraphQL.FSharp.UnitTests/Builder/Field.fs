@@ -10,6 +10,14 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+module ``fieldOf tests`` =
+    [<Test>]
+    let ``basic test`` () =
+        fieldOf (IntGraphType ()) {
+            name "myField"
+        }
+        |> fieldEqual "myField" (nullable IntGraphType)
+
 module ``configure test`` =
     [<Test>]
     let ``basic test`` () =
@@ -19,8 +27,6 @@ module ``configure test`` =
             configure (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
         }
         |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
-
-
 
 module Quotations =
     type MyObjectType =

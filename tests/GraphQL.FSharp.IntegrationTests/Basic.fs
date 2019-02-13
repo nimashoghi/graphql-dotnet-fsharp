@@ -90,7 +90,7 @@ module GraphTypes =
             }
             field {
                 name "myQuery"
-                resolve (fun ctx -> ctx.GetArgument<int> "myArg" :: [1; 2; 3; 4; 5])
+                resolve (fun ctx -> Argument<int>.Get "myArg" ctx :: [1; 2; 3; 4; 5])
                 arguments [
                     Define.Argument<int> ("myArg", 1)
                 ]
@@ -116,7 +116,7 @@ module GraphTypes =
                 arguments [
                     Define.Argument<MyTypeInput> "myArg"
                 ]
-                resolve (fun ctx -> {name = (ctx.GetArgument<MyTypeInput> "myArg").name} : MyType)
+                resolve (fun ctx -> {name = (Argument<MyTypeInput>.Get "myArg" ctx).name} : MyType)
             }
             field {
                 name "myAutoUnion"

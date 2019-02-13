@@ -4,8 +4,6 @@ module GraphQL.FSharp.Attributes
 open System
 open System.Collections.Generic
 
-// TODO: Add attribute targets here
-
 [<AttributeUsage (AttributeTargets.Method, Inherited = true)>]
 type GetterAttribute () =
     inherit Attribute ()
@@ -18,7 +16,6 @@ type AutoAttribute () =
 type FieldAttribute () =
     inherit Attribute ()
 
-// FIXME: Should Inherited be true here?
 [<AttributeUsage (AttributeTargets.All, Inherited = true)>]
 type IgnoreAttribute () =
     inherit Attribute ()

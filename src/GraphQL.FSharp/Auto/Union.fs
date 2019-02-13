@@ -36,18 +36,20 @@ let setIsTypeOf<'union>
 
     object
 
-// TODO: Test this
-let addTag (case: UnionCaseInfo) (object: ObjectGraphType<obj>) =
-    let field = EventStreamFieldType (Name = "Tag")
+let addTag (tag: int) (object: ObjectGraphType<obj>) =
+    let field =
+        EventStreamFieldType (
+            Name = "Tag"
+        )
     field.ResolvedType <- NonNullGraphType (IntGraphType ())
-    field.Resolver <- resolve (fun _ -> case.Tag)
+    field.Resolver <- resolve (fun _ -> tag)
     object.AddField field |> ignore
 
     object
 
 let makeUnionCase<'union> (case: UnionCaseInfo) =
     ObjectGraphType<obj> (Name = sprintf "%s%s" typeof<'union>.Name case.Name)
-    |> addTag case
+    |> addTag case.Tag
     |> addMethods createReference
     |> addFields<'union> case
     |> setIsTypeOf<'union> case

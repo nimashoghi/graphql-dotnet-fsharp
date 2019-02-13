@@ -8,6 +8,17 @@ open GraphQL.FSharp
 
 open GraphQL.FSharp.TestUtils.Assert
 
+module ``addTag`` =
+    open GraphQL.FSharp.AutoUnion
+
+    [<Test>]
+    let ``basic test`` () =
+        ObjectGraphType<obj> (
+            Name = "myObj"
+        )
+        |> addTag 0
+        |> objectEqual "myObj" ["Tag", nonNull IntGraphType]
+
 [<Name "MyAttributeUnionCustom"; Description "My attribute union description"; DeprecationReason "Not deprecated">]
 type MyAttributeUnion =
 | [<Name "FirstCase">] First of int

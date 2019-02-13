@@ -33,12 +33,24 @@ let setDefaultValue (value: 'field) (field: TypedFieldType<'source>) =
     field
     |> setFieldType<'field, 'source>
 
-// TODO: Add support for field.Type as well as field.ResolvedType
+let internal getResovledType (field: TypedFieldType<_>) =
+    field.ResolvedType
+    |> Option.ofObj
+    |> Option.orElse (
+        field.Type
+        |> Option.ofObj
+        |> Option.bind (fun ``type`` ->
+            match Activator.CreateInstance ``type`` with
+            | :? IGraphType as graphType -> Some graphType
+            | _ -> None
+        )
+    )
+
 let handleNonNullTypes (field: TypedFieldType<_>) =
     if not <| isNull field.DefaultValue then
-        match field.ResolvedType with
-        | :? NonNullGraphType as ``type`` ->
-            field.ResolvedType <- ``type``.ResolvedType
+        match getResovledType field with
+        | Some nonNull when (nonNull :? NonNullGraphType) ->
+            field.ResolvedType <- (nonNull :?> NonNullGraphType).ResolvedType
         | _ -> ()
     field
 

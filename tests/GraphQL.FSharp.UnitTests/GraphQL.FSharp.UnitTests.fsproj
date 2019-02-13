@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Utils/Utils.fs" />
     <Compile Include="Utils/Quotations.fs" />
+    <Compile Include="Utils/GraphTypes.fs" />
     <Compile Include="Define/Argument.fs" />
     <Compile Include="Define/EnumCase.fs" />
     <Compile Include="Auto/Base.fs" />
@@ -22,6 +23,7 @@
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Schema.fs" />
+    <Compile Include="Resolvers.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

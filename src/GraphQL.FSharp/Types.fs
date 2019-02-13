@@ -120,7 +120,6 @@ let internal locationToSeq x =
     |> List.map (fun (location: DirectiveLocationUnion) -> location.GraphQLDirectiveLocation)
     |> List.toSeq
 
-// TODO: Rename
 type DirectiveGraphTypeEx (?name, ?locations) =
     inherit DirectiveGraphType (
         name |> Option.defaultValue "",

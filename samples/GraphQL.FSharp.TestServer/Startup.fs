@@ -65,25 +65,35 @@ module Schema =
     let website = {Users = [user]}
 
     let Query = query [
+        endpoint "getIds" {
+            arguments [
+                Define.Argument<Guid list> "ids"
+            ]
+            resolve (fun x ->
+                let guids = Argument<Guid list>.Get "ids"
+                printfn "GUIDS: %A" guids
+                [])
+        }
         endpoint "getUser" {
             arguments [
                 Define.Argument<string> "name"
                 Define.Argument<PhoneNumber> "phoneNumber"
             ]
-            resolve (fun ctx -> {Name = ctx.GetArgument<string> "name"; PhoneNumber = ctx.GetArgument<PhoneNumber> "phoneNumber"})
+            resolve (fun ctx -> {Name = Argument<string>.Get "name" ctx; PhoneNumber = Argument<PhoneNumber>.Get "phoneNumber" ctx})
         }
         endpoint "getPhoneNumberOk" {
             arguments [
                 Define.Argument<PhoneNumber> "phoneNumber"
             ]
-            resolve (fun ctx -> Ok (ctx.GetArgument<PhoneNumber> "phoneNumber"))
+            resolve (fun ctx -> Ok (Argument<PhoneNumber>.Get "phoneNumber" ctx))
         }
         endpoint "getPhoneNumberError" {
             arguments [
                 Define.Argument<PhoneNumber> "phoneNumber"
             ]
             resolve (fun ctx ->
-                Error (ctx.GetArgument<PhoneNumber> "phoneNumber") : Result<PhoneNumber, PhoneNumber> )
+                Error (Argument<PhoneNumber>.Get "phoneNumber" ctx) : Result<PhoneNumber, PhoneNumber>
+            )
         }
         endpoint "getUserUnion" {
             resolve (fun _ -> DescriptionUser (user, "Sup"))

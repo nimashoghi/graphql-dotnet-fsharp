@@ -19,20 +19,22 @@ module Handlers =
 
     let unionValue f (x: obj) =
         let ``type`` = x.GetType ()
-        if FSharpType.IsUnion ``type`` then
-            FSharpValue.GetUnionFields (x, ``type``)
-            ||> f
+        if FSharpType.IsUnion ``type``
+        then f <|| FSharpValue.GetUnionFields (x, ``type``)
         else invalidArg "x" "x must be a union type"
 
     let optionValue x =
-        unionValue
-            (fun case [|value|] ->
-                match case with
-                | CaseTag 0 -> Some value
-                | CaseTag 1 -> None
-                | _ -> invalidArg "x" "Could not find proper case"
-            )
-            x
+        match box x with
+        | null -> None
+        | x ->
+            unionValue
+                (fun case [|value|] ->
+                    match case with
+                    | CaseTag 0 -> None
+                    | CaseTag 1 -> Some value
+                    | _ -> invalidArg "x" "Could not find proper case"
+                )
+                x
 
     let resultValue x =
         unionValue
@@ -58,7 +60,7 @@ module Handlers =
         then Some (``type``.GenericTypeArguments.[0], ``type``.GenericTypeArguments.[1], resultValue x)
         else None
 
-let private taskMap f (t: _ Task) =
+let internal taskMap f (t: _ Task) =
     let source = TaskCompletionSource ()
     t.ContinueWith (fun (t: _ Task) ->
         if t.IsCanceled then source.SetCanceled ()
@@ -94,14 +96,9 @@ let getDict x =
         |> Some
     with _ -> None
 
-// let getDict x = dict [
-//     for prop in x.GetType().GetProperties() do
-//         yield prop.Name, prop.GetValue x
-// ]
-
-// TODO: Add tests for this
 let handleObject (ctx: ResolveFieldContext) x =
     match box x with
+    | null -> null
     | Option (_, opt) -> Option.toObj opt
     | Result (_, _, result) ->
         match result with

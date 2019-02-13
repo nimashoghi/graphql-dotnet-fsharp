@@ -3,8 +3,6 @@ module GraphQL.FSharp.DefineEnumCase
 
 open GraphQL.Types
 
-// TODO: test this
-
 type Define with
     static member EnumCase (name, value, ?description, ?deprecationReason) =
         if isNull name || name = ""

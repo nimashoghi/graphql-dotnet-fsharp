@@ -4,8 +4,6 @@ open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 
-// TODO: Fix problem with FSharp list type as an argument
-
 type ArgumentBuilderBase<'t> () =
     inherit TypedEntityBuilder<TypedQueryArgument<'t>> ()
 

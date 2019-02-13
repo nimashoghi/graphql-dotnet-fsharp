@@ -3,7 +3,6 @@ module GraphQL.FSharp.Utils.GraphTypes
 
 open GraphQL.Types
 
-// TODO: Test this
 let graphTypeNameConfig detailed (x: #IGraphType) =
     let rec run (x: IGraphType) =
         match x with

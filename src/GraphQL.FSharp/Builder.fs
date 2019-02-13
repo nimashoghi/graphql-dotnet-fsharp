@@ -24,12 +24,10 @@ let enum = EnumerationBuilder ()
 
 let field<'source> = FieldBuilder<'source> ()
 let endpoint<'source> name = FieldBuilder<'source> (name = name)
-// TODO: Add tests for fieldOf
 let fieldOf ``type`` = FieldBuilder<'source> (``type`` = ``type``)
 
 let input<'source> = InputObjectBuilder<'source> ()
 
-// FIXME: rename?
 let ``interface``<'source> = InterfaceBuilder<'source> ()
 
 let object<'source> = ObjectBuilder<'source> ()

@@ -37,6 +37,7 @@
     <Compile Include="Auto/Object.fs" />
     <Compile Include="Auto/InputObject.fs" />
     <Compile Include="Auto.fs" />
+    <Compile Include="Argument.fs" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>

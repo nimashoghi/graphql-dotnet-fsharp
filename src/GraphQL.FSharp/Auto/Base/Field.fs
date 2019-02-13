@@ -2,9 +2,11 @@
 module internal GraphQL.FSharp.AutoBase.Field
 
 open System
+open System.Collections.Generic
 open System.Reflection
 open System.Runtime.CompilerServices
 open FSharp.Reflection
+open GraphQL
 open GraphQL.Types
 
 open GraphQL.FSharp
@@ -170,6 +172,63 @@ let makeArgument infer (parameter: ParameterInfo) =
         |> checkArgumentName
         |> Argument
 
+// TODO: Make into own module and test
+let emptyList ``type`` =
+    typedefof<_ list>
+        .MakeGenericType([|``type``|])
+        .GetProperty("Empty")
+        .GetValue(null)
+
+let consList ``type`` head tail =
+    typedefof<_ list>
+        .MakeGenericType([|``type``|])
+        .GetMethod("Cons")
+        .Invoke(null, [|head; tail|])
+
+let getListValue (x: obj) (``type``: Type) =
+    let innerType = ``type``.GenericTypeArguments.[0]
+    let mutable list = emptyList innerType
+    for element in (x :?> System.Collections.IEnumerable) do
+        list <- consList innerType element list
+    list
+
+// TODO: Test
+let getArgument (``type``: Type) (ctx: ResolveFieldContext<_>) name =
+    // if not <| ctx.HasArgument name then None else
+    // let argument = ctx.Arguments.[name]
+    // if ``type``.IsGenericType && ``type``.GetGenericTypeDefinition () = typedefof<_ list>
+    // then Some (getListValue argument ``type``)
+    // else
+    //     let value =
+    //         match argument with
+    //         | :? Dictionary<string, obj> as inputObject ->
+    //             ``type``.Namespace
+    //             |> Option.ofObj
+    //             |> Option.bind (fun ``namespace`` ->
+    //                 if ``namespace``.StartsWith "System"
+    //                 then Some argument
+    //                 else None
+    //             )
+    //             |> Option.defaultWith inputObject.ToObject
+    //         | _ -> argument.GetPropertyValue ``type``
+    //     value
+    //     |> Option.ofObj
+    //     |> Option.orElseWith (fun () ->
+    //         ctx
+    //             .GetArgument (
+    //                 argumentType = ``type``,
+    //                 name = name,
+    //                 defaultValue = null
+    //             )
+    //         |> Option.ofObj
+    //     )
+    ctx.GetArgument (
+        argumentType = ``type``,
+        name = name,
+        defaultValue = null
+    )
+    |> Some
+
 let makeMethodField infer (method: MethodInfo) =
     let field = EventStreamFieldType (Name = transformMethodName method method.Name)
 
@@ -194,8 +253,6 @@ let makeMethodField infer (method: MethodInfo) =
 
     let field = updateField method.MethodAttributes field
 
-    // TODO: is this needed?
-    // if shouldResolve then
     field.Resolver <-
         resolveInfer (fun (ctx: ResolveFieldContext<_>) ->
             let resolvedArguments =
@@ -203,16 +260,14 @@ let makeMethodField infer (method: MethodInfo) =
                 |> Array.map (fun (queryArg, info) ->
                     match queryArg with
                     | Argument queryArg ->
-                        ctx.GetArgument (
-                            argumentType = info.ParameterType,
-                            name = queryArg.Name,
-                            defaultValue = queryArg.DefaultValue
-                        )
+                        getArgument info.ParameterType ctx queryArg.Name
+                        |> Option.defaultValue queryArg.DefaultValue
                     | Context -> box ctx
                 )
             method.Invoke (ctx.Source, resolvedArguments))
 
     field
+
 
 let addProperties infer (object: #ComplexGraphType<'object>) =
     properties<'object>

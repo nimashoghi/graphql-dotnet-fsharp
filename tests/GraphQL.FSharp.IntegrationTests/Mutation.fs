@@ -50,8 +50,8 @@ let ``Mutation basic`` () =
                     Define.Argument<Guid> "password"
                 ]
                 resolve (fun ctx ->
-                    let name = ctx.GetArgument<string> "name"
-                    let password = ctx.GetArgument<Guid> "password"
+                    let name = Argument<string>.Get "name" ctx
+                    let password = Argument<Guid>.Get "password" ctx
 
                     {Id = password; Name = name}
                 )
