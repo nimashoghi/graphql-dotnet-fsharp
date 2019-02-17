@@ -5,8 +5,8 @@ dotnet: 2.2
 sudo: required
 dist: xenial
 script:
-    - dotnet restore
-    - dotnet build
-    - dotnet test
+    - dotnet tool install --global fake-cli
+    - fake build
+    - fake build -t Test
 global:
     - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true

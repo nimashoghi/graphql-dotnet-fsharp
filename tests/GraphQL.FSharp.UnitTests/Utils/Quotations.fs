@@ -6,7 +6,6 @@ open FSharp.Quotations
 open GraphQL.FSharp.Utils.Quotations
 
 module ``ValueWithType`` =
-    // TODO: Add to tests
     type MyType () =
         member __.DoSomething ([<ReflectedDefinition true>] expr: Expr<int>) =
             match expr with

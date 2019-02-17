@@ -2,6 +2,7 @@
 module GraphQL.FSharp.Utils.Quotations
 
 open FSharp.Quotations
+open FSharp.Quotations.ExprShape
 open FSharp.Quotations.Patterns
 
 let (|WithValueTyped|_|) (expr: Expr<'t>) =
@@ -13,38 +14,31 @@ let (|WithValueTyped|_|) (expr: Expr<'t>) =
         Some (value :?> 't, expr :?> Expr<'t>)
     | _ -> None
 
-let (|PropertyNameGetter|_|) expr =
+let rec internal (|DeepPattern|_|) (|Pattern|_|) (expr: Expr) =
     match expr with
-    | PropertyGet (Some (Var sourceVar), prop, []) -> Some (prop.Name, sourceVar)
+    | Pattern value -> Some value
+    | ShapeLambda (_, expr) -> (|DeepPattern|_|) (|Pattern|_|) expr
+    | ShapeCombination (_, exprs) ->
+        exprs
+        |> List.tryPick ((|DeepPattern|_|) (|Pattern|_|))
+    | ShapeVar _ -> None
+
+let internal (|GetMethod|_|) expr =
+    match expr with
+    | Call (Some (Var this), method, _) -> Some (this, method)
     | _ -> None
 
-let (|PropertyNameBasic|_|) expr =
+let internal (|GetProperty|_|) expr =
     match expr with
-    | Lambda (lambdaVar, PropertyNameGetter (propName, sourceVar)) when lambdaVar = sourceVar -> Some propName
-    | _ -> None
-
-let (|MethodInnerLambda|_|) expr =
-    match expr with
-    | Call (Some (Var sourceVar), method, []) -> Some (method.Name, sourceVar)
-    | Application (expr, value) when value = <@@ () @@> ->
-        match expr with
-        | PropertyNameGetter (propName, sourceVar) -> Some (propName, sourceVar)
-        | PropertyGet (Some (Var sourceVar), prop, []) -> Some (prop.Name, sourceVar)
-        | _ -> None
-    | _ -> None
-
-let (|MethodNameBasic|_|) expr =
-    match expr with
-    | Lambda (lambdaVar, expr) ->
-        match expr with
-        | MethodInnerLambda (name, sourceVar) when sourceVar = lambdaVar -> Some name
-        | _ -> None
+    | PropertyGet (Some (Var this), prop, _) -> Some (this, prop)
     | _ -> None
 
 let (|FieldName|_|) expr =
-    match expr with
-    | PropertyNameBasic name -> Some name
-    | MethodNameBasic name -> Some name
-    | _ -> None
+    expr
+    |> (|DeepPattern|_|) (|GetProperty|_|)
+    |> Option.map (fun (_, prop) -> prop.Name)
 
-let (|AsyncFieldName|_|) expr = (|MethodNameBasic|_|) expr
+let (|MethodName|_|) expr =
+    expr
+    |> (|DeepPattern|_|) (|GetMethod|_|)
+    |> Option.map (fun (_, method) -> method.Name)

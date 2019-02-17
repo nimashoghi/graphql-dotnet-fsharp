@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
+    <ProjectReference Include="..\..\..\server\src\Core\Core.csproj" />
+  </ItemGroup>
+</Project>

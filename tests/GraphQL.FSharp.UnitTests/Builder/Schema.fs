@@ -3,13 +3,14 @@ module GraphQL.FSharp.UnitTests.Builder.Schema
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.Types
 open GraphQL.Types
 
 [<Test>]
 let ``configure test`` () =
-    let myQuery = ObjectGraphType<obj> ()
-    let myMutation = ObjectGraphType<obj> ()
-    let mySubscription = ObjectGraphType<obj> ()
+    let myQuery = Query ()
+    let myMutation = Mutation ()
+    let mySubscription = Subscription ()
 
     let mySchema = schema {
         query myQuery
@@ -29,9 +30,9 @@ let ``configure test`` () =
 
 [<Test>]
 let ``basic test`` () =
-    let myQuery = ObjectGraphType<obj> ()
-    let myMutation = ObjectGraphType<obj> ()
-    let mySubscription = ObjectGraphType<obj> ()
+    let myQuery = Query ()
+    let myMutation = Mutation ()
+    let mySubscription = Subscription ()
 
     let mySchema = schema {
         query myQuery

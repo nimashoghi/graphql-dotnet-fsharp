@@ -125,6 +125,7 @@ type Assert with
                     options.Schema <- schema
                     options.Query <- query
                     options.Root <- root
+                    options.FieldNameConverter <- schema.FieldNameConverter
                 )
 
             Assert.JsonEqual (

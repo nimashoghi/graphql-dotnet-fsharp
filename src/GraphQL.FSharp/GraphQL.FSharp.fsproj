@@ -3,44 +3,22 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Utils/Attributes.fs" />
     <Compile Include="Utils/Quotations.fs" />
     <Compile Include="Utils/GraphTypes.fs" />
     <Compile Include="Utils/Types.fs" />
     <Compile Include="Utils/Utils.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="Attributes.fs" />
     <Compile Include="Resolvers.fs" />
     <Compile Include="Inference.fs" />
-    <Compile Include="Define.fs" />
-    <Compile Include="Define/Argument.fs" />
-    <Compile Include="Define/EnumCase.fs" />
-    <Compile Include="Define/Directive.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="ValueConverters.fs" />
     <Compile Include="Builder/Base.fs" />
-    <Compile Include="Builder/Argument.fs" />
-    <Compile Include="Builder/Directive.fs" />
-    <Compile Include="Builder/Enum.fs" />
-    <Compile Include="Builder/Interface.fs" />
-    <Compile Include="Builder/InputObject.fs" />
-    <Compile Include="Builder/Object.fs" />
-    <Compile Include="Builder/Field.fs" />
-    <Compile Include="Builder/Schema.fs" />
-    <Compile Include="Builder/Union.fs" />
-    <Compile Include="Builder.fs" />
-    <Compile Include="NameTransformers.fs" />
-    <Compile Include="Auto/Base/Update.fs" />
-    <Compile Include="Auto/Base/Field.fs" />
-    <Compile Include="Auto/Scalar.fs" />
-    <Compile Include="Auto/Enum.fs" />
-    <Compile Include="Auto/Interface.fs" />
-    <Compile Include="Auto/Union.fs" />
-    <Compile Include="Auto/Object.fs" />
-    <Compile Include="Auto/InputObject.fs" />
-    <Compile Include="Auto.fs" />
-    <Compile Include="Argument.fs" />
+    <Compile Include="Builder/Utils.fs" />
+    <Compile Include="Builder/Types.fs" />
+    <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <ProjectReference Include="..\..\..\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
+    <!-- <PackageReference Include="GraphQL" Version="2.4.0" /> -->
   </ItemGroup>
 </Project>

@@ -7,7 +7,6 @@ open FSharp.Reflection
 open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Types
-open Newtonsoft.Json
 
 open GraphQL.FSharp.Utils
 
@@ -28,7 +27,8 @@ module Handlers =
         | null -> None
         | x ->
             unionValue
-                (fun case [|value|] ->
+                (fun case args ->
+                    let value = match args with [|value|] -> value | _ -> failwith "Failed to get value out of union case!"
                     match case with
                     | CaseTag 0 -> None
                     | CaseTag 1 -> Some value
@@ -38,7 +38,8 @@ module Handlers =
 
     let resultValue x =
         unionValue
-            (fun case [|value|] ->
+            (fun case args ->
+                let value = match args with [|value|] -> value | _ -> failwith "Failed to get value out of union case!"
                 match case with
                 | CaseTag 0 -> Ok value
                 | CaseTag 1 -> Error value
@@ -88,66 +89,28 @@ let inline private resolveTaskHandler handler (f: _ -> _ Task) =
                 |> box
     }
 
-// FIXME: This is a hacky way to do this right now.
-let getDict x =
-    try
-        JsonConvert.SerializeObject x
-        |> JsonConvert.DeserializeObject<Dictionary<string, obj>>
-        |> Some
-    with _ -> None
-
-let handleObject (ctx: ResolveFieldContext) x =
+let handleObject (ctx: #ResolveFieldContext<_>) x =
     match box x with
     | null -> null
-    | Option (_, opt) -> Option.toObj opt
+    | Option (_, opt) ->
+        Option.toObj opt
     | Result (_, _, result) ->
         match result with
         | Ok value -> value
         | Error error ->
-            let executionError =
-                match getDict error with
-                | Some dict -> ExecutionError (error.GetType().Name, dict :> IDictionary)
+            ctx.Errors.Add <|
+                match Dictionary.ofObj error with
+                | Some dict ->
+                    ExecutionError (
+                        message = error.GetType().Name,
+                        data = (dict :> IDictionary)
+                    )
                 | None ->
-                    string error
-                    |> ExecutionError
-            executionError
-            |> ctx.Errors.Add
+                    ExecutionError (
+                        message = string error
+                    )
             null
-    | x -> x
-
-let withSource f =
-    fun (x: ResolveFieldContext<_>) -> f x.Source
+    | value -> value
 
 let resolve f = resolveHandler handleObject f
 let resolveAsync f = resolveTaskHandler handleObject f
-
-let getTask (obj: obj) =
-    let source = TaskCompletionSource<obj> ()
-    (obj :?> Task)
-        .ContinueWith(fun t ->
-            if t.IsCanceled then source.SetCanceled ()
-            elif t.IsFaulted then source.SetException t.Exception
-            else source.SetResult (t.GetType().GetProperty("Result").GetValue t)
-        )
-        |> ignore
-    source.Task
-
-let resolveInfer f =
-    {
-        new IFieldResolver with
-            member __.Resolve ctx =
-                let result =
-                    ResolveFieldContext<_> ctx
-                    |> f
-                    |> box
-
-                match result.GetType () with
-                | Task _ ->
-                    getTask result
-                    |> taskMap (handleObject ctx)
-                    |> box
-                | _ ->
-                    result
-                    |> handleObject ctx
-                    |> box
-    }

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -9,7 +10,6 @@
     <Compile Include="Assert.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GraphQL" Version="2.4.0" />
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
     <PackageReference Include="nunit" Version="3.11.0" />
     <PackageReference Include="Unquote" Version="4.0.0" />

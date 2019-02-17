@@ -3,44 +3,44 @@ module GraphQL.FSharp.Inference
 open System
 open GraphQL.Types
 
-open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
-let rec unwrapType checkNullability graphTypeGetter ``type`` =
+let rec unwrapType nonNullDefault get ``type`` =
     let graphType, isNull =
         match ``type`` with
         | Nullable innerType
-        | Option innerType
-        | Result innerType  ->
-            let ``type`` = unwrapType false graphTypeGetter innerType
+        | Option innerType ->
+            let ``type`` = unwrapType false get innerType
             ``type``, true
+
+        | Result innerType  ->
+            let ``type`` = unwrapType false get innerType
+            ``type``, false
 
         | Enumerable innerType ->
             let ``type`` =
-                unwrapType checkNullability graphTypeGetter innerType
+                unwrapType nonNullDefault get innerType
                 |> ListGraphType
                 :> IGraphType
             ``type``, false
 
         | Observable innerType
         | Task innerType ->
-            let ``type`` = unwrapType checkNullability graphTypeGetter innerType
+            let ``type`` = unwrapType nonNullDefault get innerType
             ``type``, true
 
         | innerType ->
             let ``type`` =
-                graphTypeGetter innerType
-                |> Option.toObj
+                get innerType
             ``type``, false
 
-    if checkNullability && not isNull
+    if nonNullDefault && not isNull
     then NonNullGraphType graphType :> IGraphType
     else graphType
 
 let private graphType (f: unit -> #ScalarGraphType) = f >> (fun graph -> graph :> ScalarGraphType)
 
 let defaultTypes = dict [
-    typeof<unit>, graphType UnitGraphType
     typeof<string>, graphType StringGraphType
     typeof<bool>, graphType BooleanGraphType
     typeof<float>, graphType FloatGraphType
@@ -69,19 +69,7 @@ let getDefaultTypeOrReference ``type`` =
     getDefaultType ``type``
     |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
-    |> Some
 
-let getDefaultTypeOrInputReference ``type`` =
-    getDefaultType ``type``
-    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
-    |> Option.defaultValue (
-        sprintf "%sInput" ``type``.Name
-        |> GraphQLTypeReference
-        :> IGraphType
-    )
-    |> Some
+let (|UnwrappedNonNull|)  ``type`` = unwrapType true getDefaultTypeOrReference ``type``
 
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``
-let createReferenceInput ``type`` = unwrapType true getDefaultTypeOrInputReference ``type``
-let createReferenceNoChecks ``type`` = unwrapType false getDefaultTypeOrReference ``type``
-let createReferenceConfigure ``type`` checkNullability = unwrapType checkNullability getDefaultTypeOrReference ``type``

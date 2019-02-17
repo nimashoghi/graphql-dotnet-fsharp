@@ -1,17 +1,25 @@
 module GraphQL.FSharp.CommandLineSample.Schema
 
 open System.Threading.Tasks
-open GraphQL.FSharp
 open GraphQL.FSharp.Builder
 
 open GraphQL.FSharp.CommandLineSample.Model
 
-let MyTypeGraph = Auto.Object<MyType>
+let MyTypeGraph =
+    object<MyType> {
+        fields [
+            field {
+                method (fun this _ -> this.GetSomethingSync ())
+            }
+            field {
+                methodAsync (fun this _ -> this.GetSomethingAsync ())
+            }
+        ]
+    }
 
 let Query =
     query [
-        field {
-            name "getMyType"
+        endpoint "getMyType" {
             resolveAsync (fun _ -> Task.FromResult <| MyType ())
         }
     ]
