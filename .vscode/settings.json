@@ -1,0 +1,6 @@
+{
+    "search.exclude": {
+        "**/.fake": true,
+        "**/dependencies": true
+    }
+}

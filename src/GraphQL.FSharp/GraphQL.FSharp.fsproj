@@ -18,7 +18,7 @@
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
+    <ProjectReference Include="..\..\dependencies\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
     <!-- <PackageReference Include="GraphQL" Version="2.4.0" /> -->
   </ItemGroup>
 </Project>

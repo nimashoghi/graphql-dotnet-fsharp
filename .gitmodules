@@ -1,0 +1,6 @@
+[submodule "dependencies/graphql-dotnet"]
+	path = dependencies/graphql-dotnet
+	url = https://github.com/nimashoghi/graphql-dotnet.git
+[submodule "dependencies/server"]
+	path = dependencies/server
+	url = https://github.com/graphql-dotnet/server.git
