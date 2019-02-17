@@ -33,8 +33,50 @@ type DirectiveBuilder () =
         state.PossibleLocations <- locations
         state
 
+[<AutoOpen>]
+module internal EnumHelpers =
+    open FSharp.Reflection
+
+    let addEnumValues (enum: Enumeration<'t>) =
+        if typeof<'t>.IsEnum then
+            Enum.GetNames typeof<'t>
+            |> Array.map (fun name ->
+                EnumValueDefinition (
+                    Name = name,
+                    Value = Enum.Parse (typeof<'t>, name)
+                )
+            )
+            |> Array.iter enum.AddValue
+        elif FSharpType.IsUnion typeof<'t> then
+            FSharpType.GetUnionCases typeof<'t>
+            |> Array.map (fun case ->
+                if (not << Array.isEmpty) <| case.GetFields () then
+                    failwith "Union case cannot have fields!"
+                else
+                    EnumValueDefinition (
+                        Name = case.Name,
+                        Value = FSharpValue.MakeUnion (case, [||])
+                    )
+            )
+            |> Array.iter enum.AddValue
+        else failwith "Invalid enum type!"
+
 type EnumerationBuilder () =
     inherit BasicGraphTypeBuilder<Enumeration> ()
+
+    member __.auto<'source> (?Name, ?Description, ?Metadata) =
+        let graph: Enumeration<'source> =
+            Enumeration<'source> (
+                Name = typeof<'source>.Name
+            )
+
+        addEnumValues graph
+
+        Name |> Option.iter (fun name -> graph.Name <- name)
+        Description |> Option.iter (fun description -> graph.Description <- description)
+        Metadata |> Option.iter (fun metadata -> graph.Metadata <- dict metadata)
+
+        graph
 
     member __.Yield (_: unit) = Enumeration ()
 
@@ -46,7 +88,7 @@ type EnumerationBuilder () =
         state
 
 [<AutoOpen>]
-module MyModule =
+module FieldHelpers =
     open FSharp.Reflection
     open GraphQL.FSharp.Inference
 
@@ -73,8 +115,6 @@ module MyModule =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
         assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
-
-        printfn "Arguments are: %A" ((ctx.Arguments.Keys, ctx.Arguments.Values) ||> Seq.zip |> Seq.toList)
 
         let fields =
             FSharpType.GetRecordFields typeof<'arguments>
@@ -237,12 +277,13 @@ type SchemaBuilder () =
 
         state
 
-open System.Reflection
-open FSharp.Reflection
-open GraphQL.FSharp.Inference
 
 [<AutoOpen>]
 module internal UnionUtils =
+    open System.Reflection
+    open FSharp.Reflection
+    open GraphQL.FSharp.Inference
+
     let makePropField infer (prop: PropertyInfo) =
         Field (
             Name = prop.Name,
@@ -291,27 +332,40 @@ module internal UnionUtils =
         |> addFields<'source> case
         |> setIsTypeOf<'source> case
 
-    let makePossibleTypes<'source> () =
-        if typeof<'source> = typeof<obj> then [||] else
+    let addPossibleTypes (union: Union<'source>) =
+        if typeof<'source> = typeof<obj> then () else
 
         assert (FSharpType.IsUnion typeof<'source>)
 
         // TODO: Start using FSharpValue.Precompute...
-        FSharpType.GetUnionCases typeof<'source>
-        |> Array.map makeUnionCase<'source>
-        |> Array.map (fun object -> object :> IObjectGraphType)
+        let cases =
+            FSharpType.GetUnionCases typeof<'source>
+            |> Array.map makeUnionCase<'source>
+            |> Array.map (fun object -> object :> IObjectGraphType)
 
-type UnionBuilder<'source> () =
-    inherit BasicGraphTypeBuilder<Union<'source>> ()
+        union.PossibleTypes <- cases
 
-    member __.Yield (_: unit) =
-        Union<'source> (
-            Name = typeof<'source>.Name,
-            PossibleTypes = makePossibleTypes<'source> ()
-        )
+type UnionBuilder () =
+    inherit BasicGraphTypeBuilder<Union> ()
+
+    member __.auto<'source> (?Name, ?Description, ?Metadata) =
+        let graph: Union<'source> =
+            Union<'source> (
+                Name = typeof<'source>.Name
+            )
+
+        addPossibleTypes graph
+
+        Name |> Option.iter (fun name -> graph.Name <- name)
+        Description |> Option.iter (fun description -> graph.Description <- description)
+        Metadata |> Option.iter (fun metadata -> graph.Metadata <- dict metadata)
+
+        graph
+
+    member __.Yield (_: unit) = Union ()
 
     [<CustomOperation "cases">]
-    member __.Cases (state: Union<'source>, cases) =
+    member __.Cases (state: Union, cases) =
         state.PossibleTypes <- List.toSeq cases
 
         state

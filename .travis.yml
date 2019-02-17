@@ -4,9 +4,11 @@ mono: none
 dotnet: 2.2
 sudo: required
 dist: xenial
+before_install:
+    - wget https://github.com/fsharp/FAKE/releases/download/5.12.1/fake-dotnetcore-portable.zip
+    - unzip ./fake-dotnetcore-portable.zip -d ./fake-dotnetcore-portable/
 script:
-    - dotnet tool install --global fake-cli
-    - fake build
-    - fake build -t Test
+    - dotnet ./fake-dotnetcore-portable/fake.dll build
+    - dotnet ./fake-dotnetcore-portable/fake.dll build -t Test
 global:
     - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true

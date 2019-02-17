@@ -20,6 +20,11 @@ module Model =
     | First of Name: string
     | Second of Age: int
 
+    type MyEnum =
+    | First = 0
+    | Second = 1
+    | Thrid = 2
+
 module Schema =
     open Model
 
@@ -49,17 +54,18 @@ module Schema =
             ]
         }
 
-    let MyUnionGraph =
-        union<MyUnion> {
-            name "MyUnion"
-        }
+    let MyUnionGraph = union.auto<MyUnion> ()
+    let MyEnumGraph = enum.auto<MyEnum> ()
 
     let Query =
         query [
-            endpoint "getMyUnion" {
+            endpoint "GetMyEnum" {
+                resolveAsync (fun _ -> Task.FromResult <| MyEnum.Thrid)
+            }
+            endpoint "GetMyUnion" {
                 resolveAsync (fun _ -> Task.FromResult <| First "hello")
             }
-            endpoint "getMyType" {
+            endpoint "GetMyType" {
                 resolveAsync (fun _ -> Task.FromResult <| MyType ())
             }
         ]
@@ -70,6 +76,7 @@ module Schema =
             types [
                 MyTypeGraph
                 MyUnionGraph
+                MyEnumGraph
             ]
         }
 

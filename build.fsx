@@ -1,5 +1,5 @@
 #r "paket:
-nuget FSharp.Core 4.5
+nuget FSharp.Core
 nuget Fake.Core.Target
 nuget Fake.DotNet.Cli //"
 #load "./.fake/build.fsx/intellisense.fsx"
