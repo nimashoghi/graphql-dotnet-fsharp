@@ -144,6 +144,18 @@ module FieldHelpers =
                 f ctx.Source (makeArguments<'arguments, _> ctx)
         )
 
+    let resolveCtxMethod (f: ResolveFieldContext<'source> -> 'arguments -> 'field) =
+        resolve (
+            fun (ctx: ResolveFieldContext<'source>) ->
+                f ctx (makeArguments<'arguments, _> ctx)
+        )
+
+    let resolveCtxMethodAsync (f: ResolveFieldContext<'source> -> 'arguments -> Task<'field>) =
+        resolveAsync (
+            fun (ctx: ResolveFieldContext<'source>) ->
+                f ctx (makeArguments<'arguments, _> ctx)
+        )
+
     let setField (|FieldName|_|) resolver (state: Field<_, _>) (expr: Expr<_ -> _>) =
             let f, name =
                 match expr with
@@ -190,15 +202,15 @@ type FieldBuilder<'field, 'source> (?name) =
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolve">]
-    member __.Resolve (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> 'field) =
-        state.Resolver <- resolve resolver
+    member __.Resolve (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> 'arguments -> 'field) =
+        state.Resolver <- resolveCtxMethod resolver
 
         state
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> Task<'field>) =
-        state.Resolver <- resolveAsync resolver
+    member __.ResolveAsync (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> 'arguments -> Task<'field>) =
+        state.Resolver <- resolveCtxMethodAsync resolver
 
         state
         |> Field.setType<'field, 'source>

@@ -15,7 +15,7 @@ module ``configure test`` =
     let ``basic test`` () =
         field {
             name "getTask"
-            resolveAsync (fun _ -> Task.FromResult "Hello")
+            resolveAsync (fun _ _ -> Task.FromResult "Hello")
             configure (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
         }
         |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
@@ -44,7 +44,7 @@ module Quotations =
 let ``Builder Field task return types`` () =
     field {
         name "getTask"
-        resolveAsync (fun _ -> Task.FromResult "Hello")
+        resolveAsync (fun _ _ -> Task.FromResult "Hello")
     }
     |> fieldEqual "getTask" (nonNull StringGraphType)
 
@@ -62,7 +62,7 @@ let ``Builder Field task return types inferred`` () =
 let ``Builder Field option types`` () =
     field {
         name "optionField"
-        resolve (fun _ -> Some "hello")
+        resolve (fun _ _ -> Some "hello")
     }
     |> fieldEqual "optionField" (nullable StringGraphType)
 
