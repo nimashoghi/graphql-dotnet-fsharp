@@ -141,19 +141,19 @@ module FieldHelpers =
     let resolveMethod (f: 'source -> 'arguments -> 'field) =
         resolve (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx.Source (makeArguments<'arguments, _> ctx)
+                f ctx.Source (makeArguments<'arguments, 'source> ctx)
         )
 
     let resolveCtxMethod (f: ResolveContext<'source> -> 'arguments -> 'field) =
         resolve (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx (makeArguments<'arguments, _> ctx)
+                f ctx (makeArguments<'arguments, 'source> ctx)
         )
 
     let resolveCtxMethodAsync (f: ResolveContext<'source> -> 'arguments -> Task<'field>) =
         resolveAsync (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx (makeArguments<'arguments, _> ctx)
+                f ctx (makeArguments<'arguments, 'source> ctx)
         )
 
     let setField (|FieldName|_|) resolver (state: Field<_, _>) (expr: Expr<_ -> _>) =
@@ -206,6 +206,7 @@ type FieldBuilder<'field, 'source> (?name) =
         state.Resolver <- resolveCtxMethod resolver
 
         state
+        |> addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolveAsync">]
@@ -213,6 +214,7 @@ type FieldBuilder<'field, 'source> (?name) =
         state.Resolver <- resolveCtxMethodAsync resolver
 
         state
+        |> addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "subscribe">]
