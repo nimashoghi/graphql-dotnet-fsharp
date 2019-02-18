@@ -25,20 +25,20 @@ let rec internal (|DeepPattern|_|) (|Pattern|_|) (expr: Expr) =
 
 let internal (|GetMethod|_|) expr =
     match expr with
-    | Call (Some (Var this), method, _) -> Some (this, method)
+    | Call (Some _, method, _) -> Some method
     | _ -> None
 
 let internal (|GetProperty|_|) expr =
     match expr with
-    | PropertyGet (Some (Var this), prop, _) -> Some (this, prop)
+    | PropertyGet (Some _, prop, _) -> Some prop
     | _ -> None
 
 let (|FieldName|_|) expr =
     expr
     |> (|DeepPattern|_|) (|GetProperty|_|)
-    |> Option.map (fun (_, prop) -> prop.Name)
+    |> Option.map (fun prop -> prop.Name)
 
 let (|MethodName|_|) expr =
     expr
     |> (|DeepPattern|_|) (|GetMethod|_|)
-    |> Option.map (fun (_, method) -> method.Name)
+    |> Option.map (fun method -> method.Name)
