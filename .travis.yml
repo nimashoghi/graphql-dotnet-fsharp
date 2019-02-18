@@ -1,5 +1,3 @@
-language: csharp
-solution: graphql-dotnet-fsharp.sln
 services:
     - docker
 script:
