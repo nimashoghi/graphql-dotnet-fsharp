@@ -7,10 +7,9 @@
     <Compile Include="Utils/GraphTypes.fs" />
     <Compile Include="Utils/Types.fs" />
     <Compile Include="Utils/Utils.fs" />
-    <Compile Include="Resolvers.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="ValueConverters.fs" />
+    <Compile Include="Resolvers.fs" />
     <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Utils.fs" />
     <Compile Include="Builder/Types.fs" />
@@ -18,7 +17,6 @@
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\dependencies\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
-    <!-- <PackageReference Include="GraphQL" Version="2.4.0" /> -->
+    <PackageReference Include="GraphQL" Version="2.4.0" />
   </ItemGroup>
 </Project>

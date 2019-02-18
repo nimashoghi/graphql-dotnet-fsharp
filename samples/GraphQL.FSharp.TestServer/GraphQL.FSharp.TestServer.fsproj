@@ -9,18 +9,14 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\dependencies\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
-    <ProjectReference Include="..\..\dependencies\server\src\Transports.AspNetCore\Transports.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\dependencies\server\src\Transports.Subscriptions.WebSockets\Transports.Subscriptions.WebSockets.csproj" />
-    <ProjectReference Include="..\..\dependencies\server\src\Ui.Playground\Ui.Playground.csproj" />
     <ProjectReference Include="..\..\src\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
     <ProjectReference Include="..\..\src\GraphQL.FSharp.Server\GraphQL.FSharp.Server.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- <PackageReference Include="GraphQL" Version="2.4.0" /> -->
-    <!-- <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.4.0" /> -->
-    <!-- <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.4.0" /> -->
-    <!-- <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.4.0" /> -->
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.4.0" />
+    <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.4.0" />
+    <PackageReference Include="GraphQL.Server.Ui.Playground" Version="3.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Taskbuilder.fs" Version="2.1.0" />
   </ItemGroup>

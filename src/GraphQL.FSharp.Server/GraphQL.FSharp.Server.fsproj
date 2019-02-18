@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\dependencies\graphql-dotnet\src\GraphQL\GraphQL.csproj" />
-    <ProjectReference Include="..\..\dependencies\server\src\Core\Core.csproj" />
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+    <PackageReference Include="GraphQL.Server.Core" Version="3.4.0" />
   </ItemGroup>
 </Project>

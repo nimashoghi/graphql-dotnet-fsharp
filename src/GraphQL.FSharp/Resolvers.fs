@@ -1,13 +1,13 @@
 module GraphQL.FSharp.Resolvers
 
 open System.Collections
-open System.Collections.Generic
 open System.Threading.Tasks
 open FSharp.Reflection
 open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Types
 
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
 let private getSource (ctx: ResolveFieldContext<_>) = ctx.Source
@@ -112,5 +112,6 @@ let handleObject (ctx: #ResolveFieldContext<_>) x =
             null
     | value -> value
 
-let resolve f = resolveHandler handleObject f
-let resolveAsync f = resolveTaskHandler handleObject f
+let convertContext (ctx: ResolveFieldContext<'source>) = ResolveContext<'source> ctx
+let resolve f = resolveHandler handleObject (convertContext >> f)
+let resolveAsync f = resolveTaskHandler handleObject (convertContext >> f)

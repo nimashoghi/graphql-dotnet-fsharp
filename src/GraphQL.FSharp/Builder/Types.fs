@@ -111,7 +111,7 @@ module FieldHelpers =
 
         field
 
-    let makeArguments<'arguments, 'source> (ctx: ResolveFieldContext<'source>) =
+    let makeArguments<'arguments, 'source> (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
         assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
@@ -140,19 +140,19 @@ module FieldHelpers =
 
     let resolveMethod (f: 'source -> 'arguments -> 'field) =
         resolve (
-            fun (ctx: ResolveFieldContext<'source>) ->
+            fun (ctx: ResolveContext<'source>) ->
                 f ctx.Source (makeArguments<'arguments, _> ctx)
         )
 
-    let resolveCtxMethod (f: ResolveFieldContext<'source> -> 'arguments -> 'field) =
+    let resolveCtxMethod (f: ResolveContext<'source> -> 'arguments -> 'field) =
         resolve (
-            fun (ctx: ResolveFieldContext<'source>) ->
+            fun (ctx: ResolveContext<'source>) ->
                 f ctx (makeArguments<'arguments, _> ctx)
         )
 
-    let resolveCtxMethodAsync (f: ResolveFieldContext<'source> -> 'arguments -> Task<'field>) =
+    let resolveCtxMethodAsync (f: ResolveContext<'source> -> 'arguments -> Task<'field>) =
         resolveAsync (
-            fun (ctx: ResolveFieldContext<'source>) ->
+            fun (ctx: ResolveContext<'source>) ->
                 f ctx (makeArguments<'arguments, _> ctx)
         )
 
@@ -168,7 +168,7 @@ module FieldHelpers =
 
             state
 
-    let withSource f (ctx: ResolveFieldContext<_>) = f ctx.Source
+    let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
 type FieldBuilder<'field, 'source> (?name) =
     inherit TypedFieldBuilder<Field<'field, 'source>> ()
@@ -202,14 +202,14 @@ type FieldBuilder<'field, 'source> (?name) =
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolve">]
-    member __.Resolve (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> 'arguments -> 'field) =
+    member __.Resolve (state: Field<'field, 'source>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
         state.Resolver <- resolveCtxMethod resolver
 
         state
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (state: Field<'field, 'source>, resolver: ResolveFieldContext<'source> -> 'arguments -> Task<'field>) =
+    member __.ResolveAsync (state: Field<'field, 'source>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
         state.Resolver <- resolveCtxMethodAsync resolver
 
         state
@@ -218,7 +218,7 @@ type FieldBuilder<'field, 'source> (?name) =
     [<CustomOperation "subscribe">]
     member __.Subscribe (state: Field<'field, 'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
         state.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
-        state.Resolver <- resolve (fun (ctx: ResolveFieldContext<'source>) -> unbox<'field> ctx.Source)
+        state.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
 
         state
         |> Field.setType<'field, 'source>
@@ -226,7 +226,7 @@ type FieldBuilder<'field, 'source> (?name) =
     [<CustomOperation "subscribeAsync">]
     member __.SubscribeAsync (state: Field<'field, 'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         state.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-        state.Resolver <- resolve (fun (ctx: ResolveFieldContext<'source>) -> unbox<'field> ctx.Source)
+        state.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
 
         state
         |> Field.setType<'field, 'source>

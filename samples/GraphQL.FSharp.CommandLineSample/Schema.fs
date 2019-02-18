@@ -20,7 +20,7 @@ let MyTypeGraph =
 let Query =
     query [
         endpoint "getMyType" {
-            resolveAsync (fun _ -> Task.FromResult <| MyType ())
+            resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
         }
     ]
 

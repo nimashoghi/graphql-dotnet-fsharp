@@ -39,8 +39,3 @@ let subscription list =
 let schema = SchemaBuilder ()
 
 let union = UnionBuilder ()
-
-// TODO: place this somewhere else
-do
-    Option.main ()
-    Result.main ()
