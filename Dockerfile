@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic-scm
+FROM buildpack-deps:bionic-scm as dotnet-sdk-2-2
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -26,6 +26,8 @@ ENV ASPNETCORE_URLS=http://+:80 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_USE_POLLING_FILE_WATCHER=true \
     NUGET_XMLDOC_MODE=skip
+
+FROM dotnet-sdk-2-2
 
 WORKDIR /usr/src/app
 

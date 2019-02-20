@@ -1,19 +1,11 @@
-﻿module GraphQL.FSharp.Server
+﻿[<AutoOpen>]
+module GraphQL.FSharp.Server.NameConverter
 
 open GraphQL.Conversion
-open GraphQL.FSharp
-open GraphQL.FSharp.Types
-open GraphQL.Types
 open GraphQL.Server
-open GraphQL.Server.Authorization.AspNetCore
 open GraphQL.Server.Internal
+open GraphQL.Types
 open Microsoft.Extensions.DependencyInjection
-
-type FieldBuilder<'field, 'source> with
-    [<CustomOperation "authorize">]
-    member __.Authorize (field: Field<'field, 'source>, policy) =
-        field.AuthorizeWith policy
-        field
 
 type GraphQLExecuter<'t when 't :> ISchema> (schema, documentExecutor, options, listeners, validationRules) =
     inherit DefaultGraphQLExecuter<'t> (schema, documentExecutor, options, listeners, validationRules)
