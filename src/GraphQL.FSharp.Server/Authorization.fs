@@ -8,7 +8,7 @@ open GraphQL.Server
 open GraphQL.Server.Authorization.AspNetCore
 open Microsoft.AspNetCore.Authorization
 
-let internal mkName name = sprintf "GraphQL.FSharp.Server.Auth.%s" name
+let mkName name = sprintf "GraphQL.FSharp.Server.Auth.%s" name
 
 type Field<'field, 'source> with
     member inline this.Authorize< ^t when ^t: (static member Authorize: AuthorizationPolicyBuilder -> (^t -> AuthorizationPolicyBuilder))> (policy: ^t) =
