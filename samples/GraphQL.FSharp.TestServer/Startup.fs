@@ -60,13 +60,13 @@ module Schema =
     let Query =
         query [
             endpoint "GetMyEnum" {
-                resolveAsync (fun _ -> Task.FromResult <| MyEnum.Thrid)
+                resolveAsync (fun _ _ -> Task.FromResult <| MyEnum.Thrid)
             }
             endpoint "GetMyUnion" {
-                resolveAsync (fun _ -> Task.FromResult <| First "hello")
+                resolveAsync (fun _ _ -> Task.FromResult <| First "hello")
             }
             endpoint "GetMyType" {
-                resolveAsync (fun _ -> Task.FromResult <| MyType ())
+                resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
             }
         ]
 

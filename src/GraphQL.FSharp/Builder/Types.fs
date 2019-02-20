@@ -157,16 +157,21 @@ module FieldHelpers =
         )
 
     let setField (|FieldName|_|) resolver (state: Field<_, _>) (expr: Expr<_ -> _>) =
-            let f, name =
+        let f, name =
+            match expr with
+            | WithValueTyped (f, expr) ->
                 match expr with
-                | WithValueTyped (f, FieldName name) -> f, name
-                | _ -> invalidArg "getter" "Could not find field name and/or getter function from getter expression. Property only supports simple expressions. Use resolve instead."
+                | FieldName name -> f, Some name
+                | _ -> f, None
+            | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
 
-            if isNull state.Name || state.Name = ""
-            then state.Name <- name
-            state.Resolver <- resolver f
+        match name, state.Name with
+        | Some name, stateName when (isNull stateName || stateName = "") -> state.Name <- name
+        | _ -> ()
 
-            state
+        state.Resolver <- resolver f
+
+        state
 
     let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
