@@ -3,6 +3,7 @@ module GraphQL.FSharp.IntegrationTests.Tasks
 open System.Threading.Tasks
 open NUnit.Framework
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
@@ -49,20 +50,20 @@ let ``Schema using synchronous resolver with methods returning task works proper
     let MyTypeGraph =
         object<MyType> {
             fields [
-                field {
+                field __ {
                     method (fun this _ -> this.GetSomethingSync ())
                 }
-                field {
+                field __ {
                     methodAsync (fun this _ -> this.GetSomethingAsync ())
                 }
             ]
         }
     let Query =
         query [
-            endpoint "GetMyType" {
+            endpoint __ "GetMyType" {
                 resolve (fun _ _ -> MyType ())
             }
-            endpoint "GetMyTypeAsync" {
+            endpoint __ "GetMyTypeAsync" {
                 resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
             }
         ]

@@ -14,10 +14,11 @@ open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
-type ArgumentBuilder<'t> () =
+type ArgumentBuilder<'t> (``type``) =
     inherit TypedEntityBuilder<Argument<'t>> ()
 
-    member __.Yield (_: unit) = Argument<'t> ()
+    member __.Yield (_: unit) =
+        Argument<'t> (?``type`` = Option.ofObj ``type``)
 
 type DirectiveBuilder () =
     inherit EntityBuilder<Directive> ()
@@ -175,10 +176,14 @@ module FieldHelpers =
 
     let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
-type FieldBuilder<'field, 'source> (?name) =
+type FieldBuilder<'field, 'source> (``type``, ?name) =
     inherit TypedFieldBuilder<Field<'field, 'source>> ()
 
-    member __.Yield (_: unit) = Field<'field, 'source> (Name = Option.toObj name)
+    member __.Yield (_: unit) =
+        Field<'field, 'source> (
+            ?``type`` = Option.ofObj ``type``,
+            Name = Option.toObj name
+        )
 
     [<CustomOperation "arguments">]
     member __.Arguments (state: Field<'field, 'source>, arguments) =

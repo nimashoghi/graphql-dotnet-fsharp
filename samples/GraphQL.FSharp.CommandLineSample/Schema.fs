@@ -2,16 +2,17 @@ module GraphQL.FSharp.CommandLineSample.Schema
 
 open System.Threading.Tasks
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.Types
 
 open GraphQL.FSharp.CommandLineSample.Model
 
 let MyTypeGraph =
     object<MyType> {
         fields [
-            field {
+            field __ {
                 method (fun this _ -> this.GetSomethingSync ())
             }
-            field {
+            field __ {
                 methodAsync (fun this _ -> this.GetSomethingAsync ())
             }
         ]
@@ -19,7 +20,7 @@ let MyTypeGraph =
 
 let Query =
     query [
-        endpoint "getMyType" {
+        endpoint __ "getMyType" {
             resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
         }
     ]

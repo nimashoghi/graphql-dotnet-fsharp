@@ -1,4 +1,4 @@
-module internal GraphQL.FSharp.BuilderUtils
+module GraphQL.FSharp.BuilderUtils
 
 open System
 open GraphQL.Types
@@ -7,11 +7,14 @@ open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
+let inline setType systemType (source: ^t) =
+    let resolvedType = (^t: (member ResolvedType: IGraphType) source)
+    let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
+    if isNull resolvedType then setResolvedType (createReference systemType)
+    source
+
 module Field =
-    let setType<'field, 'source> (field: Field<'field, 'source>) =
-        if isNull field.ResolvedType
-        then field.ResolvedType <- createReference typeof<'field>
-        field
+    let setType<'field, 'source> (field: Field<'field, 'source>) = setType typeof<'field> field
 
 module Schema =
     let abstractClasses ``type`` =
@@ -35,11 +38,11 @@ module Schema =
     let handleInterfaces (types: IGraphType list) =
         let objects = types |> List.choose (|ObjectGraphType|_|)
         let interfaces = types |> List.choose (|InterfaceGraphType|_|)
-        (objects, interfaces)
-        ||> List.allPairs
+        List.allPairs objects interfaces
         |> List.filter (fun ((_, object), (_, ``interface``)) -> extends object ``interface``)
         |> List.iter (fun ((object, _), (``interface``, _)) ->
             ``interface``.AddPossibleType object
-            object.AddResolvedInterface ``interface``)
+            object.AddResolvedInterface ``interface``
+        )
 
         types

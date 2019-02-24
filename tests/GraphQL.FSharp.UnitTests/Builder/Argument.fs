@@ -1,9 +1,8 @@
 module GraphQL.FSharp.UnitTests.Builder.Argument
 
 open NUnit.Framework
-open Swensen.Unquote
-open GraphQL.FSharp
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.Types
 open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
@@ -13,16 +12,16 @@ open GraphQL.FSharp.TestUtils.Assert
 
 [<Test>]
 let ``configure test`` () =
-    argument<int> {
+    argument<int> __ {
         name "myArg"
-        configure (fun arg -> arg.ResolvedType <- FloatGraphType ())
+        configure (fun arg -> arg.ResolvedType <- FloatGraph)
         configure (fun arg -> arg.Name <- "changedName")
     }
     |> argumentEqual "changedName" (nullable FloatGraphType) None
 
 [<Test>]
 let ``basic test`` () =
-    argument<int> {
+    argument<int> __ {
         name "myArg"
     }
     |> argumentEqual "myArg" (nonNull IntGraphType) None

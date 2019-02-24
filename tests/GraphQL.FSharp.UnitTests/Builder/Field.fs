@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Builder
+open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 open GraphQL.Types
 
@@ -13,7 +14,7 @@ open GraphQL.FSharp.TestUtils.Assert
 module ``configure test`` =
     [<Test>]
     let ``basic test`` () =
-        field {
+        field __ {
             name "getTask"
             resolveAsync (fun _ _ -> Task.FromResult "Hello")
             configure (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
@@ -42,7 +43,7 @@ module Quotations =
 
 [<Test>]
 let ``Builder Field task return types`` () =
-    field {
+    field __ {
         name "getTask"
         resolveAsync (fun _ _ -> Task.FromResult "Hello")
     }
@@ -53,14 +54,14 @@ type MyTaskObject() =
 
 [<Test>]
 let ``Builder Field task return types inferred`` () =
-    field {
+    field __ {
         methodAsync (fun (x: MyTaskObject) _ -> x.GetNameStored ())
     }
     |> fieldEqual "GetNameStored" (nonNull StringGraphType)
 
 [<Test>]
 let ``Builder Field option types`` () =
-    field {
+    field __ {
         name "optionField"
         resolve (fun _ _ -> Some "hello")
     }
@@ -73,7 +74,7 @@ type MyOptionObject = {
 
 [<Test>]
 let ``Builder Field option types inferred`` () =
-    field {
+    field __ {
         prop (fun obj -> obj.NameOption)
     }
     |> fieldEqual "NameOption" (nullable StringGraphType)
@@ -89,14 +90,14 @@ type MyType = {
 let ``Builder Field getter invalid argument`` () =
     raises<ArgumentException>
         <@
-            field {
+            field __ {
                 prop (fun x -> x.Name.ToString())
             }
         @>
 
 [<Test>]
 let ``Builder Field valid getter`` () =
-    field {
+    field __ {
         prop (fun x -> x.Name)
     }
     |> fieldEqual "Name" (nonNull StringGraphType)
@@ -108,14 +109,14 @@ type SomeType = {
 
 [<Test>]
 let ``Builder Field inferred field type without default value should be non nullable`` () =
-    field {
+    field __ {
         prop (fun x -> x.Testing)
     }
     |> fieldEqual "Testing" (nonNull BooleanGraphType)
 
 [<Test>]
 let ``Builder Field inferred field type with default value should be nullable`` () =
-    field {
+    field __ {
         prop (fun x -> x.Testing)
         defaultValue false
     }

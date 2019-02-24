@@ -5,10 +5,10 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open GraphQL.Server
-open GraphQL.Types
 open GraphQL.Server.Ui.Playground
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Server
+open GraphQL.FSharp.Types
 
 module Model =
     type MyType() =
@@ -31,7 +31,7 @@ module Schema =
     let MyTypeGraph =
         object<MyType> {
             fields [
-                field {
+                field __ {
                     method (
                         fun
                             this
@@ -45,10 +45,10 @@ module Schema =
                             -> this.MethodWithParam args.IntegerParam args.ListParam args.OptionalParam args.ResultParam
                     )
                 }
-                field {
+                field __ {
                     method (fun this _ -> this.GetSomethingSync ())
                 }
-                field {
+                field __ {
                     methodAsync (fun this _ -> this.GetSomethingAsync ())
                 }
             ]
@@ -59,13 +59,13 @@ module Schema =
 
     let Query =
         query [
-            endpoint "GetMyEnum" {
+            endpoint __ "GetMyEnum" {
                 resolveAsync (fun _ _ -> Task.FromResult <| MyEnum.Thrid)
             }
-            endpoint "GetMyUnion" {
+            endpoint __ "GetMyUnion" {
                 resolveAsync (fun _ _ -> Task.FromResult <| First "hello")
             }
-            endpoint "GetMyType" {
+            endpoint __ "GetMyType" {
                 resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
             }
         ]

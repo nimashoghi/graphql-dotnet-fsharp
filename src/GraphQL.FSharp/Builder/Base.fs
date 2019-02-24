@@ -3,6 +3,7 @@ module GraphQL.FSharp.BuilderBase
 open System.Collections.Generic
 open GraphQL.Types
 
+open GraphQL.FSharp.BuilderUtils
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
@@ -26,8 +27,8 @@ let inline setArguments value (x: ^t) =
     (^t: (member set_Arguments: QueryArguments -> unit) x, value)
     x
 
-let inline setResolvedType value (x: ^t) =
-    (^t: (member set_ResolvedType: IGraphType -> unit) x, value)
+let inline setGraphType value (x: ^t) =
+    (^t: (member set_GraphType: IGraphType -> unit) x, value)
     x
 
 let inline setMetadata value (x: ^t) =
@@ -79,20 +80,20 @@ type TypedEntityBuilder<'t when
                        't: (member set_Metadata: IDictionary<string, obj> -> unit) and
                        't: (member DefaultValue: obj) and
                        't: (member set_DefaultValue: obj -> unit) and
+                       't: (member GraphType: IGraphType) and
+                       't: (member set_GraphType: IGraphType -> unit) and
                        't: (member ResolvedType: IGraphType) and
                        't: (member set_ResolvedType: IGraphType -> unit)> () =
     inherit EntityBuilder<'t> ()
 
     [<CustomOperation "defaultValue">]
-    member inline __.DefaultValue (state: 't, value) =
+    member inline __.DefaultValue (state: 't, value: 'value) =
         setDefaultValue value state
+        |> setType typeof<'value>
 
     [<CustomOperation "type">]
     member inline __.Type (state: 't, ``type``) =
-        setResolvedType ``type`` state
-
-    member inline __.Type (state: 't, ``type``) =
-        setResolvedType (``type`` ()) state
+        setGraphType ``type`` state
 
     member inline __.Run (state: 't) = handleNonNullTypes state
 
@@ -115,6 +116,8 @@ type TypedFieldBuilder<'t when
                       't: (member set_Metadata: IDictionary<string, obj> -> unit) and
                       't: (member DefaultValue: obj) and
                       't: (member set_DefaultValue: obj -> unit) and
+                      't: (member GraphType: IGraphType) and
+                      't: (member set_GraphType: IGraphType -> unit) and
                       't: (member ResolvedType: IGraphType) and
                       't: (member set_ResolvedType: IGraphType -> unit) and
                       't: (member set_DeprecationReason: string -> unit)> () =

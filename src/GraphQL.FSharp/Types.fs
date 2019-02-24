@@ -7,12 +7,59 @@ open GraphQL.Types
 
 open GraphQL.FSharp.Inference
 
-let invalidGraphType =
-    {
-        new GraphType () with
-            override __.Equals _ = false
-    }
-    :> IGraphType
+type NullGraphType (?``type``) =
+    inherit GraphType ()
+
+    member val ResolvedType: IGraphType = Option.toObj ``type`` with get, set
+
+[<AutoOpen>]
+module TypePatterns =
+    let internal getGraphType<'t when 't :> IGraphType> (``type``: IGraphType) =
+        match ``type`` with
+        | :? 't as ``type`` -> Some ``type``
+        | _ -> None
+
+    let (|List|_|) ``type`` = getGraphType<ListGraphType> ``type``
+    let (|NonNull|_|) ``type`` = getGraphType<NonNullGraphType> ``type``
+    let (|Null|_|) ``type`` = getGraphType<NullGraphType> ``type``
+
+    let processNonNullity ``type`` =
+        let rec run isNull (``type``: IGraphType) =
+            match ``type`` with
+            | null -> null
+            | Null ``type`` -> run true ``type``.ResolvedType
+            | List ``type`` -> ListGraphType (run false ``type``.ResolvedType) :> IGraphType
+            | NonNull ``type`` -> ``type`` :> IGraphType
+            | ``type`` when isNull -> ``type``
+            | ``type`` -> NonNullGraphType ``type`` :> IGraphType
+        run false ``type``
+
+[<AutoOpen>]
+module Instances =
+    let internal invalidGraphType =
+        {
+            new GraphType () with
+                override __.Equals _ = false
+        }
+        :> IGraphType
+
+    let BooleanGraph = BooleanGraphType ()
+    let DateGraph = DateGraphType ()
+    let DateTimeGraph = DateTimeGraphType ()
+    let DateTimeOffsetGraph = DateTimeOffsetGraphType ()
+    let DecimalGraph = DecimalGraphType ()
+    let FloatGraph = FloatGraphType ()
+    let DoubleGraph = FloatGraphType ()
+    let IdGraph = IdGraphType ()
+    let GuidGraph = IdGraphType ()
+    let IntGraph = IntGraphType ()
+    let StringGraph = StringGraphType ()
+    let TimeSpanMillisecondsGraph = TimeSpanMillisecondsGraphType ()
+    let TimeSpanSecondsGraph = TimeSpanSecondsGraphType ()
+    let UriGraph = UriGraphType ()
+    let NullGraph (``type``: #IGraphType) = NullGraphType (``type`` :> IGraphType)
+    let ListGraph (``type``: #IGraphType) = ListGraphType (processNonNullity ``type``)
+    let __: IGraphType = null
 
 type ResolveContext<'source> (context: ResolveFieldContext<'source>) =
     inherit ResolveFieldContext<'source> ()
@@ -45,16 +92,36 @@ type ResolveContext<'source> (context: ResolveFieldContext<'source>) =
         try base.GetArgument (argumentType, name, defaultValue)
         with :? InvalidOperationException -> null
 
+module Option =
+    let mapToObj f x =
+        x
+        |> Option.map f
+        |> Option.toObj
+
+
 type Argument (?``type``) =
-    inherit QueryArgument (Option.defaultValue invalidGraphType ``type``)
+    inherit QueryArgument (
+        Instances.invalidGraphType,
+        ResolvedType = (Option.mapToObj processNonNullity ``type``)
+    )
 
     member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
+
+    member __.GraphType
+        with get () = base.ResolvedType
+        and set value = base.ResolvedType <- processNonNullity value
 
 type Argument<'t> (?``type``) =
     inherit Argument (``type`` = (Option.defaultValue (createReference typeof<'t>) ``type``))
 
 type Field (?``type``) =
-    inherit EventStreamFieldType (ResolvedType = Option.toObj ``type``)
+    inherit EventStreamFieldType (
+        ResolvedType = (Option.mapToObj processNonNullity ``type``)
+    )
+
+    member __.GraphType
+        with get () = base.ResolvedType
+        and set value = base.ResolvedType <- processNonNullity value
 
 type Field<'source> (?``type``) =
     inherit Field (?``type`` = ``type``)
@@ -98,3 +165,5 @@ type Union<'t> () =
 type Query = Object<obj>
 type Mutation = Object<obj>
 type Subscription = Object<obj>
+
+type Schema = GraphQL.Types.Schema

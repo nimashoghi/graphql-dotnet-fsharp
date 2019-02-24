@@ -10,8 +10,8 @@
     <Compile Include="Inference.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Resolvers.fs" />
-    <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Utils.fs" />
+    <Compile Include="Builder/Base.fs" />
     <Compile Include="Builder/Types.fs" />
     <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
