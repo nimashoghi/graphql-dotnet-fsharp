@@ -3,7 +3,7 @@ module GraphQL.FSharp.BuilderBase
 open System.Collections.Generic
 open GraphQL.Types
 
-open GraphQL.FSharp.BuilderUtils
+open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
@@ -30,6 +30,12 @@ let inline setArguments value (x: ^t) =
 let inline setGraphType value (x: ^t) =
     (^t: (member set_GraphType: IGraphType -> unit) x, value)
     x
+
+let inline setType systemType (source: ^t) =
+    let resolvedType = (^t: (member ResolvedType: IGraphType) source)
+    let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
+    if isNull resolvedType then setResolvedType (createReference systemType)
+    source
 
 let inline setMetadata value (x: ^t) =
     let metadata = (^t: (member Metadata: IDictionary<string, obj>) x)

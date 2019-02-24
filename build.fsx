@@ -86,6 +86,18 @@ Target.create "Projects" (fun _ ->
     |> Array.iter Trace.log
 )
 
+Target.create "MakeNuGet" (fun _ ->
+    srcProjects
+    |> Array.map (fun project -> project.FullName)
+    |> Array.iter (
+        fun project ->
+            DotNet.pack (
+                fun options ->
+                    {options with Configuration = DotNet.BuildConfiguration.Release}
+            ) project
+    )
+)
+
 let getProjectFiles (project: FileInfo) =
     project.Directory
     |> DirectoryInfo.getMatchingFilesRecursive "*.fs"
@@ -104,5 +116,9 @@ Target.create "CountLOC" (fun _ ->
     |> Array.sum
     |> Trace.logf "LOC: %i\n"
 )
+
+open Fake.Core.TargetOperators
+
+"Build" ==> "MakeNuget"
 
 Target.runOrDefault "Build"

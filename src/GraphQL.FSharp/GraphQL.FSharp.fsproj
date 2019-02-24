@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>0.0.1</Version>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils/Quotations.fs" />
@@ -10,11 +12,12 @@
     <Compile Include="Inference.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Resolvers.fs" />
-    <Compile Include="Builder/Utils.fs" />
     <Compile Include="Builder/Base.fs" />
+    <Compile Include="Builder/Utils.fs" />
     <Compile Include="Builder/Types.fs" />
     <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
+    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL" Version="2.4.0" />
