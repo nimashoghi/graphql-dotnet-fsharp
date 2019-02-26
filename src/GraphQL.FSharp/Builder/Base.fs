@@ -31,10 +31,12 @@ let inline setGraphType value (x: ^t) =
     (^t: (member set_GraphType: IGraphType -> unit) x, value)
     x
 
+let isInvalidType (``type``: IGraphType) = isNull ``type`` || Object.ReferenceEquals (``type``, invalidGraphType)
+
 let inline setType systemType (source: ^t) =
     let resolvedType = (^t: (member ResolvedType: IGraphType) source)
     let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
-    if isNull resolvedType then setResolvedType (createReference systemType)
+    if isInvalidType resolvedType then setResolvedType (createReference systemType)
     source
 
 let inline setMetadata value (x: ^t) =
@@ -42,15 +44,27 @@ let inline setMetadata value (x: ^t) =
     (^t: (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata value)
     x
 
+let inline handleNonNullTypes (x: ^t) =
+    if not <| isNull (^t: (member DefaultValue: obj) x) then
+        match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
+        | Some graph when (graph :? NonNullGraphType) ->
+            let nonNull = graph :?> NonNullGraphType
+            (^t: (member set_ResolvedType: IGraphType -> unit) x, nonNull.ResolvedType)
+        | _ -> ()
+    x
+
 type Operation<'t> = 't -> 't
 type State<'t> = Operation<'t> list
+
+let inline runState (state: State<'t>) =
+    List.foldBack (fun f this -> f this) state (new 't ())
 
 let inline appendToState (state: State<'t>) (f: 't -> unit) =
     (fun x -> f x; x) :: state
 
-type StateBuilder<'t when 't: (new: unit -> 't) > () =
+type StateBuilder<'t when 't: (new: unit -> 't)> () =
     member inline __.Run (state: State<'t>) =
-        List.fold (fun this f -> f this) (new 't ()) state
+        runState state
 
 type ConfigureBuilder<'t when 't: (new: unit -> 't)> () =
     inherit StateBuilder<'t> ()
@@ -82,15 +96,6 @@ type EntityBuilder<'t when
     member inline __.Metadata (state: State<'t>, metadata) =
         setMetadata metadata ::  state
 
-let inline handleNonNullTypes (x: ^t) =
-    if not <| isNull (^t: (member DefaultValue: obj) x) then
-        match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
-        | Some graph when (graph :? NonNullGraphType) ->
-            let nonNull = graph :?> NonNullGraphType
-            (^t: (member set_ResolvedType: IGraphType -> unit) x, nonNull.ResolvedType)
-        | _ -> ()
-    x
-
 type TypedEntityBuilder<'t when
                        't: (new: unit -> 't) and
                        't: (member set_Name: string -> unit) and
@@ -113,7 +118,9 @@ type TypedEntityBuilder<'t when
     member inline __.Type (state: State<'t>, ``type``) =
         setGraphType ``type`` :: state
 
-    member inline __.Run (state: State<'t>) = handleNonNullTypes :: state
+    member inline __.Run (state: State<'t>) =
+        handleNonNullTypes :: state
+        |> runState
 
 type BasicGraphTypeBuilder<'t when
                           't: (new: unit -> 't) and
@@ -124,7 +131,7 @@ type BasicGraphTypeBuilder<'t when
                           't: (member set_DeprecationReason: string -> unit)> () =
     inherit EntityBuilder<'t> ()
 
-    [<CustomOperation "deprecationReason">]
+    [<CustomOperation "deprecate">]
     member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
         setDeprecationReason deprecationReason :: state
 
@@ -143,7 +150,7 @@ type TypedFieldBuilder<'t when
                       't: (member set_DeprecationReason: string -> unit)> () =
     inherit TypedEntityBuilder<'t> ()
 
-    [<CustomOperation "deprecationReason">]
+    [<CustomOperation "deprecate">]
     member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
         setDeprecationReason deprecationReason :: state
 
@@ -159,15 +166,6 @@ type ComplexGraphTypeBuilder<'t, 'source when
 
     [<CustomOperation "fields">]
     member inline __.Fields (state: State<'t>, fields: Field<'source> list) =
-        let operation (this: 't) =
-            fields
-            |> List.iter (this.AddField >> ignore)
-
-            this
-
-        operation :: state
-
-    member inline __.Fields (state: State<'t>, fields: Field<'source, _> list) =
         let operation (this: 't) =
             fields
             |> List.iter (this.AddField >> ignore)

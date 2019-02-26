@@ -16,6 +16,11 @@ open GraphQL.FSharp.Utils
 
 [<AutoOpen>]
 module ArgumentHelpers =
+    let inline trySetType graphType systemType (x: ^t) =
+        if graphType <> __
+        then setGraphType graphType x
+        else setType systemType x
+
     let makeArguments arguments =
         arguments
         |> List.map (fun arg -> arg :> QueryArgument)
@@ -27,7 +32,7 @@ type ArgumentBuilder<'t> (``type``) =
 
     member __.Yield (_: unit): State<Argument<'t>> =
         [
-            yield setGraphType ``type``
+            yield trySetType ``type`` typeof<'t>
         ]
 
 type DirectiveBuilder () =
@@ -74,7 +79,7 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
 
     member __.Yield (_: unit): State<Field<'field, 'source>> =
         [
-            yield setGraphType ``type``
+            yield trySetType ``type`` typeof<'field>
 
             match name with
             | Some name -> yield setName name
@@ -88,24 +93,20 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
     [<CustomOperation "prop">]
     member __.Property (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
         Field.setField (|FieldName|_|) (withSource >> resolve) expr state
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "propAsync">]
     member __.PropertyAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
         Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr state
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "method">]
     member __.Method (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
         Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "methodAsync">]
     member __.MethodAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
         Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolve">]
     member __.Resolve (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
@@ -113,7 +114,6 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
             this.Resolver <- Field.resolveCtxMethod resolver
         )
         |> Field.addArguments<'arguments, 'field, 'source>
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolveAsync">]
     member __.ResolveAsync (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
@@ -121,7 +121,6 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
             this.Resolver <- Field.resolveCtxMethodAsync resolver
         )
         |> Field.addArguments<'arguments, 'field, 'source>
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "subscribe">]
     member __.Subscribe (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
@@ -129,7 +128,6 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
             this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
             this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
         )
-        |> Field.setType<'field, 'source>
 
     [<CustomOperation "subscribeAsync">]
     member __.SubscribeAsync (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
@@ -137,7 +135,6 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
             this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
             this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
         )
-        |> Field.setType<'field, 'source>
 
 type InputObjectBuilder<'source> () =
     inherit ComplexGraphTypeBuilder<InputObject<'source>, 'source> ()
