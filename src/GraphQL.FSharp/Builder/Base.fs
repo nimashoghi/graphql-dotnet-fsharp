@@ -31,44 +31,18 @@ let inline setGraphType value (x: ^t) =
     (^t: (member set_GraphType: IGraphType -> unit) x, value)
     x
 
+let isInvalidType (``type``: IGraphType) = isNull ``type`` || Object.ReferenceEquals (``type``, invalidGraphType)
+
 let inline setType systemType (source: ^t) =
     let resolvedType = (^t: (member ResolvedType: IGraphType) source)
     let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
-    if isNull resolvedType then setResolvedType (createReference systemType)
+    if isInvalidType resolvedType then setResolvedType (createReference systemType)
     source
 
 let inline setMetadata value (x: ^t) =
     let metadata = (^t: (member Metadata: IDictionary<string, obj>) x)
     (^t: (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata value)
     x
-
-type ConfigureBuilder<'t> () =
-    [<CustomOperation "configure">]
-    member inline __.Configure (state: 't, f) =
-        f state
-
-    member inline __.Configure (state: 't, f) =
-        f state
-        state
-
-type EntityBuilder<'t when
-                  't: (member set_Name: string -> unit) and
-                  't: (member set_Description: string -> unit) and
-                  't: (member Metadata: IDictionary<string, obj>) and
-                  't: (member set_Metadata: IDictionary<string, obj> -> unit)> () =
-    inherit ConfigureBuilder<'t> ()
-
-    [<CustomOperation "name">]
-    member inline __.Name (state: 't, name) =
-        setName name state
-
-    [<CustomOperation "description">]
-    member inline __.Description (state: 't, description) =
-        setDescription description state
-
-    [<CustomOperation "metadata">]
-    member inline __.Metadata (state: 't, metadata) =
-        setMetadata metadata state
 
 let inline handleNonNullTypes (x: ^t) =
     if not <| isNull (^t: (member DefaultValue: obj) x) then
@@ -79,7 +53,51 @@ let inline handleNonNullTypes (x: ^t) =
         | _ -> ()
     x
 
+type Operation<'t> = 't -> 't
+type State<'t> = Operation<'t> list
+
+let inline runState (state: State<'t>) =
+    List.foldBack (fun f this -> f this) state (new 't ())
+
+let inline appendToState (state: State<'t>) (f: 't -> unit) =
+    (fun x -> f x; x) :: state
+
+type StateBuilder<'t when 't: (new: unit -> 't)> () =
+    member inline __.Run (state: State<'t>) =
+        runState state
+
+type ConfigureBuilder<'t when 't: (new: unit -> 't)> () =
+    inherit StateBuilder<'t> ()
+
+    [<CustomOperation "configure">]
+    member inline __.Configure (state: State<'t>, f): State<'t> =
+        f :: state
+
+    member inline __.Configure (state: State<'t>, f): State<'t> =
+        (fun arg -> f arg; arg) :: state
+
+type EntityBuilder<'t when
+                  't: (new: unit -> 't) and
+                  't: (member set_Name: string -> unit) and
+                  't: (member set_Description: string -> unit) and
+                  't: (member Metadata: IDictionary<string, obj>) and
+                  't: (member set_Metadata: IDictionary<string, obj> -> unit)> () =
+    inherit ConfigureBuilder<'t> ()
+
+    [<CustomOperation "name">]
+    member inline __.Name (state: State<'t>, name) =
+        setName name :: state
+
+    [<CustomOperation "description">]
+    member inline __.Description (state: State<'t>, description) =
+        setDescription description :: state
+
+    [<CustomOperation "metadata">]
+    member inline __.Metadata (state: State<'t>, metadata) =
+        setMetadata metadata ::  state
+
 type TypedEntityBuilder<'t when
+                       't: (new: unit -> 't) and
                        't: (member set_Name: string -> unit) and
                        't: (member set_Description: string -> unit) and
                        't: (member Metadata: IDictionary<string, obj>) and
@@ -93,17 +111,19 @@ type TypedEntityBuilder<'t when
     inherit EntityBuilder<'t> ()
 
     [<CustomOperation "defaultValue">]
-    member inline __.DefaultValue (state: 't, value: 'value) =
-        setDefaultValue value state
-        |> setType typeof<'value>
+    member inline __.DefaultValue (state: State<'t>, value: 'value) =
+        setType typeof<'value> :: setDefaultValue value :: state
 
     [<CustomOperation "type">]
-    member inline __.Type (state: 't, ``type``) =
-        setGraphType ``type`` state
+    member inline __.Type (state: State<'t>, ``type``) =
+        setGraphType ``type`` :: state
 
-    member inline __.Run (state: 't) = handleNonNullTypes state
+    member inline __.Run (state: State<'t>) =
+        handleNonNullTypes :: state
+        |> runState
 
 type BasicGraphTypeBuilder<'t when
+                          't: (new: unit -> 't) and
                           't: (member set_Name: string -> unit) and
                           't: (member set_Description: string -> unit) and
                           't: (member Metadata: IDictionary<string, obj>) and
@@ -111,11 +131,12 @@ type BasicGraphTypeBuilder<'t when
                           't: (member set_DeprecationReason: string -> unit)> () =
     inherit EntityBuilder<'t> ()
 
-    [<CustomOperation "deprecationReason">]
-    member inline __.DeprecationReason (state: 't, deprecationReason) =
-        setDeprecationReason deprecationReason state
+    [<CustomOperation "deprecate">]
+    member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
+        setDeprecationReason deprecationReason :: state
 
 type TypedFieldBuilder<'t when
+                      't: (new: unit -> 't) and
                       't: (member set_Name: string -> unit) and
                       't: (member set_Description: string -> unit) and
                       't: (member Metadata: IDictionary<string, obj>) and
@@ -129,11 +150,12 @@ type TypedFieldBuilder<'t when
                       't: (member set_DeprecationReason: string -> unit)> () =
     inherit TypedEntityBuilder<'t> ()
 
-    [<CustomOperation "deprecationReason">]
-    member inline __.DeprecationReason (state: 't, deprecationReason) =
-        setDeprecationReason deprecationReason state
+    [<CustomOperation "deprecate">]
+    member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
+        setDeprecationReason deprecationReason :: state
 
 type ComplexGraphTypeBuilder<'t, 'source when
+                            't: (new: unit -> 't) and
                             't :> ComplexGraphType<'source> and
                             't: (member set_Name: string -> unit) and
                             't: (member set_Description: string -> unit) and
@@ -143,8 +165,11 @@ type ComplexGraphTypeBuilder<'t, 'source when
     inherit BasicGraphTypeBuilder<'t> ()
 
     [<CustomOperation "fields">]
-    member inline __.Fields (state: 't, fields: Field<'source> list) =
-        fields
-        |> List.iter (state.AddField >> ignore)
+    member inline __.Fields (state: State<'t>, fields: Field<'source> list) =
+        let operation (this: 't) =
+            fields
+            |> List.iter (this.AddField >> ignore)
 
-        state
+            this
+
+        operation :: state
