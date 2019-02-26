@@ -157,8 +157,25 @@ type Union () =
 type Union<'t> () =
     inherit Union ()
 
-type Query = Object<obj>
-type Mutation = Object<obj>
-type Subscription = Object<obj>
+type Query =
+    | Query of Object<obj>
+
+    member this.Graph =
+        match this with
+        | Query graph -> graph
+
+type Mutation =
+    | Mutation of Object<obj>
+
+    member this.Graph =
+        match this with
+        | Mutation graph -> graph
+
+type Subscription =
+    | Subscription of Object<obj>
+
+    member this.Graph =
+        match this with
+        | Subscription graph -> graph
 
 type Schema = GraphQL.Types.Schema

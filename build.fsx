@@ -86,7 +86,7 @@ Target.create "Projects" (fun _ ->
     |> Array.iter Trace.log
 )
 
-Target.create "MakeNuGet" (fun _ ->
+Target.create "NuGet" (fun _ ->
     srcProjects
     |> Array.map (fun project -> project.FullName)
     |> Array.iter (
@@ -119,6 +119,6 @@ Target.create "CountLOC" (fun _ ->
 
 open Fake.Core.TargetOperators
 
-"Build" ==> "MakeNuget"
+"Build" ==> "Nuget"
 
 Target.runOrDefault "Build"

@@ -8,9 +8,9 @@ open GraphQL.Types
 
 [<Test>]
 let ``configure test`` () =
-    let myQuery = Query ()
-    let myMutation = Mutation ()
-    let mySubscription = Subscription ()
+    let myQuery = Query (Object ())
+    let myMutation = Mutation (Object ())
+    let mySubscription = Subscription (Object ())
 
     let mySchema = schema {
         query myQuery
@@ -23,16 +23,16 @@ let ``configure test`` () =
         )
     }
 
-    mySchema.Query =! (myQuery :> IObjectGraphType)
+    mySchema.Query =! (myQuery.Graph :> IObjectGraphType)
     mySchema.Mutation =! null
     mySchema.Subscription =! null
 
 
 [<Test>]
 let ``basic test`` () =
-    let myQuery = Query ()
-    let myMutation = Mutation ()
-    let mySubscription = Subscription ()
+    let myQuery = Query (Object ())
+    let myMutation = Mutation (Object ())
+    let mySubscription = Subscription (Object ())
 
     let mySchema = schema {
         query myQuery
@@ -40,6 +40,6 @@ let ``basic test`` () =
         subscription mySubscription
     }
 
-    mySchema.Query =! (myQuery :> IObjectGraphType)
-    mySchema.Mutation =! (myMutation :> IObjectGraphType)
-    mySchema.Subscription =! (mySubscription :> IObjectGraphType)
+    mySchema.Query =! (myQuery.Graph :> IObjectGraphType)
+    mySchema.Mutation =! (myMutation.Graph :> IObjectGraphType)
+    mySchema.Subscription =! (mySubscription.Graph :> IObjectGraphType)

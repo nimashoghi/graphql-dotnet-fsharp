@@ -187,15 +187,15 @@ type SchemaBuilder () =
         ]
 
     [<CustomOperation "query">]
-    member __.Query (state: State<Schema>, query: Query) =
+    member __.Query (state: State<Schema>, Query query) =
         appendToState state (fun this -> this.Query <- query)
 
     [<CustomOperation "mutation">]
-    member __.Mutation (state: State<Schema>, mutation: Mutation) =
+    member __.Mutation (state: State<Schema>, Mutation mutation) =
         appendToState state (fun this -> this.Mutation <- mutation)
 
     [<CustomOperation "subscription">]
-    member __.Subscription (state: State<Schema>, subscription: Subscription) =
+    member __.Subscription (state: State<Schema>, Subscription subscription) =
         appendToState state (fun this -> this.Subscription <- subscription)
 
     [<CustomOperation "types">]

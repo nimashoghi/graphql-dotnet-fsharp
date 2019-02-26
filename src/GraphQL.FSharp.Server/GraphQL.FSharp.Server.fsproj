@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Include="Authorization.fs" />
     <Compile Include="NameConverter.fs" />
+    <Compile Include="Library.fs" />
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
   </ItemGroup>
   <ItemGroup>
