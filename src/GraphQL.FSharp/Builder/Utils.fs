@@ -16,26 +16,29 @@ open GraphQL.FSharp.Utils
 let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
 module Field =
-    let setType<'field, 'source> (field: Field<'field, 'source>) = setType typeof<'field> field
+    let setType<'field, 'source> (state: State<Field<'field, 'source>>) = setType typeof<'field> :: state
 
-    let addArguments<'arguments, 'field, 'source> (field: Field<'field, 'source>) =
-        if typeof<'arguments> = typeof<obj> then field else
+    let addArguments<'arguments, 'field, 'source> (state: State<Field<'field, 'source>>) =
+        let operation (field: Field<'field, 'source>) =
+            if typeof<'arguments> = typeof<obj> then field else
 
-        assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
+            assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
 
-        if isNull field.Arguments
-        then field.Arguments <- QueryArguments ()
+            if isNull field.Arguments
+            then field.Arguments <- QueryArguments ()
 
-        FSharpType.GetRecordFields typeof<'arguments>
-        |> Array.map (fun field ->
-            Argument (
-                ``type`` = createReference field.PropertyType,
-                Name = field.Name
+            FSharpType.GetRecordFields typeof<'arguments>
+            |> Array.map (fun field ->
+                Argument (
+                    ResolvedType = createReference field.PropertyType,
+                    Name = field.Name
+                )
             )
-        )
-        |> Array.iter field.Arguments.Add
+            |> Array.iter field.Arguments.Add
 
-        field
+            field
+
+        operation :: state
 
     let makeArguments<'arguments, 'source> (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
@@ -82,22 +85,24 @@ module Field =
                 f ctx (makeArguments<'arguments, 'source> ctx)
         )
 
-    let setField (|FieldName|_|) resolver (state: Field<_, _>) (expr: Expr<_ -> _>) =
-        let f, name =
-            match expr with
-            | WithValueTyped (f, expr) ->
+    let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (state: State<Field<_, _>>) =
+        let operation (field: Field<_, _>) =
+            let f, name =
                 match expr with
-                | FieldName name -> f, Some name
-                | _ -> f, None
-            | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
+                | WithValueTyped (f, expr) ->
+                    match expr with
+                    | FieldName name -> f, Some name
+                    | _ -> f, None
+                | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
 
-        match name, state.Name with
-        | Some name, stateName when (isNull stateName || stateName = "") -> state.Name <- name
-        | _ -> ()
+            match name, field.Name with
+            | Some name, stateName when (isNull stateName || stateName = "") -> field.Name <- name
+            | _ -> ()
 
-        state.Resolver <- resolver f
+            field.Resolver <- resolver f
 
-        state
+            field
+        operation :: state
 
 module Schema =
     let abstractClasses ``type`` =

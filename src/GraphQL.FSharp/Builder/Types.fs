@@ -14,25 +14,34 @@ open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
+[<AutoOpen>]
+module ArgumentHelpers =
+    let makeArguments arguments =
+        arguments
+        |> List.map (fun arg -> arg :> QueryArgument)
+        |> List.toArray
+        |> QueryArguments
+
 type ArgumentBuilder<'t> (``type``) =
     inherit TypedEntityBuilder<Argument<'t>> ()
 
-    member __.Yield (_: unit) =
-        Argument<'t> (?``type`` = Option.ofObj ``type``)
+    member __.Yield (_: unit): State<Argument<'t>> =
+        [
+            yield setGraphType ``type``
+        ]
 
 type DirectiveBuilder () =
     inherit EntityBuilder<Directive> ()
 
-    member __.Yield (_: unit) = Directive ()
+    member __.Yield (_: unit): State<Directive> = []
 
     [<CustomOperation "arguments">]
-    member __.Arguments (state: Directive, arguments) =
-        setArguments arguments state
+    member __.Arguments (state: State<Directive>, arguments: Argument list) =
+        setArguments (makeArguments arguments) :: state
 
     [<CustomOperation "locations">]
-    member __.Locations (state: Directive, locations) =
-        state.PossibleLocations <- locations
-        state
+    member __.Locations (state: State<Directive>, locations) =
+        appendToState state (fun this -> this.PossibleLocations <- locations)
 
 type EnumerationBuilder () =
     inherit BasicGraphTypeBuilder<Enumeration> ()
@@ -51,139 +60,152 @@ type EnumerationBuilder () =
 
         graph
 
-    member __.Yield (_: unit) = Enumeration ()
+    member __.Yield (_: unit): State<Enumeration> = []
 
     [<CustomOperation "cases">]
-    member __.Cases (state: Enumeration, values) =
-        values
-        |> List.iter state.AddValue
-
-        state
+    member __.Cases (state: State<Enumeration>, values) =
+        appendToState state (fun this ->
+            values
+            |> List.iter this.AddValue
+        )
 
 type FieldBuilder<'field, 'source> (``type``, ?name) =
     inherit TypedFieldBuilder<Field<'field, 'source>> ()
 
-    member __.Yield (_: unit) =
-        Field<'field, 'source> (
-            ?``type`` = Option.ofObj ``type``,
-            Name = Option.toObj name
-        )
+    member __.Yield (_: unit): State<Field<'field, 'source>> =
+        [
+            yield setGraphType ``type``
+
+            match name with
+            | Some name -> yield setName name
+            | None -> ()
+        ]
 
     [<CustomOperation "arguments">]
-    member __.Arguments (state: Field<'field, 'source>, arguments) =
-        setArguments (QueryArguments (List.toSeq arguments)) state
+    member __.Arguments (state: State<Field<'field, 'source>>, arguments: Argument list) =
+        setArguments (makeArguments arguments) :: state
 
     [<CustomOperation "prop">]
-    member __.Property (state: Field<'field, 'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
-        Field.setField (|FieldName|_|) (withSource >> resolve) state expr
+    member __.Property (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+        Field.setField (|FieldName|_|) (withSource >> resolve) expr state
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "propAsync">]
-    member __.PropertyAsync (state: Field<'field, 'source>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
-        Field.setField (|FieldName|_|) (withSource >> resolveAsync) state expr
+    member __.PropertyAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+        Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr state
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "method">]
-    member __.Method (state: Field<'field, 'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
-        Field.setField (|MethodName|_|) Field.resolveMethod state expr
+    member __.Method (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
+        Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "methodAsync">]
-    member __.MethodAsync (state: Field<'field, 'source>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
-        Field.setField (|MethodName|_|) Field.resolveMethod state expr
+    member __.MethodAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
+        Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolve">]
-    member __.Resolve (state: Field<'field, 'source>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
-        state.Resolver <- Field.resolveCtxMethod resolver
-
-        state
+    member __.Resolve (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
+        appendToState state (fun this ->
+            this.Resolver <- Field.resolveCtxMethod resolver
+        )
         |> Field.addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (state: Field<'field, 'source>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
-        state.Resolver <- Field.resolveCtxMethodAsync resolver
-
-        state
+    member __.ResolveAsync (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
+        appendToState state (fun this ->
+            this.Resolver <- Field.resolveCtxMethodAsync resolver
+        )
         |> Field.addArguments<'arguments, 'field, 'source>
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "subscribe">]
-    member __.Subscribe (state: Field<'field, 'source>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
-        state.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
-        state.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
-
-        state
+    member __.Subscribe (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+        appendToState state (fun this ->
+            this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
+            this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
+        )
         |> Field.setType<'field, 'source>
 
     [<CustomOperation "subscribeAsync">]
-    member __.SubscribeAsync (state: Field<'field, 'source>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
-        state.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-        state.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
-
-        state
+    member __.SubscribeAsync (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+        appendToState state (fun this ->
+            this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
+            this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
+        )
         |> Field.setType<'field, 'source>
 
 type InputObjectBuilder<'source> () =
     inherit ComplexGraphTypeBuilder<InputObject<'source>, 'source> ()
 
-    member __.Yield (_: unit) = InputObject<'source> (Name = typeof<'source>.Name)
+    member __.Yield (_: unit): State<InputObject<'source>> =
+        [
+            yield setName typeof<'source>.Name
+        ]
 
 type InterfaceBuilder<'source> () =
     inherit ComplexGraphTypeBuilder<Interface<'source>, 'source> ()
 
-    member __.Yield (_: unit) = Interface<'source> (Name = typeof<'source>.Name)
+    member __.Yield (_: unit): State<Interface<'source>> =
+        [
+            yield setName typeof<'source>.Name
+        ]
 
 type ObjectBuilder<'source> () =
     inherit ComplexGraphTypeBuilder<Object<'source>, 'source> ()
 
-    member __.Yield (_: unit) = Object<'source> (Name = typeof<'source>.Name)
+    member __.Yield (_: unit): State<Object<'source>> =
+        [
+            yield setName typeof<'source>.Name
+        ]
 
     [<CustomOperation "interfaces">]
-    member __.Interfaces (state: Object<'source>, interfaces) =
-        interfaces
-        |> List.iter state.AddResolvedInterface
-
-        state
+    member __.Interfaces (state: State<Object<'source>>, interfaces) =
+        appendToState state (fun this ->
+            interfaces
+            |> List.iter this.AddResolvedInterface
+        )
 
 type SchemaBuilder () =
     inherit ConfigureBuilder<Schema> ()
 
-    member __.Yield (_: unit) =
-        new Schema (
-            FieldNameConverter =
-                {
-                    new IFieldNameConverter with
-                        member __.NameFor (name, _) = name
-                }
-        )
+    let setFieldNameConverter (schema: Schema) =
+        schema.FieldNameConverter <-
+            {
+                new IFieldNameConverter with
+                    member __.NameFor (name, _) = name
+            }
+        schema
+
+    member __.Yield (_: unit): State<Schema> =
+        [
+            yield setFieldNameConverter
+        ]
 
     [<CustomOperation "query">]
-    member __.Query (state: Schema, query: Query) =
-        state.Query <- query
-        state
+    member __.Query (state: State<Schema>, query: Query) =
+        appendToState state (fun this -> this.Query <- query)
 
     [<CustomOperation "mutation">]
-    member __.Mutation (state: Schema, mutation: Mutation) =
-        state.Mutation <- mutation
-        state
+    member __.Mutation (state: State<Schema>, mutation: Mutation) =
+        appendToState state (fun this -> this.Mutation <- mutation)
 
     [<CustomOperation "subscription">]
-    member __.Subscription (state: Schema, subscription: Subscription) =
-        state.Subscription <- subscription
-        state
+    member __.Subscription (state: State<Schema>, subscription: Subscription) =
+        appendToState state (fun this -> this.Subscription <- subscription)
 
     [<CustomOperation "types">]
-    member __.Types (state: Schema, types) =
-        types
-        |> Schema.handleInterfaces
-        |> List.toArray
-        |> state.RegisterTypes
-
-        state
+    member __.Types (state: State<Schema>, types) =
+        appendToState state (fun this ->
+            types
+            |> Schema.handleInterfaces
+            |> List.toArray
+            |> this.RegisterTypes
+        )
 
 type UnionBuilder () =
     inherit BasicGraphTypeBuilder<Union> ()
@@ -202,10 +224,8 @@ type UnionBuilder () =
 
         graph
 
-    member __.Yield (_: unit) = Union ()
+    member __.Yield (_: unit): State<Union> = []
 
     [<CustomOperation "cases">]
-    member __.Cases (state: Union, cases) =
-        state.PossibleTypes <- List.toSeq cases
-
-        state
+    member __.Cases (state: State<Union>, cases) =
+        appendToState state (fun this -> this.PossibleTypes <- List.toSeq cases)

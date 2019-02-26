@@ -99,11 +99,8 @@ module Option =
         |> Option.toObj
 
 
-type Argument (?``type``) =
-    inherit QueryArgument (
-        Instances.invalidGraphType,
-        ResolvedType = (Option.mapToObj processNonNullity ``type``)
-    )
+type Argument () =
+    inherit QueryArgument (Instances.invalidGraphType)
 
     member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
 
@@ -111,23 +108,21 @@ type Argument (?``type``) =
         with get () = base.ResolvedType
         and set value = base.ResolvedType <- processNonNullity value
 
-type Argument<'t> (?``type``) =
-    inherit Argument (``type`` = (Option.defaultValue (createReference typeof<'t>) ``type``))
+type Argument<'t> () =
+    inherit Argument ()
 
-type Field (?``type``) =
-    inherit EventStreamFieldType (
-        ResolvedType = (Option.mapToObj processNonNullity ``type``)
-    )
+type Field () =
+    inherit EventStreamFieldType ()
 
     member __.GraphType
         with get () = base.ResolvedType
         and set value = base.ResolvedType <- processNonNullity value
 
-type Field<'source> (?``type``) =
-    inherit Field (?``type`` = ``type``)
+type Field<'source> () =
+    inherit Field ()
 
-type Field<'field, 'source> (?``type``) =
-    inherit Field<'source> (?``type`` = ``type``)
+type Field<'field, 'source> () =
+    inherit Field<'source> ()
 
 type Enumeration () =
     inherit EnumerationGraphType ()
