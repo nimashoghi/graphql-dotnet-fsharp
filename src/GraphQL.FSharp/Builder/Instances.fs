@@ -22,19 +22,19 @@ let query list =
         name "Query"
         fields list
     }
-    : Query
+    |> Query
 let mutation list =
     object<obj> {
         name "Mutation"
         fields list
     }
-    : Mutation
+    |> Mutation
 let subscription list =
     object<obj> {
         name "Subscription"
         fields list
     }
-    : Subscription
+    |> Subscription
 
 let schema = SchemaBuilder ()
 

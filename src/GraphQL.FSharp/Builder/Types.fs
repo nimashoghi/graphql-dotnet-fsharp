@@ -162,17 +162,17 @@ type SchemaBuilder () =
         )
 
     [<CustomOperation "query">]
-    member __.Query (state: Schema, query: Query) =
+    member __.Query (state: Schema, Query query) =
         state.Query <- query
         state
 
     [<CustomOperation "mutation">]
-    member __.Mutation (state: Schema, mutation: Mutation) =
+    member __.Mutation (state: Schema, Mutation mutation) =
         state.Mutation <- mutation
         state
 
     [<CustomOperation "subscription">]
-    member __.Subscription (state: Schema, subscription: Subscription) =
+    member __.Subscription (state: Schema, Subscription subscription) =
         state.Subscription <- subscription
         state
 

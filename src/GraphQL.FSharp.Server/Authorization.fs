@@ -27,17 +27,18 @@ type FieldBuilder<'field, 'source> with
 
 type IGraphQLBuilder with
     member inline this.AddAuthorization< ^t when ^t: (static member Authorize: AuthorizationPolicyBuilder -> (^t -> AuthorizationPolicyBuilder))> (optionBuilder: AuthorizationOptions -> unit) =
-        this.AddGraphQLAuthorization (fun options ->
-            optionBuilder options
+        this.AddGraphQLAuthorization (
+            fun options ->
+                optionBuilder options
 
-            FSharpType.GetUnionCases typeof< ^t>
-            |> Array.map (fun case -> mkName case.Name, FSharpValue.MakeUnion (case , [||]) :?> ^t)
-            |> Array.iter (fun (name, case) ->
-                options.AddPolicy (
-                    name = name,
-                    configurePolicy = fun policyBuilder ->
-                        (^t: (static member Authorize: AuthorizationPolicyBuilder -> (^t -> AuthorizationPolicyBuilder)) policyBuilder) case
-                        |> ignore
+                FSharpType.GetUnionCases typeof< ^t>
+                |> Array.map (fun case -> mkName case.Name, FSharpValue.MakeUnion (case , [||]) :?> ^t)
+                |> Array.iter (fun (name, case) ->
+                    options.AddPolicy (
+                        name = name,
+                        configurePolicy = fun policyBuilder ->
+                            (^t: (static member Authorize: AuthorizationPolicyBuilder -> (^t -> AuthorizationPolicyBuilder)) policyBuilder) case
+                            |> ignore
+                    )
                 )
-            )
         )
