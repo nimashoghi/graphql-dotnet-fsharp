@@ -16,6 +16,7 @@ let private getSource (ctx: ResolveFieldContext<_>) = ctx.Source
 module Handlers =
     let (|CaseTag|_|) i (case: UnionCaseInfo) = if case.Tag = i then Some () else None
 
+    // TODO: Memoize this
     let unionValue f (x: obj) =
         let ``type`` = x.GetType ()
         if FSharpType.IsUnion ``type``

@@ -20,8 +20,6 @@ module Field =
         let operation (field: Field<'arguments, 'field, 'source>) =
             if typeof<'arguments> = typeof<obj> then field else
 
-            assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
-
             if isNull field.Arguments
             then field.Arguments <- QueryArguments ()
 
@@ -38,47 +36,62 @@ module Field =
 
         operation @@ state
 
-    let makeArguments<'arguments, 'source> (ctx: ResolveContext<'source>) =
+    let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
+        if typeof<'arguments> = typeof<obj> then [||] else
+
+        let (Lazy fields) = fields
+        fields
+        |> Array.map (fun field ->
+            ctx.GetArgument (
+                argumentType = field.PropertyType,
+                name = field.Name
+            )
+            |> Option.ofObj
+            |> Option.orElseWith (fun () ->
+                if not <| ctx.HasArgument field.Name
+                then None
+                else Some ctx.Arguments.[field.Name]
+            )
+            |> Option.toObj
+        )
+
+    let makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (arguments: obj [])  =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
-        assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
+        let (Lazy constructor) = constructor
 
-        let fields =
-            FSharpType.GetRecordFields typeof<'arguments>
-            |> Array.map (fun field ->
-                ctx.GetArgument (
-                    argumentType = field.PropertyType,
-                    name = field.Name
-                )
-                |> Option.ofObj
-                |> Option.orElseWith (fun () ->
-                    if not <| ctx.HasArgument field.Name
-                    then None
-                    else Some ctx.Arguments.[field.Name]
-                )
-                |> Option.toObj
-            )
-
-        FSharpValue.MakeRecord (
-            recordType = typeof<'arguments>,
-            values = fields
-        )
+        arguments
+        |> constructor
         |> unbox<'arguments>
 
+    let makeArguments<'arguments, 'source> fields constructor ctx =
+        if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
+
+        makeArgumentArray<'arguments, 'source> fields ctx
+        |> makeArgumentRecord<'arguments> constructor
+
+    let getRecordInfo<'arguments> () =
+        let fields = lazy (FSharpType.GetRecordFields typeof<'arguments>)
+        let constructor = lazy (FSharpValue.PreComputeRecordConstructor typeof<'arguments>)
+        fields, constructor
+
     let validate (validator: 'arguments -> Validation.Validation<'arguments, 'error>): Operation<Field<'arguments, 'field, 'source>> =
+        let fields, constructor = getRecordInfo<'arguments> ()
         operation 10 (
             fun field ->
                 let oldResolver = field.Resolver
                 field.Resolver <-
                     resolve (
                         fun (ctx: ResolveContext<'source>) ->
-                            let arguments = makeArguments<'arguments, 'source> ctx
-                            let arguments = validator arguments
-                            match arguments with
-                            | Ok value ->
-                                FSharpValue.GetRecordFields value
-                                |> Array.zip (FSharpType.GetRecordFields typeof<'arguments>)
-                                |> Array.iter (fun (field, value) -> ctx.Arguments.[field.Name] <- value)
+                            let argumentArray = makeArgumentArray<'arguments, 'source> fields ctx
+                            let argumentRecord = makeArgumentRecord<'arguments> constructor argumentArray
+                            let validatedArguments = validator argumentRecord
+
+                            match validatedArguments with
+                            | Ok _ ->
+                                let (Lazy fields) = fields
+                                Array.zip argumentArray fields
+                                |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
 
                                 oldResolver.Resolve ctx.AsObjectContext
                             | Error errors ->
@@ -93,21 +106,24 @@ module Field =
         )
 
     let resolveMethod (f: 'source -> 'arguments -> 'field) =
+        let fields, constructor = getRecordInfo<'arguments> ()
         resolve (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx.Source (makeArguments<'arguments, 'source> ctx)
+                f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
     let resolveCtxMethod (f: ResolveContext<'source> -> 'arguments -> 'field) =
+        let fields, constructor = getRecordInfo<'arguments> ()
         resolve (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx (makeArguments<'arguments, 'source> ctx)
+                f ctx (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
     let resolveCtxMethodAsync (f: ResolveContext<'source> -> 'arguments -> Task<'field>) =
+        let fields, constructor = getRecordInfo<'arguments> ()
         resolveAsync (
             fun (ctx: ResolveContext<'source>) ->
-                f ctx (makeArguments<'arguments, 'source> ctx)
+                f ctx (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
     let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (state: State<Field<_, _, _>>) =

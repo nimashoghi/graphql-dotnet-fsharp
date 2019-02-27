@@ -7,6 +7,38 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
+let getArg name (field: #FieldType) =
+    field.Arguments
+    |> Seq.find (fun arg -> arg.Name = name)
+
+[<Test>]
+let ``automatically inferred arguments from anonymous record`` () =
+    let f =
+        field __ {
+            name "test"
+            resolve (fun _ (_: {|Name: string; Age: int|}) -> null)
+        }
+    getArg "Name" f
+    |> argumentEqual "Name" (nonNull StringGraphType) None
+
+    getArg "Age" f
+    |> argumentEqual "Age" (nonNull IntGraphType) None
+
+type Input = {Name: string; Age: int}
+
+[<Test>]
+let ``automatically inferred arguments from record`` () =
+    let f =
+        field __ {
+            name "test"
+            resolve (fun _ (_: Input) -> null)
+        }
+    getArg "Name" f
+    |> argumentEqual "Name" (nonNull StringGraphType) None
+
+    getArg "Age" f
+    |> argumentEqual "Age" (nonNull IntGraphType) None
+
 
 // TODO: Add tests for option types to check nullable fields/args
 
