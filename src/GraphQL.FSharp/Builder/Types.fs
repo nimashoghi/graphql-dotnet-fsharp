@@ -1,4 +1,4 @@
-namespace GraphQL.FSharp
+module GraphQL.FSharp.BuilderTypes
 
 open System
 open System.Threading.Tasks
@@ -74,10 +74,10 @@ type EnumerationBuilder () =
             |> List.iter this.AddValue
         )
 
-type FieldBuilder<'field, 'source> (``type``, ?name) =
-    inherit TypedFieldBuilder<Field<'field, 'source>> ()
+type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
+    inherit TypedFieldBuilder<Field<'arguments, 'field, 'source>> ()
 
-    member __.Yield (_: unit): State<Field<'field, 'source>> =
+    member __.Yield (_: unit): State<Field<'arguments, 'field, 'source>> =
         [
             yield operation 0 <| trySetType ``type`` typeof<'field>
 
@@ -86,55 +86,72 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
             | None -> ()
         ]
 
+    [<CustomOperation "validate">]
+    member __.Validate (state: State<Field<'arguments, 'field, 'source>>, validator: 'arguments -> Validation.Validation<'arguments, 'error>) =
+        Field.validate validator :: state
+
     [<CustomOperation "arguments">]
-    member __.Arguments (state: State<Field<'field, 'source>>, arguments: Argument list) =
+    member __.Arguments (state: State<Field<'arguments, 'field, 'source>>, arguments: Argument list) =
         setArguments (makeArguments arguments) @@ state
 
     [<CustomOperation "prop">]
-    member __.Property (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+    member __.Property (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
         Field.setField (|FieldName|_|) (withSource >> resolve) expr state
 
     [<CustomOperation "propAsync">]
-    member __.PropertyAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+    member __.PropertyAsync (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
         Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr state
 
     [<CustomOperation "method">]
-    member __.Method (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
+    member __.Method (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
         Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "methodAsync">]
-    member __.MethodAsync (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
+    member __.MethodAsync (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
         Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "resolve">]
-    member __.Resolve (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
-        appendToState state (fun this ->
-            this.Resolver <- Field.resolveCtxMethod resolver
+    member __.Resolve (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
+        appendToState state (
+            fun this ->
+                this.Resolver <- Field.resolveCtxMethod resolver
         )
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "resolveAsync">]
-    member __.ResolveAsync (state: State<Field<'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
-        appendToState state (fun this ->
-            this.Resolver <- Field.resolveCtxMethodAsync resolver
+    member __.ResolveAsync (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
+        appendToState state (
+            fun this ->
+                this.Resolver <- Field.resolveCtxMethodAsync resolver
         )
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "subscribe">]
-    member __.Subscribe (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
-        appendToState state (fun this ->
-            this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
-            this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
+    member __.Subscribe (state: State<Field<'arguments, 'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
+        appendToState state (
+            fun this ->
+                this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
+
+                if isNull this.Resolver
+                then this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
         )
 
     [<CustomOperation "subscribeAsync">]
-    member __.SubscribeAsync (state: State<Field<'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
-        appendToState state (fun this ->
-            this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-            this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
+    member __.SubscribeAsync (state: State<Field<'arguments, 'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
+        appendToState state (
+            fun this ->
+                this.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
+
+                if isNull this.Resolver
+                then this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
         )
+
+    member inline __.Run (state: State<Field<'arguments, 'field, 'source>>): Field<'source> =
+        handleNonNullTypes @@ state
+        |> runState
+        :> Field<'source>
 
 type InputObjectBuilder<'source> () =
     inherit ComplexGraphTypeBuilder<InputObject<'source>, 'source> ()

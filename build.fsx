@@ -70,7 +70,7 @@ Target.create "Build" (fun _ ->
     |> Array.iter (DotNet.build id)
 )
 
-Target.create "SampleServer" (fun _ ->
+Target.create "Sample" (fun _ ->
     DotNet.run id [] "./samples/GraphQL.FSharp.TestServer/GraphQL.FSharp.TestServer.fsproj"
 )
 

@@ -3,14 +3,14 @@ module GraphQL.FSharp.Server.Authorization
 
 open FSharp.Reflection
 open GraphQL.FSharp
-open GraphQL.FSharp.Types
+open GraphQL.FSharp.BuilderTypes
 open GraphQL.Server
 open GraphQL.Server.Authorization.AspNetCore
 open Microsoft.AspNetCore.Authorization
 
 let mkName name = sprintf "GraphQL.FSharp.Server.Auth.%s" name
 
-type Field<'field, 'source> with
+type Field<'arguments, 'field, 'source> with
     member inline this.Authorize< ^t when ^t: (static member Authorize: AuthorizationPolicyBuilder -> (^t -> AuthorizationPolicyBuilder))> (policy: ^t) =
         let case, _ =
             FSharpValue.GetUnionFields (
@@ -19,9 +19,9 @@ type Field<'field, 'source> with
             )
         this.AuthorizeWith (mkName case.Name)
 
-type FieldBuilder<'field, 'source> with
+type FieldBuilder<'arguments, 'field, 'source> with
     [<CustomOperation "authorize">]
-    member inline __.Authorize (field: Field<'field, 'source>, policy) =
+    member inline __.Authorize (field: Field<'arguments, 'field, 'source>, policy) =
         field.Authorize policy
         field
 

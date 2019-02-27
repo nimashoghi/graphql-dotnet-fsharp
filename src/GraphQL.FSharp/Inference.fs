@@ -9,13 +9,10 @@ let rec unwrapType nonNullDefault get ``type`` =
     let graphType, isNull =
         match ``type`` with
         | Nullable innerType
+        | Result innerType // TODO: Check result and null-ness
         | Option innerType ->
             let ``type`` = unwrapType false get innerType
             ``type``, true
-
-        | Result innerType  ->
-            let ``type`` = unwrapType false get innerType
-            ``type``, false
 
         | Enumerable innerType ->
             let ``type`` =

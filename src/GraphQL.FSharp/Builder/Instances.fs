@@ -1,6 +1,7 @@
+[<AutoOpen>]
 module GraphQL.FSharp.Builder
 
-open GraphQL.FSharp
+open GraphQL.FSharp.BuilderTypes
 open GraphQL.FSharp.Types
 
 let argument<'t> ``type`` = ArgumentBuilder<'t> (``type`` = ``type``)
@@ -9,8 +10,8 @@ let directive = DirectiveBuilder ()
 
 let enum = EnumerationBuilder ()
 
-let field<'field, 'source> ``type`` = FieldBuilder<'field, 'source> (``type`` = ``type``)
-let endpoint<'field> ``type`` name = FieldBuilder<'field, obj> (name = name, ``type`` = ``type``)
+let field<'arguments, 'field, 'source> ``type`` = FieldBuilder<'arguments, 'field, 'source> (``type`` = ``type``)
+let endpoint<'arguments, 'field> ``type`` name = FieldBuilder<'arguments, 'field, obj> (name = name, ``type`` = ``type``)
 
 let input<'source> = InputObjectBuilder<'source> ()
 

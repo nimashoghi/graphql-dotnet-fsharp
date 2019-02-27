@@ -16,10 +16,8 @@ open GraphQL.FSharp.Utils
 let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
 module Field =
-    let setType<'field, 'source> (state: State<Field<'field, 'source>>) = setType typeof<'field> @@ state
-
-    let addArguments<'arguments, 'field, 'source> (state: State<Field<'field, 'source>>) =
-        let operation (field: Field<'field, 'source>) =
+    let addArguments<'arguments, 'field, 'source> (state: State<Field<'arguments, 'field, 'source>>) =
+        let operation (field: Field<'arguments, 'field, 'source>) =
             if typeof<'arguments> = typeof<obj> then field else
 
             assert (Option.isSome <| (|AnonymousType|_|) typeof<'arguments>)
@@ -67,6 +65,33 @@ module Field =
         )
         |> unbox<'arguments>
 
+    let validate (validator: 'arguments -> Validation.Validation<'arguments, 'error>): Operation<Field<'arguments, 'field, 'source>> =
+        operation 10 (
+            fun field ->
+                let oldResolver = field.Resolver
+                field.Resolver <-
+                    resolve (
+                        fun (ctx: ResolveContext<'source>) ->
+                            let arguments = makeArguments<'arguments, 'source> ctx
+                            let arguments = validator arguments
+                            match arguments with
+                            | Ok value ->
+                                FSharpValue.GetRecordFields value
+                                |> Array.zip (FSharpType.GetRecordFields typeof<'arguments>)
+                                |> Array.iter (fun (field, value) -> ctx.Arguments.[field.Name] <- value)
+
+                                oldResolver.Resolve ctx.AsObjectContext
+                            | Error errors ->
+                                errors
+                                |> List.map (box >> string >> GraphQL.ExecutionError)
+                                |> ctx.Errors.AddRange
+
+                                null
+                    )
+                makeNullable field
+                field
+        )
+
     let resolveMethod (f: 'source -> 'arguments -> 'field) =
         resolve (
             fun (ctx: ResolveContext<'source>) ->
@@ -85,8 +110,8 @@ module Field =
                 f ctx (makeArguments<'arguments, 'source> ctx)
         )
 
-    let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (state: State<Field<_, _>>) =
-        let operation (field: Field<_, _>) =
+    let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (state: State<Field<_, _, _>>) =
+        let operation (field: Field<_, _, _>) =
             let f, name =
                 match expr with
                 | WithValueTyped (f, expr) ->
@@ -95,13 +120,12 @@ module Field =
                     | _ -> f, None
                 | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
 
-            match name, field.Name with
-            | Some name, stateName when (isNull stateName || stateName = "") -> field.Name <- name
-            | _ -> ()
+            if isNull field.Name || field.Name = ""
+            then Option.iter field.set_Name name
 
             field.Resolver <- resolver f
-
             field
+
         operation @@ state
 
 module Schema =

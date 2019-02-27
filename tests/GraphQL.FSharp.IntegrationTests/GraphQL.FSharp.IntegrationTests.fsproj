@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basic.fs" />
+    <Compile Include="Validation.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

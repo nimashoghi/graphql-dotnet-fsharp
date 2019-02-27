@@ -1,11 +1,10 @@
+[<AutoOpen>]
 module GraphQL.FSharp.Types
 
 open System
 open System.Collections.Generic
 open System.Runtime.InteropServices
 open GraphQL.Types
-
-open GraphQL.FSharp.Inference
 
 type NullGraphType (?``type``) =
     inherit GraphType ()
@@ -84,6 +83,28 @@ type ResolveContext<'source> (context: ResolveFieldContext<'source>) =
         base.Errors <- context.Errors
         base.SubFields <- context.SubFields
 
+    member __.AsObjectContext =
+        ResolveFieldContext (
+            Source = context.Source,
+            FieldName = context.FieldName,
+            FieldAst = context.FieldAst,
+            FieldDefinition = context.FieldDefinition,
+            ReturnType = context.ReturnType,
+            ParentType = context.ParentType,
+            Arguments = context.Arguments,
+            Schema = context.Schema,
+            Document = context.Document,
+            Fragments = context.Fragments,
+            RootValue = context.RootValue,
+            UserContext = context.UserContext,
+            Operation = context.Operation,
+            Variables = context.Variables,
+            CancellationToken = context.CancellationToken,
+            Metrics = context.Metrics,
+            Errors = context.Errors,
+            SubFields = context.SubFields
+        )
+
     member this.GetArgument<'TType> (name, ?defaultValue: 'TType) =
         let defaultValue = defaultArg defaultValue Unchecked.defaultof<'TType>
         this.GetArgument (typeof<'TType>, name, box defaultValue)
@@ -123,6 +144,9 @@ type Field<'source> () =
 
 type Field<'field, 'source> () =
     inherit Field<'source> ()
+
+type Field<'arguments, 'field, 'source> () =
+    inherit Field<'field, 'source> ()
 
 type Enumeration () =
     inherit EnumerationGraphType ()

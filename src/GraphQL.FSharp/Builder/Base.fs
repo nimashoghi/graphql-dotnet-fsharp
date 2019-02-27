@@ -45,13 +45,16 @@ let inline setMetadata value (x: ^t) =
     (^t: (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata value)
     x
 
+let inline makeNullable (x: ^t) =
+    match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
+    | Some graph when (graph :? NonNullGraphType) ->
+        let nonNull = graph :?> NonNullGraphType
+        (^t: (member set_ResolvedType: IGraphType -> unit) x, nonNull.ResolvedType)
+    | _ -> ()
+
 let inline handleNonNullTypes (x: ^t) =
-    if not <| isNull (^t: (member DefaultValue: obj) x) then
-        match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
-        | Some graph when (graph :? NonNullGraphType) ->
-            let nonNull = graph :?> NonNullGraphType
-            (^t: (member set_ResolvedType: IGraphType -> unit) x, nonNull.ResolvedType)
-        | _ -> ()
+    if not <| isNull (^t: (member DefaultValue: obj) x)
+    then makeNullable x
     x
 
 type Operation<'t> = Operation of Operation: ('t -> 't) * Priority: int
@@ -65,12 +68,7 @@ let inline (|Priority|) operation =
     match operation with
     | Operation.Operation (_, priority) -> priority
 
-// let inline (|Name|) operation =
-//     match operation with
-//     | Operation.Operation (_, _, name) -> name
-
 let inline operation priority f = Operation (f, priority)
-// let inline operationWithName priority name f = Operation (f, priority, name)
 
 let inline (@@) (lhs: 't -> 't) (rhs: State<'t>): State<'t> = operation 0 lhs :: rhs
 
@@ -174,7 +172,6 @@ type TypedFieldBuilder<'t when
     [<CustomOperation "deprecate">]
     member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
         setDeprecationReason deprecationReason @@ state
-
 type ComplexGraphTypeBuilder<'t, 'source when
                             't: (new: unit -> 't) and
                             't :> ComplexGraphType<'source> and
