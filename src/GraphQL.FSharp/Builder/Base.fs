@@ -1,5 +1,6 @@
 module GraphQL.FSharp.BuilderBase
 
+open System
 open System.Collections.Generic
 open GraphQL.Types
 
@@ -53,28 +54,48 @@ let inline handleNonNullTypes (x: ^t) =
         | _ -> ()
     x
 
-type Operation<'t> = 't -> 't
+type Operation<'t> = Operation of Operation: ('t -> 't) * Priority: int
 type State<'t> = Operation<'t> list
 
-let inline runState (state: State<'t>) =
-    List.foldBack (fun f this -> f this) state (new 't ())
+let inline (|Operation|) operation =
+    match operation with
+    | Operation.Operation (operation, _) -> operation
 
-let inline appendToState (state: State<'t>) (f: 't -> unit) =
-    (fun x -> f x; x) :: state
+let inline (|Priority|) operation =
+    match operation with
+    | Operation.Operation (_, priority) -> priority
+
+// let inline (|Name|) operation =
+//     match operation with
+//     | Operation.Operation (_, _, name) -> name
+
+let inline operation priority f = Operation (f, priority)
+// let inline operationWithName priority name f = Operation (f, priority, name)
+
+let inline (@@) (lhs: 't -> 't) (rhs: State<'t>): State<'t> = operation 0 lhs :: rhs
+
+let inline runState (state: State<'t>) =
+    state
+    |> List.rev
+    |> List.sortWith (fun (Priority a) (Priority b) -> a - b)
+    |> List.fold (fun this (Operation f) -> f this) (new 't ())
+
+let inline appendToState (state: State<'t>) f =
+    (fun x -> f x; x) @@ state
 
 type StateBuilder<'t when 't: (new: unit -> 't)> () =
-    member inline __.Run (state: State<'t>) =
+    member inline __.Run (state: State<'t>): 't =
         runState state
 
 type ConfigureBuilder<'t when 't: (new: unit -> 't)> () =
     inherit StateBuilder<'t> ()
 
     [<CustomOperation "configure">]
-    member inline __.Configure (state: State<'t>, f): State<'t> =
-        f :: state
+    member inline __.Configure (state: State<'t>, f) =
+        f @@ state
 
-    member inline __.Configure (state: State<'t>, f): State<'t> =
-        (fun arg -> f arg; arg) :: state
+    member inline __.Configure (state: State<'t>, f) =
+        (fun arg -> f arg; arg) @@ state
 
 type EntityBuilder<'t when
                   't: (new: unit -> 't) and
@@ -86,15 +107,15 @@ type EntityBuilder<'t when
 
     [<CustomOperation "name">]
     member inline __.Name (state: State<'t>, name) =
-        setName name :: state
+        setName name @@ state
 
     [<CustomOperation "description">]
     member inline __.Description (state: State<'t>, description) =
-        setDescription description :: state
+        setDescription description @@ state
 
     [<CustomOperation "metadata">]
     member inline __.Metadata (state: State<'t>, metadata) =
-        setMetadata metadata ::  state
+        setMetadata metadata @@ state
 
 type TypedEntityBuilder<'t when
                        't: (new: unit -> 't) and
@@ -112,14 +133,14 @@ type TypedEntityBuilder<'t when
 
     [<CustomOperation "defaultValue">]
     member inline __.DefaultValue (state: State<'t>, value: 'value) =
-        setType typeof<'value> :: setDefaultValue value :: state
+        setType typeof<'value> @@ setDefaultValue value @@ state
 
     [<CustomOperation "type">]
     member inline __.Type (state: State<'t>, ``type``) =
-        setGraphType ``type`` :: state
+        setGraphType ``type`` @@ state
 
-    member inline __.Run (state: State<'t>) =
-        handleNonNullTypes :: state
+    member inline __.Run (state: State<'t>): 't =
+        handleNonNullTypes @@ state
         |> runState
 
 type BasicGraphTypeBuilder<'t when
@@ -133,7 +154,7 @@ type BasicGraphTypeBuilder<'t when
 
     [<CustomOperation "deprecate">]
     member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
-        setDeprecationReason deprecationReason :: state
+        setDeprecationReason deprecationReason @@ state
 
 type TypedFieldBuilder<'t when
                       't: (new: unit -> 't) and
@@ -152,7 +173,7 @@ type TypedFieldBuilder<'t when
 
     [<CustomOperation "deprecate">]
     member inline __.DeprecationReason (state: State<'t>, deprecationReason) =
-        setDeprecationReason deprecationReason :: state
+        setDeprecationReason deprecationReason @@ state
 
 type ComplexGraphTypeBuilder<'t, 'source when
                             't: (new: unit -> 't) and
@@ -172,4 +193,4 @@ type ComplexGraphTypeBuilder<'t, 'source when
 
             this
 
-        operation :: state
+        operation @@ state

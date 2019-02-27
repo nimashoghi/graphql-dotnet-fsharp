@@ -16,7 +16,7 @@ open GraphQL.FSharp.Utils
 let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
 module Field =
-    let setType<'field, 'source> (state: State<Field<'field, 'source>>) = setType typeof<'field> :: state
+    let setType<'field, 'source> (state: State<Field<'field, 'source>>) = setType typeof<'field> @@ state
 
     let addArguments<'arguments, 'field, 'source> (state: State<Field<'field, 'source>>) =
         let operation (field: Field<'field, 'source>) =
@@ -38,7 +38,7 @@ module Field =
 
             field
 
-        operation :: state
+        operation @@ state
 
     let makeArguments<'arguments, 'source> (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
@@ -102,7 +102,7 @@ module Field =
             field.Resolver <- resolver f
 
             field
-        operation :: state
+        operation @@ state
 
 module Schema =
     let abstractClasses ``type`` =

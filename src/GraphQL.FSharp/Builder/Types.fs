@@ -32,7 +32,7 @@ type ArgumentBuilder<'t> (``type``) =
 
     member __.Yield (_: unit): State<Argument<'t>> =
         [
-            yield trySetType ``type`` typeof<'t>
+            yield operation 0 <| trySetType ``type`` typeof<'t>
         ]
 
 type DirectiveBuilder () =
@@ -42,7 +42,7 @@ type DirectiveBuilder () =
 
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Directive>, arguments: Argument list) =
-        setArguments (makeArguments arguments) :: state
+        setArguments (makeArguments arguments) @@ state
 
     [<CustomOperation "locations">]
     member __.Locations (state: State<Directive>, locations) =
@@ -79,16 +79,16 @@ type FieldBuilder<'field, 'source> (``type``, ?name) =
 
     member __.Yield (_: unit): State<Field<'field, 'source>> =
         [
-            yield trySetType ``type`` typeof<'field>
+            yield operation 0 <| trySetType ``type`` typeof<'field>
 
             match name with
-            | Some name -> yield setName name
+            | Some name -> yield operation 0 <| setName name
             | None -> ()
         ]
 
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Field<'field, 'source>>, arguments: Argument list) =
-        setArguments (makeArguments arguments) :: state
+        setArguments (makeArguments arguments) @@ state
 
     [<CustomOperation "prop">]
     member __.Property (state: State<Field<'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
@@ -141,7 +141,7 @@ type InputObjectBuilder<'source> () =
 
     member __.Yield (_: unit): State<InputObject<'source>> =
         [
-            yield setName typeof<'source>.Name
+            yield operation 0 <| setName typeof<'source>.Name
         ]
 
 type InterfaceBuilder<'source> () =
@@ -149,7 +149,7 @@ type InterfaceBuilder<'source> () =
 
     member __.Yield (_: unit): State<Interface<'source>> =
         [
-            yield setName typeof<'source>.Name
+            yield operation 0 <| setName typeof<'source>.Name
         ]
 
 type ObjectBuilder<'source> () =
@@ -157,7 +157,7 @@ type ObjectBuilder<'source> () =
 
     member __.Yield (_: unit): State<Object<'source>> =
         [
-            yield setName typeof<'source>.Name
+            yield operation 0 <| setName typeof<'source>.Name
         ]
 
     [<CustomOperation "interfaces">]
@@ -180,7 +180,7 @@ type SchemaBuilder () =
 
     member __.Yield (_: unit): State<Schema> =
         [
-            yield setFieldNameConverter
+            yield operation 0 <| setFieldNameConverter
         ]
 
     [<CustomOperation "query">]
