@@ -1,118 +1,48 @@
 module GraphQL.FSharp.Resolvers
 
-open System.Collections
 open System.Threading.Tasks
-open FSharp.Reflection
+open FSharp.Utils
+open FSharp.Utils.Reflection
 open GraphQL
-open GraphQL.Resolvers
-open GraphQL.Types
 
 open GraphQL.FSharp.Types
-open GraphQL.FSharp.Utils
 
-let private getSource (ctx: ResolveFieldContext<_>) = ctx.Source
+let inline private resolveHandler
+    (handler: ResolveContext<'source> -> 'field -> obj)
+    (f: ResolveContext<'source> -> 'field) =
+    Resolver<'source, 'field>(fun ctx -> handler ctx (f ctx))
 
-[<AutoOpen>]
-module Handlers =
-    let (|CaseTag|_|) i (case: UnionCaseInfo) = if case.Tag = i then Some () else None
+let inline private resolveTaskHandler
+    (handler: ResolveContext<'source> -> 'field -> obj)
+    (f: ResolveContext<'source> -> 'field Task) =
+    AsyncResolver<'source, 'field>(fun ctx -> Task.map (handler ctx) (f ctx))
 
-    // TODO: Memoize this
-    let unionValue f (x: obj) =
-        let ``type`` = x.GetType ()
-        if FSharpType.IsUnion ``type``
-        then f <|| FSharpValue.GetUnionFields (x, ``type``)
-        else invalidArg "x" "x must be a union type"
+let handleError (error: obj) =
+    match Dictionary.ofObj error with
+    | Some dict -> ExecutionError(error.GetType().Name, dict)
+    | None -> ExecutionError(string error)
 
-    let optionValue x =
-        match box x with
-        | null -> None
-        | x ->
-            unionValue
-                (fun case args ->
-                    let value = match args with [|value|] -> value | _ -> failwith "Failed to get value out of union case!"
-                    match case with
-                    | CaseTag 0 -> None
-                    | CaseTag 1 -> Some value
-                    | _ -> invalidArg "x" "Could not find proper case"
-                )
-                x
-
-    let resultValue x =
-        unionValue
-            (fun case args ->
-                let value = match args with [|value|] -> value | _ -> failwith "Failed to get value out of union case!"
-                match case with
-                | CaseTag 0 -> Ok value
-                | CaseTag 1 -> Error value
-                | _ -> invalidArg "x" "Could not find proper case"
-            )
-            x
-
-    let (|Option|_|) (x: obj) =
-        let ``type`` = x.GetType ()
-        if ``type``.IsGenericType
-            && ``type``.GetGenericTypeDefinition () = typedefof<_ option>
-        then Some (``type``.GenericTypeArguments.[0], optionValue x)
-        else None
-
-    let (|Result|_|) (x: obj) =
-        let ``type`` = x.GetType ()
-        if ``type``.IsGenericType
-            && ``type``.GetGenericTypeDefinition () = typedefof<Result<_, _>>
-        then Some (``type``.GenericTypeArguments.[0], ``type``.GenericTypeArguments.[1], resultValue x)
-        else None
-
-let internal taskMap f (t: _ Task) =
-    let source = TaskCompletionSource ()
-    t.ContinueWith (fun (t: _ Task) ->
-        if t.IsCanceled then source.SetCanceled ()
-        elif t.IsFaulted then source.SetException t.Exception
-        else source.SetResult (f t.Result)
-    ) |> ignore
-    source.Task
-
-let inline private resolveHandler handler f =
-    {
-        new IFieldResolver with
-            member __.Resolve ctx =
-                ResolveFieldContext<_> ctx
-                |> f
-                |> handler ctx
-    }
-
-let inline private resolveTaskHandler handler (f: _ -> _ Task) =
-    {
-        new IFieldResolver with
-            member __.Resolve ctx =
-                ResolveFieldContext<_> ctx
-                |> f
-                |> taskMap (handler ctx)
-                |> box
-    }
-
-let handleObject (ctx: #ResolveFieldContext<_>) x =
+let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
     match box x with
     | null -> null
-    | Option (_, opt) ->
-        Option.toObj opt
-    | Result (_, _, result) ->
+    | Option opt -> Option.toObj opt
+    | ValidationResult result ->
         match result with
         | Ok value -> value
-        | Error error ->
-            ctx.Errors.Add <|
-                match Dictionary.ofObj error with
-                | Some dict ->
-                    ExecutionError (
-                        message = error.GetType().Name,
-                        data = (dict :> IDictionary)
-                    )
-                | None ->
-                    ExecutionError (
-                        message = string error
-                    )
+        | Error errors ->
+            errors
+            |> List.map handleError
+            |> ctx.Errors.AddRange
+            null
+    | Result result ->
+        match result with
+        | Ok value -> value
+        | Error errors ->
+            errors
+            |> handleError
+            |> ctx.Errors.Add
             null
     | value -> value
 
-let convertContext (ctx: ResolveFieldContext<'source>) = ResolveContext<'source> ctx
-let resolve f = resolveHandler handleObject (convertContext >> f)
-let resolveAsync f = resolveTaskHandler handleObject (convertContext >> f)
+let resolve f = resolveHandler handleObject f
+let resolveAsync f = resolveTaskHandler handleObject f

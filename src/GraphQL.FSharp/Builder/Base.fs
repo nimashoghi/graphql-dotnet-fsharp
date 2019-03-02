@@ -2,11 +2,11 @@ module GraphQL.FSharp.BuilderBase
 
 open System
 open System.Collections.Generic
+open FSharp.Utils
 open GraphQL.Types
 
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
-open GraphQL.FSharp.Utils
 
 let inline setName value (x: ^t) =
     (^t: (member set_Name: string -> unit) x, value)

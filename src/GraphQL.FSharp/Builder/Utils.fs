@@ -4,6 +4,8 @@ open System
 open System.Reflection
 open System.Threading.Tasks
 open FSharp.Quotations
+open FSharp.Utils.Quotations
+open FSharp.Utils.Tasks
 open FSharp.Reflection
 open GraphQL.Types
 
@@ -75,17 +77,19 @@ module Field =
         let constructor = lazy (FSharpValue.PreComputeRecordConstructor typeof<'arguments>)
         fields, constructor
 
-    let validate (validator: 'arguments -> Validation.Validation<'arguments, 'error>): Operation<Field<'arguments, 'field, 'source>> =
+    let validate
+        (validator: 'arguments -> Result<'arguments, 'error list> Task)
+        : Operation<Field<'arguments, 'field, 'source>> =
         let fields, constructor = getRecordInfo<'arguments> ()
         operation 10 (
             fun field ->
-                let oldResolver = field.Resolver
+                let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
                 field.Resolver <-
-                    resolve (
-                        fun (ctx: ResolveContext<'source>) ->
+                    resolveAsync (
+                        fun (ctx: ResolveContext<'source>) -> task {
                             let argumentArray = makeArgumentArray<'arguments, 'source> fields ctx
                             let argumentRecord = makeArgumentRecord<'arguments> constructor argumentArray
-                            let validatedArguments = validator argumentRecord
+                            let! validatedArguments = validator argumentRecord
 
                             match validatedArguments with
                             | Ok _ ->
@@ -93,30 +97,24 @@ module Field =
                                 Array.zip argumentArray fields
                                 |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
 
-                                oldResolver.Resolve ctx.AsObjectContext
+                                return! oldResolver.Resolver ctx
                             | Error errors ->
                                 errors
                                 |> List.map (box >> string >> GraphQL.ExecutionError)
                                 |> ctx.Errors.AddRange
 
-                                null
+                                return null
+                        }
                     )
                 makeNullable field
                 field
         )
 
-    let resolveMethod (f: 'source -> 'arguments -> 'field) =
-        let fields, constructor = getRecordInfo<'arguments> ()
-        resolve (
+    let resolveMethod (f: 'source -> 'arguments -> 'field Task) =
+        let fields, constructor = getRecordInfo<'arguments>()
+        resolveAsync(
             fun (ctx: ResolveContext<'source>) ->
                 f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
-        )
-
-    let resolveCtxMethod (f: ResolveContext<'source> -> 'arguments -> 'field) =
-        let fields, constructor = getRecordInfo<'arguments> ()
-        resolve (
-            fun (ctx: ResolveContext<'source>) ->
-                f ctx (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
     let resolveCtxMethodAsync (f: ResolveContext<'source> -> 'arguments -> Task<'field>) =
@@ -148,7 +146,7 @@ module Schema =
     let abstractClasses ``type`` =
         let rec run (``type``: Type) = [
             let baseType = ``type``.BaseType
-            if baseType <> null && baseType <> typeof<obj> && baseType.IsAbstract then
+            if not(isNull baseType) && baseType <> typeof<obj> && baseType.IsAbstract then
                 yield baseType
                 yield! run baseType
         ]
@@ -232,16 +230,15 @@ module Union =
         // TODO: Start using FSharpValue.Precompute...
         let cases =
             FSharpType.GetUnionCases typeof<'source>
-            |> Array.map makeUnionCase<'source>
-            |> Array.map (fun object -> object :> IObjectGraphType)
+            |> Array.map(makeUnionCase<'source> >> (fun object -> object :> IObjectGraphType))
 
         union.PossibleTypes <- cases
 
-module internal Enum =
+module Enum =
     let addEnumValues (enum: Enumeration<'t>) =
         if typeof<'t>.IsEnum then
             Enum.GetNames typeof<'t>
-            |> Array.map (fun name ->
+            |> Array.map(fun name ->
                 EnumValueDefinition (
                     Name = name,
                     Value = Enum.Parse (typeof<'t>, name)
@@ -250,14 +247,26 @@ module internal Enum =
             |> Array.iter enum.AddValue
         elif FSharpType.IsUnion typeof<'t> then
             FSharpType.GetUnionCases typeof<'t>
-            |> Array.map (fun case ->
+            |> Array.map(fun case ->
                 if (not << Array.isEmpty) <| case.GetFields () then
                     failwith "Union case cannot have fields!"
                 else
-                    EnumValueDefinition (
+                    EnumValueDefinition(
                         Name = case.Name,
-                        Value = FSharpValue.MakeUnion (case, [||])
+                        Value = FSharpValue.MakeUnion(case, [||])
                     )
             )
             |> Array.iter enum.AddValue
         else failwith "Invalid enum type!"
+
+module Argument =
+    let inline trySetType graphType systemType (x: ^t) =
+        if graphType <> __
+        then setGraphType graphType x
+        else setType systemType x
+
+    let makeArguments arguments =
+        arguments
+        |> List.map (fun arg -> arg :> QueryArgument)
+        |> List.toArray
+        |> QueryArguments

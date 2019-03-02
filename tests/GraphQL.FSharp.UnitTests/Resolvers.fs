@@ -1,48 +1,16 @@
 module GraphQL.FSharp.UnitTests.Resolvers
 
-open System.Threading.Tasks
 open NUnit.Framework
 open Swensen.Unquote
 open GraphQL.FSharp.Resolvers
 open GraphQL
-open GraphQL.Types
-
-module ``Handlers`` =
-    module ``optionValue`` =
-        [<Test>]
-        let ``some`` () =
-            Some "hello"
-            |> box
-            |> optionValue
-            =! Some (box "hello")
-
-        [<Test>]
-        let ``none`` () =
-            None
-            |> box
-            |> optionValue
-            =! None
-
-    module ``resultValue`` =
-        [<Test>]
-        let ``ok`` () =
-            Ok "hello"
-            |> box
-            |> resultValue
-            =! Ok (box "hello")
-
-        [<Test>]
-        let ``error`` () =
-            Error "some error"
-            |> box
-            |> resultValue
-            =! Error (box "some error")
+open GraphQL.FSharp.Types
 
 module ``handleObject`` =
     [<Test>]
     let ``normal object`` () =
         let ctx =
-            ResolveFieldContext (
+            ResolveContext<obj>(
                 Errors = ExecutionErrors ()
             )
         let input = "hello"
@@ -52,7 +20,7 @@ module ``handleObject`` =
     [<Test>]
     let ``option object some`` () =
         let ctx =
-            ResolveFieldContext (
+            ResolveContext<obj>(
                 Errors = ExecutionErrors ()
             )
         let input = "hello"
@@ -62,7 +30,7 @@ module ``handleObject`` =
     [<Test>]
     let ``option object none`` () =
         let ctx =
-            ResolveFieldContext (
+            ResolveContext<obj>(
                 Errors = ExecutionErrors ()
             )
         handleObject ctx None =! null
@@ -71,7 +39,7 @@ module ``handleObject`` =
     [<Test>]
     let ``result object success`` () =
         let ctx =
-            ResolveFieldContext (
+            ResolveContext<obj>(
                 Errors = ExecutionErrors ()
             )
         let input = "hello"
@@ -81,24 +49,9 @@ module ``handleObject`` =
     [<Test>]
     let ``result object failure`` () =
         let ctx =
-            ResolveFieldContext (
+            ResolveContext<obj>(
                 Errors = ExecutionErrors ()
             )
         handleObject ctx (Error "something went wrong") =! null
         ctx.Errors.Count =! 1
         ctx.Errors.[0].Message =! "something went wrong"
-
-module ``taskMap`` =
-    [<Test>]
-    let ``basic test`` () =
-        (
-            Task.FromResult 1
-            |> taskMap (fun x -> x + 2)
-        ).Result =! 3
-
-    [<Test>]
-    let ``different type test`` () =
-        (
-            Task.FromResult 1
-            |> taskMap (fun x -> sprintf "%i" <| x + 2)
-        ).Result =! "3"

@@ -51,20 +51,20 @@ let ``Schema using synchronous resolver with methods returning task works proper
         object<MyType> {
             fields [
                 field __ {
-                    method (fun this _ -> this.GetSomethingSync ())
+                    method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
                 }
                 field __ {
-                    methodAsync (fun this _ -> this.GetSomethingAsync ())
+                    method (fun this _ -> this.GetSomethingAsync())
                 }
             ]
         }
     let Query =
         query [
             endpoint __ "GetMyType" {
-                resolve (fun _ _ -> MyType ())
+                resolve (fun _ _ -> Task.FromResult(MyType()))
             }
             endpoint __ "GetMyTypeAsync" {
-                resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
+                resolve (fun _ _ -> Task.FromResult(MyType()))
             }
         ]
     let Schema =

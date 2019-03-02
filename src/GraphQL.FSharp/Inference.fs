@@ -1,28 +1,27 @@
 module GraphQL.FSharp.Inference
 
 open System
+open FSharp.Utils.Reflection
 open GraphQL.Types
-
-open GraphQL.FSharp.Utils
 
 let rec unwrapType nonNullDefault get ``type`` =
     let graphType, isNull =
         match ``type`` with
-        | Nullable innerType
-        | Result innerType // TODO: Check result and null-ness
-        | Option innerType ->
+        | NullableType innerType
+        | ResultType (innerType, _)
+        | OptionType innerType ->
             let ``type`` = unwrapType false get innerType
             ``type``, true
 
-        | Enumerable innerType ->
+        | EnumerableType innerType ->
             let ``type`` =
                 unwrapType nonNullDefault get innerType
                 |> ListGraphType
                 :> IGraphType
             ``type``, false
 
-        | Observable innerType
-        | Task innerType ->
+        | ObservableType innerType
+        | TaskType innerType ->
             let ``type`` = unwrapType nonNullDefault get innerType
             ``type``, true
 

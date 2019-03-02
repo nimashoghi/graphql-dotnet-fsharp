@@ -1,6 +1,8 @@
 module GraphQL.FSharp.IntegrationTests.Validation
 
+open System.Threading.Tasks
 open NUnit.Framework
+open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open Validation.Builder
@@ -24,12 +26,18 @@ module Validation =
         then Ok "Alice"
         else Error ["Invalid Name"]
 
+    let validateAsyncName (name: string) =
+        task {
+            if name = "AsyncAlice"
+            then return Ok "AsyncAlice"
+            else return Error ["Invalid AsyncName"]
+        }
 
 [<Literal>]
 let QueryString = """
     query {
-        ValidateSuccess: Validate(Name: "Alice", Age: 21, Height: 180.0)
-        ValidateFailure: Validate(Name: "Hello", Age: 20, Height: 182.0)
+        ValidateSuccess: Validate(Name: "Alice", AsyncName: "AsyncAlice", Age: 21, Height: 180.0)
+        ValidateFailure: Validate(Name: "Hello", AsyncName: "AsyncHello", Age: 20, Height: 182.0)
     }
 """
 
@@ -37,7 +45,7 @@ let QueryString = """
 let ExpectedResult = """
     {
         "data": {
-            "ValidateSuccess": "Alice_21_180",
+            "ValidateSuccess": "Alice_AsyncAlice_21_180",
             "ValidateFailure": null
         },
         "errors": [
@@ -49,32 +57,36 @@ let ExpectedResult = """
             },
             {
                 "message": "Invalid Name"
+            },
+            {
+                "message": "Invalid AsyncName"
             }
         ]
     }
 """
 
 [<Test>]
-let ``Schema using synchronous resolver with methods returning task works properly`` () =
+let ``Schema using asynchronous resolver with methods returning task works properly`` () =
     let Query =
         query [
             endpoint __ "Validate" {
                 validate (
-                    fun (args: {|Age: int; Height: float; Name: string|}) -> validation {
+                    fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {
                         validate age in validateAge args.Age
                         validate height in validateHeight args.Height
                         validate name in validateName args.Name
-
+                        validate asyncName in validateAsyncName args.AsyncName
                         return
                             {|
                                 args with
                                     Age = age
                                     Height = height
                                     Name = name
+                                    AsyncName = asyncName
                             |}
                     }
                 )
-                resolve (fun _ args -> sprintf "%s_%i_%.0f" args.Name args.Age args.Height)
+                resolve (fun _ args -> Task.FromResult(sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
             }
         ]
     let Schema =

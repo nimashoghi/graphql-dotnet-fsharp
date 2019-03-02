@@ -1,6 +1,7 @@
 namespace GraphQL.FSharp.TestServer
 
 open System.Threading.Tasks
+open FSharp.Utils.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
@@ -43,6 +44,13 @@ module Validation =
         then Ok "Alice"
         else Error ["Invalid Name"]
 
+    let validateAsyncName (name: string) =
+        task {
+            if name = "AsyncAlice"
+            then return Ok "AsyncAlice"
+            else return Error ["Invalid Name"]
+        }
+
 module Schema =
     open Model
 
@@ -60,14 +68,14 @@ module Schema =
                                 OptionalParam: int option
                                 ResultParam: Result<int, string>
                             |})
-                            -> this.MethodWithParam args.IntegerParam args.ListParam args.OptionalParam args.ResultParam
+                            -> Task.FromResult(this.MethodWithParam args.IntegerParam args.ListParam args.OptionalParam args.ResultParam)
                     )
                 }
                 field __ {
-                    method (fun this _ -> this.GetSomethingSync ())
+                    method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
                 }
                 field __ {
-                    methodAsync (fun this _ -> this.GetSomethingAsync ())
+                    method (fun this _ -> this.GetSomethingAsync ())
                 }
             ]
         }
@@ -78,31 +86,32 @@ module Schema =
     let Query =
         query [
             endpoint __ "GetMyEnum" {
-                resolveAsync (fun _ _ -> Task.FromResult <| MyEnum.Thrid)
+                resolve (fun _ _ -> Task.FromResult(MyEnum.Thrid))
             }
             endpoint __ "GetMyUnion" {
-                resolveAsync (fun _ _ -> Task.FromResult <| First "hello")
+                resolve (fun _ _ -> Task.FromResult(First "hello"))
             }
             endpoint __ "GetMyType" {
-                resolveAsync (fun _ _ -> Task.FromResult <| MyType ())
+                resolve (fun _ _ -> Task.FromResult(MyType()))
             }
             endpoint __ "Validate" {
                 validate (
-                    fun (args: {|Age: int; Height: float; Name: string|}) -> validation {
+                    fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {
                         validate age in validateAge args.Age
                         validate height in validateHeight args.Height
                         validate name in validateName args.Name
-
+                        validate asyncName in validateAsyncName args.AsyncName
                         return
                             {|
                                 args with
                                     Age = age
                                     Height = height
                                     Name = name
+                                    AsyncName = asyncName
                             |}
                     }
                 )
-                resolve (fun _ args -> sprintf "%s_%i_%.0f" args.Name args.Age args.Height)
+                resolve (fun _ args -> Task.FromResult(sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
             }
         ]
 

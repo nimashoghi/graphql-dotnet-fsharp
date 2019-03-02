@@ -64,6 +64,8 @@ Target.create "Clean" (fun _ ->
     |> Shell.deleteDirs
 )
 
+Target.create "Reload" ignore
+
 Target.create "Build" (fun _ ->
     projects
     |> Array.map (fun fsproj -> fsproj.FullName)
@@ -112,13 +114,16 @@ let countLOC (file: FileInfo) =
 Target.create "CountLOC" (fun _ ->
     srcProjects
     |> Array.collect getProjectFiles
-    |> Array.map countLOC
-    |> Array.sum
+    |> Array.sumBy countLOC
     |> Trace.logf "LOC: %i\n"
 )
 
 open Fake.Core.TargetOperators
 
 "Build" ==> "Nuget"
+"Build" ==> "Nuget"
+
+"Clean" ==> "Reload"
+"Restore" ==> "Reload"
 
 Target.runOrDefault "Build"

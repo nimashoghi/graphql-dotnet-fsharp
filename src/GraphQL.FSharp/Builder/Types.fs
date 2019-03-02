@@ -14,25 +14,12 @@ open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
-[<AutoOpen>]
-module ArgumentHelpers =
-    let inline trySetType graphType systemType (x: ^t) =
-        if graphType <> __
-        then setGraphType graphType x
-        else setType systemType x
-
-    let makeArguments arguments =
-        arguments
-        |> List.map (fun arg -> arg :> QueryArgument)
-        |> List.toArray
-        |> QueryArguments
-
 type ArgumentBuilder<'t> (``type``) =
     inherit TypedEntityBuilder<Argument<'t>> ()
 
     member __.Yield (_: unit): State<Argument<'t>> =
         [
-            yield operation 0 <| trySetType ``type`` typeof<'t>
+            yield operation 0 <| Argument.trySetType ``type`` typeof<'t>
         ]
 
 type DirectiveBuilder () =
@@ -42,7 +29,7 @@ type DirectiveBuilder () =
 
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Directive>, arguments: Argument list) =
-        setArguments (makeArguments arguments) @@ state
+        setArguments (Argument.makeArguments arguments) @@ state
 
     [<CustomOperation "locations">]
     member __.Locations (state: State<Directive>, locations) =
@@ -79,7 +66,7 @@ type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
 
     member __.Yield (_: unit): State<Field<'arguments, 'field, 'source>> =
         [
-            yield operation 0 <| trySetType ``type`` typeof<'field>
+            yield operation 0 <| Argument.trySetType ``type`` typeof<'field>
 
             match name with
             | Some name -> yield operation 0 <| setName name
@@ -87,40 +74,23 @@ type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
         ]
 
     [<CustomOperation "validate">]
-    member __.Validate (state: State<Field<'arguments, 'field, 'source>>, validator: 'arguments -> Validation.Validation<'arguments, 'error>) =
+    member __.Validate (state: State<Field<'arguments, 'field, 'source>>, validator: 'arguments -> Result<'arguments, 'error list> Task) =
         Field.validate validator :: state
 
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Field<'arguments, 'field, 'source>>, arguments: Argument list) =
-        setArguments (makeArguments arguments) @@ state
+        setArguments (Argument.makeArguments arguments) @@ state
 
     [<CustomOperation "prop">]
-    member __.Property (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
-        Field.setField (|FieldName|_|) (withSource >> resolve) expr state
-
-    [<CustomOperation "propAsync">]
     member __.PropertyAsync (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
         Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr state
 
     [<CustomOperation "method">]
-    member __.Method (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
-        Field.setField (|MethodName|_|) Field.resolveMethod expr state
-        |> Field.addArguments<'arguments, 'field, 'source>
-
-    [<CustomOperation "methodAsync">]
     member __.MethodAsync (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
         Field.setField (|MethodName|_|) Field.resolveMethod expr state
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "resolve">]
-    member __.Resolve (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> 'field) =
-        appendToState state (
-            fun this ->
-                this.Resolver <- Field.resolveCtxMethod resolver
-        )
-        |> Field.addArguments<'arguments, 'field, 'source>
-
-    [<CustomOperation "resolveAsync">]
     member __.ResolveAsync (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
         appendToState state (
             fun this ->
@@ -129,16 +99,6 @@ type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
         |> Field.addArguments<'arguments, 'field, 'source>
 
     [<CustomOperation "subscribe">]
-    member __.Subscribe (state: State<Field<'arguments, 'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> IObservable<'field>) =
-        appendToState state (
-            fun this ->
-                this.Subscriber <- EventStreamResolver<_, _> (Func<_, _> subscribe)
-
-                if isNull this.Resolver
-                then this.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
-        )
-
-    [<CustomOperation "subscribeAsync">]
     member __.SubscribeAsync (state: State<Field<'arguments, 'field, 'source>>, subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) =
         appendToState state (
             fun this ->

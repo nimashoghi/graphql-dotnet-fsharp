@@ -7,8 +7,6 @@
   <ItemGroup>
     <Compile Include="Utils/Quotations.fs" />
     <Compile Include="Utils/GraphTypes.fs" />
-    <Compile Include="Utils/Types.fs" />
-    <Compile Include="Utils/Utils.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Resolvers.fs" />
@@ -20,7 +18,8 @@
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSValidation" Version="0.0.1" />
+    <PackageReference Include="FSharp.Utils" Version="0.0.1" />
+    <PackageReference Include="FSValidation" Version="0.0.4" />
     <PackageReference Include="GraphQL" Version="2.4.0" />
   </ItemGroup>
 </Project>

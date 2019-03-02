@@ -4,6 +4,8 @@ module GraphQL.FSharp.Types
 open System
 open System.Collections.Generic
 open System.Runtime.InteropServices
+open System.Threading.Tasks
+open GraphQL.Resolvers
 open GraphQL.Types
 
 type NullGraphType (?``type``) =
@@ -60,49 +62,52 @@ module Instances =
     let ListGraph (``type``: #IGraphType) = ListGraphType (processNonNullity ``type``)
     let __: IGraphType = null
 
-type ResolveContext<'source> (context: ResolveFieldContext<'source>) =
+type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
     inherit ResolveFieldContext<'source> ()
 
     do
-        base.Source <- context.Source
-        base.FieldName <- context.FieldName
-        base.FieldAst <- context.FieldAst
-        base.FieldDefinition <- context.FieldDefinition
-        base.ReturnType <- context.ReturnType
-        base.ParentType <- context.ParentType
-        base.Arguments <- context.Arguments
-        base.Schema <- context.Schema
-        base.Document <- context.Document
-        base.Fragments <- context.Fragments
-        base.RootValue <- context.RootValue
-        base.UserContext <- context.UserContext
-        base.Operation <- context.Operation
-        base.Variables <- context.Variables
-        base.CancellationToken <- context.CancellationToken
-        base.Metrics <- context.Metrics
-        base.Errors <- context.Errors
-        base.SubFields <- context.SubFields
+        context |> Option.iter(
+            fun context ->
+                this.Source <- context.Source
+                this.FieldName <- context.FieldName
+                this.FieldAst <- context.FieldAst
+                this.FieldDefinition <- context.FieldDefinition
+                this.ReturnType <- context.ReturnType
+                this.ParentType <- context.ParentType
+                this.Arguments <- context.Arguments
+                this.Schema <- context.Schema
+                this.Document <- context.Document
+                this.Fragments <- context.Fragments
+                this.RootValue <- context.RootValue
+                this.UserContext <- context.UserContext
+                this.Operation <- context.Operation
+                this.Variables <- context.Variables
+                this.CancellationToken <- context.CancellationToken
+                this.Metrics <- context.Metrics
+                this.Errors <- context.Errors
+                this.SubFields <- context.SubFields
+        )
 
-    member __.AsObjectContext =
+    member this.AsObjectContext =
         ResolveFieldContext (
-            Source = context.Source,
-            FieldName = context.FieldName,
-            FieldAst = context.FieldAst,
-            FieldDefinition = context.FieldDefinition,
-            ReturnType = context.ReturnType,
-            ParentType = context.ParentType,
-            Arguments = context.Arguments,
-            Schema = context.Schema,
-            Document = context.Document,
-            Fragments = context.Fragments,
-            RootValue = context.RootValue,
-            UserContext = context.UserContext,
-            Operation = context.Operation,
-            Variables = context.Variables,
-            CancellationToken = context.CancellationToken,
-            Metrics = context.Metrics,
-            Errors = context.Errors,
-            SubFields = context.SubFields
+            Source = this.Source,
+            FieldName = this.FieldName,
+            FieldAst = this.FieldAst,
+            FieldDefinition = this.FieldDefinition,
+            ReturnType = this.ReturnType,
+            ParentType = this.ParentType,
+            Arguments = this.Arguments,
+            Schema = this.Schema,
+            Document = this.Document,
+            Fragments = this.Fragments,
+            RootValue = this.RootValue,
+            UserContext = this.UserContext,
+            Operation = this.Operation,
+            Variables = this.Variables,
+            CancellationToken = this.CancellationToken,
+            Metrics = this.Metrics,
+            Errors = this.Errors,
+            SubFields = this.SubFields
         )
 
     member this.GetArgument<'TType> (name, ?defaultValue: 'TType) =
@@ -113,12 +118,20 @@ type ResolveContext<'source> (context: ResolveFieldContext<'source>) =
         try base.GetArgument (argumentType, name, defaultValue)
         with :? InvalidOperationException -> null
 
-module Option =
-    let mapToObj f x =
-        x
-        |> Option.map f
-        |> Option.toObj
+let makeContext<'source> (ctx: ResolveFieldContext) =
+    ResolveContext<'source>(ResolveFieldContext<'source> ctx)
 
+type Resolver<'source, 'field> (f: ResolveContext<'source> -> obj) =
+    member val Resolver = f
+
+    interface IFieldResolver with
+        member __.Resolve ctx = box(f(makeContext<'source> ctx))
+
+type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> obj Task) =
+    member val Resolver = f
+
+    interface IFieldResolver with
+        member __.Resolve ctx = box(f(makeContext<'source> ctx))
 
 type Argument () =
     inherit QueryArgument (Instances.invalidGraphType)
