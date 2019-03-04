@@ -1,5 +1,6 @@
 module GraphQL.FSharp.Resolvers
 
+open System.Collections
 open System.Threading.Tasks
 open FSharp.Utils
 open FSharp.Utils.Reflection
@@ -10,17 +11,18 @@ open GraphQL.FSharp.Types
 let inline private resolveHandler
     (handler: ResolveContext<'source> -> 'field -> obj)
     (f: ResolveContext<'source> -> 'field) =
-    Resolver<'source, 'field>(fun ctx -> handler ctx (f ctx))
+    Resolver<'source, 'field> (fun ctx -> handler ctx (f ctx))
 
 let inline private resolveTaskHandler
     (handler: ResolveContext<'source> -> 'field -> obj)
     (f: ResolveContext<'source> -> 'field Task) =
-    AsyncResolver<'source, 'field>(fun ctx -> Task.map (handler ctx) (f ctx))
+    AsyncResolver<'source, 'field> (fun ctx -> Task.map (handler ctx) (f ctx))
 
 let handleError (error: obj) =
     match Dictionary.ofObj error with
-    | Some dict -> ExecutionError(error.GetType().Name, dict)
-    | None -> ExecutionError(string error)
+    // TODO: fix this later
+    | Some dict -> ExecutionError (error.GetType().Name, dict :?> IDictionary)
+    | None -> ExecutionError (string error)
 
 let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
     match box x with
