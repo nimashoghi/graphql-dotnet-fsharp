@@ -2,7 +2,10 @@
 module GraphQL.FSharp.Server.Authorization
 
 open System
+open System.Threading.Tasks
 open FSharp.Reflection
+open FSharp.Utils
+open FSharp.Utils.Tasks
 open GraphQL.FSharp
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.BuilderTypes
@@ -13,59 +16,80 @@ open Microsoft.Extensions.DependencyInjection
 
 let mkName name = sprintf "GraphQL.FSharp.Server.Auth.%s" name
 
-type AuthorizationSettings<'t when 't: equality and 't: (member Authorize: IServiceProvider * AuthorizationPolicyBuilder -> AuthorizationPolicyBuilder)> =
+type IPolicy =
+    abstract member Authorize: AuthorizationPolicyBuilder -> AuthorizationPolicyBuilder
+
+type Requirement (invoke: IServiceProvider -> AuthorizationHandlerContext -> bool Task) =
+    interface IAuthorizationRequirement
+
+    member __.Invoke services ctx = invoke services ctx
+
+type RequirementHandler (services) =
+    inherit AuthorizationHandler<Requirement> ()
+
+    override __.HandleRequirementAsync (ctx, requirement) =
+        upcast task {
+            let! result = requirement.Invoke services ctx
+            if result then ctx.Succeed requirement
+        }
+
+type AuthorizationPolicyBuilder with
+    member this.Require (f: 'dependencies -> AuthorizationHandlerContext -> bool Task) =
+        this.AddRequirements (Requirement (fun services ctx -> f (DependencyInjection.resolve services) ctx))
+
+type AuthorizationSettings<'t when 't: equality and 't :> IPolicy> =
     {
         InvokeHandlersAfterFailure: bool
         DefaultPolicy: 't option
     }
 
-    static member inline Default: AuthorizationSettings<'t> =
+    static member Default: AuthorizationSettings<'t> =
         {
             InvokeHandlersAfterFailure = true
             DefaultPolicy = None
         }
 
-    static member inline FromOptions (options: AuthorizationOptions) =
+    static member FromOptions (options: AuthorizationOptions) =
         {
             AuthorizationSettings.Default with
                 InvokeHandlersAfterFailure = options.InvokeHandlersAfterFailure
         }
 
-    member inline this.InvokeOnOptions (options: AuthorizationOptions) =
+    member this.InvokeOnOptions (options: AuthorizationOptions) =
         options.InvokeHandlersAfterFailure <- this.InvokeHandlersAfterFailure
 
 type Field<'arguments, 'field, 'source> with
-    member inline this.Authorize< ^t when ^t: equality and ^t: (member Authorize: IServiceProvider * AuthorizationPolicyBuilder -> AuthorizationPolicyBuilder)> (policy: ^t) =
+    member this.Authorize<'t when 't: equality and 't :> IPolicy> (policy: 't) =
         let case, _ =
             FSharpValue.GetUnionFields (
                 value = policy,
-                unionType = typeof< ^t>
+                unionType = typeof<'t>
             )
         this.AuthorizeWith (mkName case.Name)
 
 type FieldBuilder<'arguments, 'field, 'source> with
     [<CustomOperation "authorize">]
-    member inline __.Authorize (state: State<Field<'arguments, 'field, 'source>>, policy) =
+    member __.Authorize (state: State<Field<'arguments, 'field, 'source>>, policy) =
         (fun (field: Field<'arguments, 'field, 'source>) -> field.Authorize policy; field) @@ state
 
 type IGraphQLBuilder with
-    member inline this.AddAuthorization< ^t when ^t: equality and ^t: (member Authorize: IServiceProvider * AuthorizationPolicyBuilder -> AuthorizationPolicyBuilder)> (optionBuilder: AuthorizationSettings< ^t> -> AuthorizationSettings< ^t>) =
+    member this.AddAuthorization<'t when 't: equality and 't :> IPolicy> (optionBuilder: AuthorizationSettings<'t> -> AuthorizationSettings<'t>) =
+        this.Services.AddSingleton<IAuthorizationHandler, RequirementHandler> ()
+        |> ignore
         this.AddGraphQLAuthorization (
             fun options ->
                 let settings =
-                    AuthorizationSettings< ^t>.FromOptions options
+                    AuthorizationSettings<'t>.FromOptions options
                     |> optionBuilder
                 settings.InvokeOnOptions options
 
-                FSharpType.GetUnionCases typeof< ^t>
+                FSharpType.GetUnionCases typeof<'t>
                 |> Array.map (
                     fun case ->
-                        let name, case = mkName case.Name, FSharpValue.MakeUnion (case , [||]) |> unbox< ^t>
+                        let name, case = mkName case.Name, FSharpValue.MakeUnion (case , [||]) |> unbox<'t>
                         options.AddPolicy (
                             name = name,
-                            configurePolicy = fun policyBuilder ->
-                                (^t: (member Authorize: IServiceProvider * AuthorizationPolicyBuilder -> AuthorizationPolicyBuilder) (case, this.Services.BuildServiceProvider (), policyBuilder))
-                                |> ignore
+                            configurePolicy = Action<_> (case.Authorize >> ignore)
                         )
                         options.GetPolicy name, case
                 )
