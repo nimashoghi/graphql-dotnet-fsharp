@@ -18,24 +18,21 @@ let input<'source> = InputObjectBuilder<'source> ()
 let ``interface``<'source> = InterfaceBuilder<'source> ()
 
 let object<'source> = ObjectBuilder<'source> ()
-let query list =
-    object<obj> {
-        name "Query"
-        fields list
-    }
-    |> Query
-let mutation list =
-    object<obj> {
-        name "Mutation"
-        fields list
-    }
-    |> Mutation
-let subscription list =
-    object<obj> {
-        name "Subscription"
-        fields list
-    }
-    |> Subscription
+let group endpointName operation list =
+    endpoint
+        (
+            object<obj> {
+                name (sprintf "%s%s" endpointName operation)
+                fields list
+            }
+        )
+        endpointName
+        {
+            manualResolve (fun _ -> obj ())
+        }
+let query name list = group name "Query" list
+let mutation name list = group name "Mutation" list
+let subscription name list = group name "Subscription" list
 
 let schema = SchemaBuilder ()
 

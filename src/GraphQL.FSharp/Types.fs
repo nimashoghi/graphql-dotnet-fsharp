@@ -125,13 +125,13 @@ type Resolver<'source, 'field> (f: ResolveContext<'source> -> obj) =
     member val Resolver = f
 
     interface IFieldResolver with
-        member __.Resolve ctx = box(f(makeContext<'source> ctx))
+        member __.Resolve ctx = box (f (makeContext<'source> ctx))
 
 type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> obj Task) =
     member val Resolver = f
 
     interface IFieldResolver with
-        member __.Resolve ctx = box(f(makeContext<'source> ctx))
+        member __.Resolve ctx = box (f (makeContext<'source> ctx))
 
 type Argument () =
     inherit QueryArgument (Instances.invalidGraphType)
@@ -193,26 +193,5 @@ type Union () =
 
 type Union<'t> () =
     inherit Union ()
-
-type Query =
-    | Query of Object<obj>
-
-    member this.Graph =
-        match this with
-        | Query graph -> graph
-
-type Mutation =
-    | Mutation of Object<obj>
-
-    member this.Graph =
-        match this with
-        | Mutation graph -> graph
-
-type Subscription =
-    | Subscription of Object<obj>
-
-    member this.Graph =
-        match this with
-        | Subscription graph -> graph
 
 type Schema = GraphQL.Types.Schema

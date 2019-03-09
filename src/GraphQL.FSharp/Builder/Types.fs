@@ -6,7 +6,6 @@ open FSharp.Quotations
 open GraphQL.Conversion
 open GraphQL.Resolvers
 open GraphQL.Subscription
-open GraphQL.Types
 
 open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.BuilderUtils
@@ -80,6 +79,13 @@ type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Field<'arguments, 'field, 'source>>, arguments: Argument list) =
         setArguments (Argument.makeArguments arguments) @@ state
+
+    [<CustomOperation "manualResolve">]
+    member __.ManualResolve (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'field) =
+        appendToState state (
+            fun this ->
+                this.Resolver <- resolve resolver
+        )
 
     [<CustomOperation "prop">]
     member __.PropertyAsync (state: State<Field<'arguments, 'field, 'source>>, [<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
@@ -161,16 +167,34 @@ type SchemaBuilder () =
         ]
 
     [<CustomOperation "query">]
-    member __.Query (state: State<Schema>, Query query) =
-        appendToState state (fun this -> this.Query <- query)
+    member __.Query (state: State<Schema>, endpoints: Field<obj> list) =
+        appendToState state (
+            fun this ->
+                let object = Object<obj> (Name = "Query")
+                endpoints
+                |> List.iter (object.AddField >> ignore)
+                this.Query <- object
+        )
 
     [<CustomOperation "mutation">]
-    member __.Mutation (state: State<Schema>, Mutation mutation) =
-        appendToState state (fun this -> this.Mutation <- mutation)
+    member __.Mutation (state: State<Schema>, endpoints: Field<obj> list) =
+        appendToState state (
+            fun this ->
+                let object = Object<obj> (Name = "Mutation")
+                endpoints
+                |> List.iter (object.AddField >> ignore)
+                this.Mutation <- object
+        )
 
     [<CustomOperation "subscription">]
-    member __.Subscription (state: State<Schema>, Subscription subscription) =
-        appendToState state (fun this -> this.Subscription <- subscription)
+    member __.Subscription (state: State<Schema>, endpoints: Field<obj> list) =
+        appendToState state (
+            fun this ->
+                let object = Object<obj> (Name = "Subscription")
+                endpoints
+                |> List.iter (object.AddField >> ignore)
+                this.Subscription <- object
+        )
 
     [<CustomOperation "types">]
     member __.Types (state: State<Schema>, types) =

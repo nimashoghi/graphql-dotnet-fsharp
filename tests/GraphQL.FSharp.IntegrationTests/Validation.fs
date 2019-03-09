@@ -67,8 +67,7 @@ let ExpectedResult = """
 
 [<Test>]
 let ``Schema using asynchronous resolver with methods returning task works properly`` () =
-    let Query =
-        query [
+    let Query = [
             endpoint __ "Validate" {
                 validate (
                     fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {

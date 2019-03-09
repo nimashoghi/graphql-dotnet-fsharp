@@ -84,7 +84,7 @@ module Schema =
     let MyEnumGraph = enum.auto<MyEnum> ()
 
     let Query =
-        query [
+        [
             endpoint __ "GetMyEnum" {
                 resolve (fun _ _ -> Task.FromResult(MyEnum.Thrid))
             }

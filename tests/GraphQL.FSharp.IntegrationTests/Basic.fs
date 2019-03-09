@@ -58,8 +58,7 @@ let ``Schema using synchronous resolver with methods returning task works proper
                 }
             ]
         }
-    let Query =
-        query [
+    let Query = [
             endpoint __ "GetMyType" {
                 resolve (fun _ _ -> Task.FromResult(MyType()))
             }

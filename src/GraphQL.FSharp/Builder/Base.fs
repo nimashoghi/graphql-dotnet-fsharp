@@ -42,7 +42,7 @@ let inline setType systemType (source: ^t) =
 
 let inline setMetadata value (x: ^t) =
     let metadata = (^t: (member Metadata: IDictionary<string, obj>) x)
-    (^t: (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata value)
+    (^t: (member set_Metadata: IDictionary<string, obj> -> unit) x, Dictionary.merge metadata (Dictionary.ofList value))
     x
 
 let inline makeNullable (x: ^t) =

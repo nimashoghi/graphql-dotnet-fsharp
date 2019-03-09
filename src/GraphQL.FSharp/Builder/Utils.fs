@@ -112,7 +112,7 @@ module Field =
 
     let resolveMethod (f: 'source -> 'arguments -> 'field Task) =
         let fields, constructor = getRecordInfo<'arguments>()
-        resolveAsync(
+        resolveAsync (
             fun (ctx: ResolveContext<'source>) ->
                 f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
         )

@@ -19,7 +19,7 @@ let MyTypeGraph =
     }
 
 let Query =
-    query [
+    [
         endpoint __ "getMyType" {
             resolve (fun _ _ -> Task.FromResult(MyType()))
         }
