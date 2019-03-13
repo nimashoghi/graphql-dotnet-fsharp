@@ -8,6 +8,8 @@ open GraphQL.Types
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 
+let inline getName (x: ^t) = (^t: (member Name: string) x)
+
 let inline setName value (x: ^t) =
     (^t: (member set_Name: string -> unit) x, value)
     x
@@ -23,6 +25,8 @@ let inline setDeprecationReason value (x: ^t) =
 let inline setDefaultValue value (x: ^t) =
     (^t: (member set_DefaultValue: obj -> unit) x, value)
     x
+
+let inline getArguments (x: ^t) = (^t: (member Arguments: QueryArguments) x)
 
 let inline setArguments value (x: ^t) =
     (^t: (member set_Arguments: QueryArguments -> unit) x, value)

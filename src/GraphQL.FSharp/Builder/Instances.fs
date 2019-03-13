@@ -1,8 +1,13 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder
 
+open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.BuilderTypes
-open GraphQL.FSharp.Types
+
+let inline (=>) x y = x, y
+
+let description description = Description description
+let args arguments = ArgumentDescription arguments
 
 let argument<'t> ``type`` = ArgumentBuilder<'t> (``type`` = ``type``)
 
@@ -10,6 +15,7 @@ let directive = DirectiveBuilder ()
 
 let enum = EnumerationBuilder ()
 
+// TODO: Add a way of being able to add argument description/documentation
 let field<'arguments, 'field, 'source> ``type`` = FieldBuilder<'arguments, 'field, 'source> (``type`` = ``type``)
 let endpoint<'arguments, 'field> ``type`` name = FieldBuilder<'arguments, 'field, obj> (name = name, ``type`` = ``type``)
 

@@ -37,7 +37,7 @@ type DirectiveBuilder () =
 type EnumerationBuilder () =
     inherit BasicGraphTypeBuilder<Enumeration> ()
 
-    member __.auto<'source> (?Name, ?Description, ?Metadata) =
+    member __.Auto<'source> (?Name, ?Description, ?Metadata) =
         let graph: Enumeration<'source> =
             Enumeration<'source> (
                 Name = typeof<'source>.Name
@@ -79,6 +79,25 @@ type FieldBuilder<'arguments, 'field, 'source> (``type``, ?name) =
     [<CustomOperation "arguments">]
     member __.Arguments (state: State<Field<'arguments, 'field, 'source>>, arguments: Argument list) =
         setArguments (Argument.makeArguments arguments) @@ state
+
+    [<CustomOperation "argumentDescription">]
+    member __.ArgumentDescription (state: State<Field<'arguments, 'field, 'source>>, descriptions: (string * string) list) =
+        operation 100 (
+            fun (this: Field<'arguments, 'field, 'source>) ->
+                let arguments =
+                    this.Arguments
+                    |> Seq.groupBy (fun argument -> argument.Name)
+                    |> dict
+
+                for key, value in descriptions do
+                    match arguments.TryGetValue key with
+                    | true, arguments ->
+                        arguments
+                        |> Seq.iter (fun argument -> argument.Description <- value)
+                    | _ -> failwithf "Was not able to find argument with key '%s' in field '%s'" key this.Name
+
+                this
+        ) :: state
 
     [<CustomOperation "manualResolve">]
     member __.ManualResolve (state: State<Field<'arguments, 'field, 'source>>, resolver: ResolveContext<'source> -> 'field) =
@@ -170,7 +189,11 @@ type SchemaBuilder () =
     member __.Query (state: State<Schema>, endpoints: Field<obj> list) =
         appendToState state (
             fun this ->
-                let object = Object<obj> (Name = "Query")
+                let object =
+                    Object<obj> (
+                        Name = "Query",
+                        Description = "The queriesss accepted in this GraphQL API."
+                    )
                 endpoints
                 |> List.iter (object.AddField >> ignore)
                 this.Query <- object
@@ -180,7 +203,11 @@ type SchemaBuilder () =
     member __.Mutation (state: State<Schema>, endpoints: Field<obj> list) =
         appendToState state (
             fun this ->
-                let object = Object<obj> (Name = "Mutation")
+                let object =
+                    Object<obj> (
+                        Name = "Mutation",
+                        Description = "The mutations accepted in this GraphQL API."
+                    )
                 endpoints
                 |> List.iter (object.AddField >> ignore)
                 this.Mutation <- object
@@ -190,7 +217,11 @@ type SchemaBuilder () =
     member __.Subscription (state: State<Schema>, endpoints: Field<obj> list) =
         appendToState state (
             fun this ->
-                let object = Object<obj> (Name = "Subscription")
+                let object =
+                    Object<obj> (
+                        Name = "Subscription",
+                        Description = "The subscriptions accepted in this GraphQL API."
+                    )
                 endpoints
                 |> List.iter (object.AddField >> ignore)
                 this.Subscription <- object
@@ -208,7 +239,7 @@ type SchemaBuilder () =
 type UnionBuilder () =
     inherit BasicGraphTypeBuilder<Union> ()
 
-    member __.auto<'source> (?Name, ?Description, ?Metadata) =
+    member __.Auto<'source> (?Name, ?Description, ?Metadata) =
         let graph: Union<'source> =
             Union<'source> (
                 Name = typeof<'source>.Name

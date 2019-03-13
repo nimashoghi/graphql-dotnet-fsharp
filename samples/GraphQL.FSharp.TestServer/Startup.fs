@@ -58,6 +58,10 @@ module Schema =
         object<MyType> {
             fields [
                 field __ {
+                    description "Hello world"
+                    argumentDescription [
+                        "IntegerParam" => "Some integer parameter!"
+                    ]
                     method (
                         fun
                             this
@@ -68,11 +72,23 @@ module Schema =
                                 OptionalParam: int option
                                 ResultParam: Result<int, string>
                             |})
-                            -> Task.FromResult(this.MethodWithParam args.IntegerParam args.ListParam args.OptionalParam args.ResultParam)
+                            -> Task.FromResult (
+                                this.MethodWithParam
+                                    args.IntegerParam
+                                    args.ListParam
+                                    args.OptionalParam
+                                    args.ResultParam
+                            )
                     )
                 }
                 field __ {
-                    method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
+                    documentation [
+                        description "Hello world"
+                        args [
+
+                        ]
+                    ]
+                    method (fun this _ -> Task.FromResult (this.GetSomethingSync()))
                 }
                 field __ {
                     method (fun this _ -> this.GetSomethingAsync ())
@@ -80,19 +96,19 @@ module Schema =
             ]
         }
 
-    let MyUnionGraph = union.auto<MyUnion> ()
-    let MyEnumGraph = enum.auto<MyEnum> ()
+    let MyUnionGraph = union.Auto<MyUnion> ()
+    let MyEnumGraph = enum.Auto<MyEnum> ()
 
     let Query =
         [
             endpoint __ "GetMyEnum" {
-                resolve (fun _ _ -> Task.FromResult(MyEnum.Thrid))
+                resolve (fun _ _ -> Task.FromResult (MyEnum.Thrid))
             }
             endpoint __ "GetMyUnion" {
-                resolve (fun _ _ -> Task.FromResult(First "hello"))
+                resolve (fun _ _ -> Task.FromResult (First "hello"))
             }
             endpoint __ "GetMyType" {
-                resolve (fun _ _ -> Task.FromResult(MyType()))
+                resolve (fun _ _ -> Task.FromResult (MyType()))
             }
             endpoint __ "Validate" {
                 validate (
@@ -111,7 +127,7 @@ module Schema =
                             |}
                     }
                 )
-                resolve (fun _ args -> Task.FromResult(sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
+                resolve (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
             }
         ]
 
