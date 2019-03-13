@@ -1,13 +1,9 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder
 
-open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.BuilderTypes
 
 let inline (=>) x y = x, y
-
-let description description = Description description
-let args arguments = ArgumentDescription arguments
 
 let argument<'t> ``type`` = ArgumentBuilder<'t> (``type`` = ``type``)
 
