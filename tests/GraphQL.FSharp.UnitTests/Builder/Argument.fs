@@ -42,19 +42,18 @@ let ``automatically inferred arguments from record`` () =
 
 // TODO: Add tests for option types to check nullable fields/args
 
-// FIXME: Do we need argument?
-// [<Test>]
-// let ``configure test`` () =
-//     argument<int> __ [
-//         name "myArg"
-//         configure (fun arg -> arg.ResolvedType <- FloatGraph)
-//         configure (fun arg -> arg.Name <- "changedName")
-//     ]
-//     |> argumentEqual "changedName" (nullable FloatGraphType) None
+[<Test>]
+let ``configure test`` () =
+    argument<int> __ [
+        name "myArg"
+        configureUnit (fun arg -> arg.ResolvedType <- FloatGraph)
+        configureUnit (fun arg -> arg.Name <- "changedName")
+    ]
+    |> argumentEqual "changedName" (nullable FloatGraphType) None
 
-// [<Test>]
-// let ``basic test`` () =
-//     argument<int> __ {
-//         name "myArg"
-//     }
-//     |> argumentEqual "myArg" (nonNull IntGraphType) None
+[<Test>]
+let ``basic test`` () =
+    argument<int> __ [
+        name "myArg"
+    ]
+    |> argumentEqual "myArg" (nonNull IntGraphType) None

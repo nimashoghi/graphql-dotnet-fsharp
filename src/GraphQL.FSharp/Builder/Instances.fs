@@ -10,7 +10,12 @@ open GraphQL.FSharp.Types
 type Endpoints = Field<obj> list
 let inline endpoints (endpoints: Endpoints) = endpoints
 
-let inline field<'arguments, 'field, 'source> (``type``: IGraphType) parameters =
+let inline argument<'argument> ``type`` parameters =
+    graphOrSystemType ``type`` typeof<'argument> :: parameters
+    |> reduceWith Argument<'argument>
+
+// TODO: Move type handling here
+let inline field<'arguments, 'field, 'source> ``type`` parameters =
     graphType ``type`` :: parameters
     |> reduceWith Field<'arguments, 'field, 'source>
 

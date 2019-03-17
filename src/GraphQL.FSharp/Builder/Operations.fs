@@ -12,6 +12,7 @@ open GraphQL.Subscription
 open GraphQL.Types
 
 open GraphQL.FSharp.Builder.Utils
+open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils.Quotations
@@ -81,10 +82,14 @@ type DefaultValueHelper =
 
 let inline defaultValue value = operationUnit 100 <| fun target -> (DefaultValueHelper $ target) value
 
-let inline graphType (value: #IGraphType) = configure <| fun target ->
+let inline graphType (value: #IGraphType) = configureUnit <| fun target ->
     if box value |> isNull |> not
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
-    target
+
+let inline graphOrSystemType (value: #IGraphType) ``type`` = configureUnit <| fun target ->
+    if box value |> isNull |> not
+    then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
+    else (^t: (member set_GraphType: IGraphType -> unit) target, createReference ``type``)
 
 let inline metadata value = configureUnit <| fun target ->
     let metadata = (^t: (member Metadata: IDictionary<string, obj>) target)
@@ -227,7 +232,9 @@ module Enum =
         (^t: (member set_Value: ^value -> unit) target, value)
 
     // TODO: Implement
-    let isValidEnum ``type`` = true
+    let isValidEnum (``type``: Type) =
+        ``type``.IsEnum
+        || FSharpType.IsUnion ``type``
 
     let getEnumName<'enum> () = typeof<'enum>.Name
 
