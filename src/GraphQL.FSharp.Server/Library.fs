@@ -1,8 +1,6 @@
 module GraphQL.FSharp.Server.GraphQLServer
 
-open System
 open GraphQL.Server
-open Microsoft.AspNetCore.Authorization
 open Microsoft.Extensions.DependencyInjection
 
 let addGraphQL optionBuilder (services: IServiceCollection) =

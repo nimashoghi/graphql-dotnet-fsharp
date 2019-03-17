@@ -67,8 +67,10 @@ let ExpectedResult = """
 
 [<Test>]
 let ``Schema using asynchronous resolver with methods returning task works properly`` () =
-    let Query = [
-            endpoint __ "Validate" {
+    let Query =
+        endpoints [
+            field __ [
+                name "Validate"
                 validate (
                     fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {
                         validate age in validateAge args.Age
@@ -85,12 +87,12 @@ let ``Schema using asynchronous resolver with methods returning task works prope
                             |}
                     }
                 )
-                resolve (fun _ args -> Task.FromResult(sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
-            }
+                resolve.method (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
+            ]
         ]
     let Schema =
-        schema {
+        schema [
             query Query
-        }
+        ]
 
     queryEqual QueryString ExpectedResult Schema

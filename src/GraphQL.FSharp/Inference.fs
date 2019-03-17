@@ -66,6 +66,6 @@ let getDefaultTypeOrReference ``type`` =
     |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
 
-let (|UnwrappedNonNull|)  ``type`` = unwrapType true getDefaultTypeOrReference ``type``
+let inline (|UnwrappedNonNull|)  (``type``: #IGraphType) = unwrapType true getDefaultTypeOrReference ``type``
 
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``

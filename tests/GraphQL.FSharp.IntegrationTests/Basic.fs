@@ -48,30 +48,35 @@ let ExpectedResult = """
 [<Test>]
 let ``Schema using synchronous resolver with methods returning task works properly`` () =
     let MyTypeGraph =
-        object<MyType> {
+        object [
+            ``type`` t<MyType>
+
             fields [
-                field __ {
-                    method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
-                }
-                field __ {
-                    method (fun this _ -> this.GetSomethingAsync())
-                }
+                field __ [
+                    resolve.method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
+                ]
+                field __ [
+                    resolve.method (fun this _ -> this.GetSomethingAsync())
+                ]
             ]
-        }
-    let Query = [
-            endpoint __ "GetMyType" {
-                resolve (fun _ _ -> Task.FromResult(MyType()))
-            }
-            endpoint __ "GetMyTypeAsync" {
-                resolve (fun _ _ -> Task.FromResult(MyType()))
-            }
+        ]
+    let Query =
+        endpoints [
+            field __ [
+                name "GetMyType"
+                resolve.method (fun _ _ -> Task.FromResult(MyType()))
+            ]
+            field __ [
+                name "GetMyTypeAsync"
+                resolve.method (fun _ _ -> Task.FromResult(MyType()))
+            ]
         ]
     let Schema =
-        schema {
+        schema [
             query Query
             types [
                 MyTypeGraph
             ]
-        }
+        ]
 
     queryEqual QueryString ExpectedResult Schema

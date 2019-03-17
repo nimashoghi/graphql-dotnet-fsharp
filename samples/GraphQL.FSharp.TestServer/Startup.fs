@@ -18,14 +18,24 @@ module Model =
         member __.GetSomethingAsync () = Task.FromResult "hello world async"
         member __.MethodWithParam i j k l = sprintf "%i + %A + %A + %A" i j k l
 
+    [<CLIMutable>]
+    type MyUnionFirst = {
+        Name: string
+    }
+
+    [<CLIMutable>]
+    type MyUnionSecond = {
+        Age: int
+    }
+
     type MyUnion =
-    | First of Name: string
-    | Second of Age: int
+    | FirstUnion of MyUnionFirst
+    | SecondUnion of MyUnionSecond
 
     type MyEnum =
-    | First = 0
-    | Second = 1
-    | Thrid = 2
+    | First
+    | Second
+    | Third
 
 [<AutoOpen>]
 module Validation =
@@ -55,14 +65,19 @@ module Schema =
     open Model
 
     let MyTypeGraph =
-        object<MyType> {
+        object [
+            name "MyType"
+            ``type`` t<MyType>
+
             fields [
-                field __ {
-                    description "Hello world"
-                    argumentDescription [
-                        "IntegerParam" => "Some integer parameter!"
+                field __ [
+                    documentation [
+                        description "Hello world"
+                        arguments [
+                            "IntegerParam" => "Some integer parameter!"
+                        ]
                     ]
-                    method (
+                    resolve.method (
                         fun
                             this
                             (args:
@@ -80,37 +95,76 @@ module Schema =
                                     args.ResultParam
                             )
                     )
-                }
-                field __ {
+                ]
+                field __ [
                     documentation [
                         description "Hello world"
-                        args [
-
-                        ]
                     ]
-                    method (fun this _ -> Task.FromResult (this.GetSomethingSync()))
-                }
-                field __ {
-                    method (fun this _ -> this.GetSomethingAsync ())
-                }
+                    resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync()))
+                ]
+                field __ [
+                    resolve.method (fun this _ -> this.GetSomethingAsync ())
+                ]
             ]
-        }
+        ]
 
-    let MyUnionGraph = union.Auto<MyUnion> ()
-    let MyEnumGraph = enum.Auto<MyEnum> ()
+    let MyUnionFirstGraph =
+        object [
+            ``type`` t<MyUnionFirst>
+            name "MyUnionFirst"
+            fields [
+                field __ [
+                    resolve.property (fun this -> Task.FromResult this.Name)
+                ]
+            ]
+        ]
+
+    let MyUnionSecondGraph =
+        object [
+            ``type`` t<MyUnionSecond>
+            name "MyUnionSecond"
+            fields [
+                field __ [
+                    resolve.property (fun this -> Task.FromResult this.Age)
+                ]
+            ]
+        ]
+
+    let MyUnionGraph =
+        union [
+            name "MyUnion"
+            cases [
+                case FirstUnion MyUnionFirstGraph
+                case SecondUnion MyUnionSecondGraph
+            ]
+        ]
+
+    let MyEnumGraph =
+        enum [
+            name "MyEnum"
+            cases [
+                case First []
+                case Second []
+                case Third []
+            ]
+        ]
 
     let Query =
-        [
-            endpoint __ "GetMyEnum" {
-                resolve (fun _ _ -> Task.FromResult (MyEnum.Thrid))
-            }
-            endpoint __ "GetMyUnion" {
-                resolve (fun _ _ -> Task.FromResult (First "hello"))
-            }
-            endpoint __ "GetMyType" {
-                resolve (fun _ _ -> Task.FromResult (MyType()))
-            }
-            endpoint __ "Validate" {
+        endpoints [
+            field __ [
+                name "GetMyEnum"
+                resolve.method (fun _ _ -> Task.FromResult MyEnum.Third)
+            ]
+            field __ [
+                name "GetMyUnion"
+                resolve.method (fun _ _ -> Task.FromResult (FirstUnion {Name = "hello"}))
+            ]
+            field __ [
+                name "GetMyType"
+                resolve.method (fun _ _ -> Task.FromResult (MyType ()))
+            ]
+            field __ [
+                name "Validate"
                 validate (
                     fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {
                         validate age in validateAge args.Age
@@ -127,19 +181,19 @@ module Schema =
                             |}
                     }
                 )
-                resolve (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
-            }
+                resolve.method (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
+            ]
         ]
 
     let Schema =
-        schema {
+        schema [
             query Query
             types [
                 MyTypeGraph
                 MyUnionGraph
                 MyEnumGraph
             ]
-        }
+        ]
 
 type Startup() =
     member __.ConfigureServices(services: IServiceCollection) =

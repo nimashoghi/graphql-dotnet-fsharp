@@ -7,28 +7,31 @@ open GraphQL.FSharp.Types
 open GraphQL.FSharp.CommandLineSample.Model
 
 let MyTypeGraph =
-    object<MyType> {
+    object [
+        ``type`` t<MyType>
+
         fields [
-            field __ {
-                method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
-            }
-            field __ {
-                method (fun this _ -> this.GetSomethingAsync())
-            }
+            field __ [
+                resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync ()))
+            ]
+            field __ [
+                resolve.method (fun this _ -> this.GetSomethingAsync ())
+            ]
         ]
-    }
+    ]
 
 let Query =
-    [
-        endpoint __ "getMyType" {
-            resolve (fun _ _ -> Task.FromResult(MyType()))
-        }
+    endpoints [
+        field __  [
+            name "getMyType"
+            resolve.method (fun _ _ -> Task.FromResult (MyType ()))
+        ]
     ]
 
 let Schema =
-    schema {
+    schema [
         query Query
         types [
             MyTypeGraph
         ]
-    }
+    ]

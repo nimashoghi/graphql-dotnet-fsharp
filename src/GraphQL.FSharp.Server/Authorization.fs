@@ -7,8 +7,7 @@ open FSharp.Reflection
 open FSharp.Utils
 open FSharp.Utils.Tasks
 open GraphQL.FSharp
-open GraphQL.FSharp.BuilderBase
-open GraphQL.FSharp.BuilderTypes
+open GraphQL.FSharp.Builder.Operations
 open GraphQL.Server
 open GraphQL.Server.Authorization.AspNetCore
 open Microsoft.AspNetCore.Authorization
@@ -67,10 +66,9 @@ type Field<'arguments, 'field, 'source> with
             )
         this.AuthorizeWith (mkName case.Name)
 
-type FieldBuilder<'arguments, 'field, 'source> with
-    [<CustomOperation "authorize">]
-    member __.Authorize (state: State<Field<'arguments, 'field, 'source>>, policy) =
-        (fun (field: Field<'arguments, 'field, 'source>) -> field.Authorize policy; field) @@ state
+let authorize policy = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+    field.Authorize policy
+    field
 
 type IGraphQLBuilder with
     member this.AddAuthorization<'t when 't: equality and 't :> IPolicy> (optionBuilder: AuthorizationSettings<'t> -> AuthorizationSettings<'t>) =

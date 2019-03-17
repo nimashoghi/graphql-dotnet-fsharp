@@ -161,6 +161,12 @@ type Field<'field, 'source> () =
 type Field<'arguments, 'field, 'source> () =
     inherit Field<'field, 'source> ()
 
+type EnumerationValue () =
+    inherit EnumValueDefinition ()
+
+type EnumerationValue<'t> () =
+    inherit EnumerationValue ()
+
 type Enumeration () =
     inherit EnumerationGraphType ()
 

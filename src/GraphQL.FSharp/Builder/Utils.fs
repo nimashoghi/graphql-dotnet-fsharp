@@ -1,4 +1,4 @@
-module internal GraphQL.FSharp.BuilderUtils
+module GraphQL.FSharp.Builder.Utils
 
 open System
 open System.Reflection
@@ -9,7 +9,6 @@ open FSharp.Utils.Tasks
 open FSharp.Reflection
 open GraphQL.Types
 
-open GraphQL.FSharp.BuilderBase
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
@@ -17,26 +16,37 @@ open GraphQL.FSharp.Utils
 
 let withSource f (ctx: ResolveContext<_>) = f ctx.Source
 
+let inline makeNullable (x: ^t) =
+    match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
+    | Some graph when (graph :? NonNullGraphType) ->
+        let nonNull = graph :?> NonNullGraphType
+        (^t: (member set_ResolvedType: IGraphType -> unit) x, nonNull.ResolvedType)
+    | _ -> ()
+
 module Field =
-    let addArguments<'arguments, 'field, 'source> (state: State<Field<'arguments, 'field, 'source>>) =
-        let operation (field: Field<'arguments, 'field, 'source>) =
-            if typeof<'arguments> = typeof<obj> then field else
+    let addArguments<'arguments, 'field, 'source> (field: Field<'arguments, 'field, 'source>) =
+        if typeof<'arguments> = typeof<obj> then field else
 
-            if isNull field.Arguments
-            then field.Arguments <- QueryArguments ()
+        if isNull field.Arguments
+        then field.Arguments <- QueryArguments ()
 
-            FSharpType.GetRecordFields typeof<'arguments>
-            |> Array.map (fun field ->
-                Argument (
-                    ResolvedType = createReference field.PropertyType,
-                    Name = field.Name
-                )
+        FSharpType.GetRecordFields typeof<'arguments>
+        |> Array.filter (
+            fun recordField ->
+                field.Arguments
+                |> Seq.tryFind (fun argument -> argument.Name = recordField.Name)
+                |> Option.isNone
+        )
+        |> Array.map (fun field ->
+            Argument (
+                ResolvedType = createReference field.PropertyType,
+                Name = field.Name
             )
-            |> Array.iter field.Arguments.Add
+        )
+        |> Array.iter field.Arguments.Add
 
-            field
+        field
 
-        operation @@ state
 
     let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then [||] else
@@ -79,36 +89,33 @@ module Field =
 
     let validate
         (validator: 'arguments -> Result<'arguments, 'error list> Task)
-        : Operation<Field<'arguments, 'field, 'source>> =
+        (field: Field<'arguments, 'field, 'source>) =
         let fields, constructor = getRecordInfo<'arguments> ()
-        operation 10 (
-            fun field ->
-                let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
-                field.Resolver <-
-                    resolveAsync (
-                        fun (ctx: ResolveContext<'source>) -> task {
-                            let argumentArray = makeArgumentArray<'arguments, 'source> fields ctx
-                            let argumentRecord = makeArgumentRecord<'arguments> constructor argumentArray
-                            let! validatedArguments = validator argumentRecord
+        let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
+        field.Resolver <-
+            resolveAsync (
+                fun (ctx: ResolveContext<'source>) -> task {
+                    let argumentArray = makeArgumentArray<'arguments, 'source> fields ctx
+                    let argumentRecord = makeArgumentRecord<'arguments> constructor argumentArray
+                    let! validatedArguments = validator argumentRecord
 
-                            match validatedArguments with
-                            | Ok _ ->
-                                let (Lazy fields) = fields
-                                Array.zip argumentArray fields
-                                |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
+                    match validatedArguments with
+                    | Ok _ ->
+                        let (Lazy fields) = fields
+                        Array.zip argumentArray fields
+                        |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
 
-                                return! oldResolver.Resolver ctx
-                            | Error errors ->
-                                errors
-                                |> List.map (box >> string >> GraphQL.ExecutionError)
-                                |> ctx.Errors.AddRange
+                        return! oldResolver.Resolver ctx
+                    | Error errors ->
+                        errors
+                        |> List.map (box >> string >> GraphQL.ExecutionError)
+                        |> ctx.Errors.AddRange
 
-                                return null
-                        }
-                    )
-                makeNullable field
-                field
-        )
+                        return null
+                }
+            )
+        makeNullable field
+        field
 
     let resolveMethod (f: 'source -> 'arguments -> 'field Task) =
         let fields, constructor = getRecordInfo<'arguments>()
@@ -124,23 +131,21 @@ module Field =
                 f ctx (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
-    let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (state: State<Field<_, _, _>>) =
-        let operation (field: Field<_, _, _>) =
-            let f, name =
+    let setField (|FieldName|_|) resolver (expr: Expr<_ -> _>) (field: Field<_, _, _>) =
+        let f, name =
+            match expr with
+            | WithValueTyped (f, expr) ->
                 match expr with
-                | WithValueTyped (f, expr) ->
-                    match expr with
-                    | FieldName name -> f, Some name
-                    | _ -> f, None
-                | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
+                | FieldName name -> f, Some name
+                | _ -> f, None
+            | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
 
-            if isNull field.Name || field.Name = ""
-            then Option.iter field.set_Name name
+        if isNull field.Name || field.Name = ""
+        then Option.iter field.set_Name name
 
-            field.Resolver <- resolver f
-            field
+        field.Resolver <- resolver f
+        field
 
-        operation @@ state
 
 module Schema =
     let abstractClasses ``type`` =
@@ -258,6 +263,18 @@ module Enum =
             )
             |> Array.iter enum.AddValue
         else failwith "Invalid enum type!"
+
+let inline setGraphType value (x: ^t) =
+    (^t: (member set_GraphType: IGraphType -> unit) x, value)
+    x
+
+let isInvalidType (``type``: IGraphType) = isNull ``type`` || Object.ReferenceEquals (``type``, invalidGraphType)
+
+let inline setType systemType (source: ^t) =
+    let resolvedType = (^t: (member ResolvedType: IGraphType) source)
+    let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
+    if isInvalidType resolvedType then setResolvedType (createReference systemType)
+    source
 
 module Argument =
     let inline trySetType graphType systemType (x: ^t) =

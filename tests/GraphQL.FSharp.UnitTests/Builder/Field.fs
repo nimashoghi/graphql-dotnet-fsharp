@@ -14,11 +14,11 @@ open GraphQL.FSharp.TestUtils.Assert
 module ``configure test`` =
     [<Test>]
     let ``basic test`` () =
-        field __ {
+        field __ [
             name "getTask"
-            resolve (fun _ _ -> Task.FromResult "Hello")
-            configure (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
-        }
+            resolve.method (fun _ _ -> Task.FromResult "Hello")
+            configureUnit (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
+        ]
         |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
 
 module Quotations =
@@ -43,10 +43,10 @@ module Quotations =
 
 [<Test>]
 let ``Builder Field task return types`` () =
-    field __ {
+    field __ [
         name "getTask"
-        resolve (fun _ _ -> Task.FromResult "Hello")
-    }
+        resolve.method (fun _ _ -> Task.FromResult "Hello")
+    ]
     |> fieldEqual "getTask" (nonNull StringGraphType)
 
 type MyTaskObject() =
@@ -54,17 +54,17 @@ type MyTaskObject() =
 
 [<Test>]
 let ``Builder Field task return types inferred`` () =
-    field __ {
-        method (fun (x: MyTaskObject) _ -> x.GetNameStored())
-    }
+    field __ [
+        resolve.method (fun (x: MyTaskObject) _ -> x.GetNameStored())
+    ]
     |> fieldEqual "GetNameStored" (nonNull StringGraphType)
 
 [<Test>]
 let ``Builder Field option types`` () =
-    field __ {
+    field __ [
         name "optionField"
-        resolve (fun _ _ -> Task.FromResult(Some "hello"))
-    }
+        resolve.method (fun _ _ -> Task.FromResult (Some "hello"))
+    ]
     |> fieldEqual "optionField" (nullable StringGraphType)
 
 [<CLIMutable>]
@@ -74,9 +74,9 @@ type MyOptionObject = {
 
 [<Test>]
 let ``Builder Field option types inferred`` () =
-    field __ {
-        prop (fun obj -> Task.FromResult obj.NameOption)
-    }
+    field __ [
+        resolve.property (fun obj -> Task.FromResult obj.NameOption)
+    ]
     |> fieldEqual "NameOption" (nullable StringGraphType)
 
 
@@ -87,19 +87,19 @@ type MyType = {
 
 // TODO: fix this later
 // [<Test>]
-let ``Builder Field getter invalid argument`` () =
-    raises<ArgumentException>
-        <@
-            field __ {
-                prop (fun x -> Task.FromResult(x.Name.ToString()))
-            }
-        @>
+// let ``Builder Field getter invalid argument`` () =
+//     raises<ArgumentException>
+//         <@
+//             field __ [
+//                 resolve.property (fun x -> Task.FromResult (x.Name.ToString ()))
+//             ]
+//         @>
 
 [<Test>]
 let ``Builder Field valid getter`` () =
-    field __ {
-        prop (fun x -> Task.FromResult x.Name)
-    }
+    field __ [
+        resolve.property (fun x -> Task.FromResult x.Name)
+    ]
     |> fieldEqual "Name" (nonNull StringGraphType)
 
 [<CLIMutable>]
@@ -109,15 +109,15 @@ type SomeType = {
 
 [<Test>]
 let ``Builder Field inferred field type without default value should be non nullable`` () =
-    field __ {
-        prop (fun x -> Task.FromResult x.Testing)
-    }
+    field __ [
+        resolve.property (fun x -> Task.FromResult x.Testing)
+    ]
     |> fieldEqual "Testing" (nonNull BooleanGraphType)
 
 [<Test>]
 let ``Builder Field inferred field type with default value should be nullable`` () =
-    field __ {
-        prop (fun x -> Task.FromResult x.Testing)
+    field __ [
+        resolve.property (fun x -> Task.FromResult x.Testing)
         defaultValue false
-    }
+    ]
     |> fieldEqual "Testing" (nullable BooleanGraphType)

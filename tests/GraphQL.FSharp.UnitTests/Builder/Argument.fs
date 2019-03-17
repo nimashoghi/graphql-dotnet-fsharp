@@ -14,10 +14,10 @@ let getArg name (field: #FieldType) =
 [<Test>]
 let ``automatically inferred arguments from anonymous record`` () =
     let f =
-        field __ {
+        field __ [
             name "test"
-            resolve (fun _ (_: {|Name: string; Age: int|}) -> null)
-        }
+            resolve.method (fun _ (_: {|Name: string; Age: int|}) -> null)
+        ]
     getArg "Name" f
     |> argumentEqual "Name" (nonNull StringGraphType) None
 
@@ -29,10 +29,10 @@ type Input = {Name: string; Age: int}
 [<Test>]
 let ``automatically inferred arguments from record`` () =
     let f =
-        field __ {
+        field __ [
             name "test"
-            resolve (fun _ (_: Input) -> null)
-        }
+            resolve.method (fun _ (_: Input) -> null)
+        ]
     getArg "Name" f
     |> argumentEqual "Name" (nonNull StringGraphType) None
 
@@ -42,18 +42,19 @@ let ``automatically inferred arguments from record`` () =
 
 // TODO: Add tests for option types to check nullable fields/args
 
-[<Test>]
-let ``configure test`` () =
-    argument<int> __ {
-        name "myArg"
-        configure (fun arg -> arg.ResolvedType <- FloatGraph)
-        configure (fun arg -> arg.Name <- "changedName")
-    }
-    |> argumentEqual "changedName" (nullable FloatGraphType) None
+// FIXME: Do we need argument?
+// [<Test>]
+// let ``configure test`` () =
+//     argument<int> __ [
+//         name "myArg"
+//         configure (fun arg -> arg.ResolvedType <- FloatGraph)
+//         configure (fun arg -> arg.Name <- "changedName")
+//     ]
+//     |> argumentEqual "changedName" (nullable FloatGraphType) None
 
-[<Test>]
-let ``basic test`` () =
-    argument<int> __ {
-        name "myArg"
-    }
-    |> argumentEqual "myArg" (nonNull IntGraphType) None
+// [<Test>]
+// let ``basic test`` () =
+//     argument<int> __ {
+//         name "myArg"
+//     }
+//     |> argumentEqual "myArg" (nonNull IntGraphType) None

@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "build",
-            "command": "dotnet build",
+            "command": "dotnet build \"${workspaceFolder}/samples/GraphQL.FSharp.TestServer/GraphQL.FSharp.TestServer.fsproj\"",
             "type": "shell",
             "options": {
                 "cwd": "${workspaceFolder}"
