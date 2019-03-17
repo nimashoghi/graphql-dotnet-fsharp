@@ -12,6 +12,7 @@
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Resolvers.fs" />
+    <Compile Include="Inference.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

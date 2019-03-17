@@ -1,15 +1,36 @@
 module GraphQL.FSharp.UnitTests.Builder.Argument
 
+open System.Threading.Tasks
 open NUnit.Framework
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open GraphQL.Types
+open Validation.Builder
 
 open GraphQL.FSharp.TestUtils.Assert
 
 let getArg name (field: #FieldType) =
     field.Arguments
     |> Seq.find (fun arg -> arg.Name = name)
+
+[<Test>]
+let ``automatically inferred arguments from validation`` () =
+    let f =
+        field __ [
+            name "test"
+            validate (
+                fun (args: {|Name: string; Age: int|}) -> validation {
+                    return args
+                }
+            )
+            resolve.method (fun _ _ -> Task.FromResult null)
+        ]
+
+    getArg "Name" f
+    |> argumentEqual "Name" (nonNull StringGraphType) None
+
+    getArg "Age" f
+    |> argumentEqual "Age" (nonNull IntGraphType) None
 
 [<Test>]
 let ``automatically inferred arguments from anonymous record`` () =

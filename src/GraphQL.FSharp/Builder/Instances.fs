@@ -2,7 +2,6 @@
 module GraphQL.FSharp.Builder.Instances
 
 open GraphQL.Conversion
-open GraphQL.Types
 
 open GraphQL.FSharp.Builder.Operations
 open GraphQL.FSharp.Types
@@ -16,6 +15,7 @@ let inline argument<'argument> ``type`` parameters =
 
 // TODO: Move type handling here
 // TODO: type parameter order
+// TODO: Warn if no resolver
 let inline field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'field> :: parameters
     |> reduceWith Field<'arguments, 'field, 'source>

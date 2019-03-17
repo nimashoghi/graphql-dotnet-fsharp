@@ -21,11 +21,17 @@ type IOperation<'t> =
     abstract member Invoke: 't -> 't
     abstract member Priority: int
 
+let inline (|Operation|) (operation: IOperation<_>) = operation.Invoke
+let inline (|Priority|) (operation: IOperation<_>) = operation.Priority
+
 type FlattenOperation<'t> (parameters: IOperation<'t> list) =
     member val Parameters = parameters
 
     interface IOperation<'t> with
-        member __.Invoke _ = failwith "Not Implemented"
+        member __.Invoke target =
+            parameters
+            |> List.sortBy (|Priority|)
+            |> List.fold (fun target (Operation f) -> f target) target
         member __.Priority = Int32.MinValue
 
 let inline flatten parameters = FlattenOperation parameters
@@ -33,14 +39,12 @@ let inline flatten parameters = FlattenOperation parameters
 let inline processFlattening (parameters: IOperation<_> list) =
     parameters
     |> List.collect (
-        fun operation ->
+        fun operation -> [
             match operation with
-            | :? FlattenOperation<_> as flattenOp -> flattenOp.Parameters
-            | operation -> [operation]
+            | :? FlattenOperation<_> as flattenOp -> yield! flattenOp.Parameters
+            | operation -> yield operation
+        ]
     )
-
-let inline (|Operation|) (operation: IOperation<_>) = operation.Invoke
-let inline (|Priority|) (operation: IOperation<_>) = operation.Priority
 
 let inline reduce initial parameters =
     parameters
@@ -157,29 +161,58 @@ module Field =
         if isNull field.Resolver
         then field.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
 
+    // TODO: Test sync methods.
+    // TODO: Prevent async methods from returning null.
     type Resolve internal () =
-        member inline __.manual (resolver: ResolveContext<'source> -> 'field) = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-            field.Resolver <- resolve resolver
+        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+            field.Resolver <- resolveAsync resolver
 
             field
             |> setType typeof<'field>
 
-        member inline __.property ([<ReflectedDefinition true>] expr: Expr<'source -> Task<'field>>) =
+        member inline __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
                 |> Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr
                 |> setType typeof<'field>
 
-        member inline __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Task<'field>>) =
+        member inline __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
-                |> Field.setField (|MethodName|_|) Field.resolveMethod expr
+                |> Field.setField (|MethodName|_|) (Field.resolveMethod resolveAsync) expr
                 |> Field.addArguments<'arguments, 'field, 'source>
                 |> setType typeof<'field>
 
-        member inline __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> Task<'field>) =
+        member inline __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field.Resolver <- Field.resolveCtxMethodAsync resolver
+                field.Resolver <- (Field.resolveCtxMethodAsync resolveAsync) resolver
+
+                field
+                |> Field.addArguments<'arguments, 'field, 'source>
+                |> setType typeof<'field>
+
+        member inline __.manualSync (resolver: ResolveContext<'source> -> 'field) = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+            field.Resolver <- resolve resolver
+
+            field
+            |> setType typeof<'field>
+
+        member inline __.propertySync ([<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
+            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+                field
+                |> Field.setField (|FieldName|_|) (withSource >> resolve) expr
+                |> setType typeof<'field>
+
+        member inline __.methodSync ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
+            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+                field
+                |> Field.setField (|MethodName|_|) (Field.resolveMethod resolve) expr
+                |> Field.addArguments<'arguments, 'field, 'source>
+                |> setType typeof<'field>
+
+        member inline __.contextMethodSync (resolver: ResolveContext<'source> -> 'arguments -> 'field) =
+            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+                field.Resolver <- (Field.resolveCtxMethodAsync resolve) resolver
 
                 field
                 |> Field.addArguments<'arguments, 'field, 'source>
@@ -214,7 +247,7 @@ module Union =
     // TODO: Implement
     let isValidUnion ``type`` = true
 
-    let inline case' (case: 'object -> 'union) (``type``: Object<'object>) =
+    let inline unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
         assert not (isInvalidType ``type``)
         assert isValidUnion typeof<'object>
 
@@ -224,7 +257,7 @@ module Union =
                 resolveUnion<'object, 'union> ``type`` union
         }
 
-    let inline cases' (cases: UnionCase<'union> list) = configure <| fun (union: Union<'union>) ->
+    let inline unionCases (cases: UnionCase<'union> list) = configure <| fun (union: Union<'union>) ->
         cases
         |> List.fold (fun union case -> case.Init union) union
 
@@ -249,7 +282,7 @@ module Enum =
                 |> fst
             case.Name
 
-    let inline case' (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
+    let inline enumCase (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
         properties
         |> List.append [
             name (getEnumValueName case)
@@ -257,23 +290,23 @@ module Enum =
         ]
         |> reduceWith EnumerationValue<'enum>
 
-    let inline cases' (values: EnumerationValue<'enum> list) = configureUnit <| fun (enum: Enumeration<'enum>) ->
+    let inline enumCases (values: EnumerationValue<'enum> list) = configureUnit <| fun (enum: Enumeration<'enum>) ->
         enum.Name <- getEnumName<'enum> ()
         List.iter enum.AddValue values
 
 type CaseHelper =
     | CaseHelper
 
-    static member inline ($) (CaseHelper, properties) = fun case -> Enum.case' case properties
-    static member inline ($) (CaseHelper, graph) = fun case -> Union.case' case graph
+    static member inline ($) (CaseHelper, properties) = fun case -> enumCase case properties
+    static member inline ($) (CaseHelper, graph) = fun case -> unionCase case graph
 
 let inline case case properties = (CaseHelper $ properties) case
 
 type CasesHelper =
     | CasesHelper
 
-    static member inline ($) (CasesHelper, values) = Enum.cases' values
-    static member inline ($) (CasesHelper, properties) = Union.cases' properties
+    static member inline ($) (CasesHelper, values) = enumCases values
+    static member inline ($) (CasesHelper, properties) = unionCases properties
 
 let inline cases properties = CasesHelper $ properties
 

@@ -8,12 +8,12 @@ open GraphQL
 
 open GraphQL.FSharp.Types
 
-let inline private resolveHandler
+let resolveHandler
     (handler: ResolveContext<'source> -> 'field -> obj)
     (f: ResolveContext<'source> -> 'field) =
     Resolver<'source, 'field> (fun ctx -> handler ctx (f ctx))
 
-let inline private resolveTaskHandler
+let resolveTaskHandler
     (handler: ResolveContext<'source> -> 'field -> obj)
     (f: ResolveContext<'source> -> 'field Task) =
     AsyncResolver<'source, 'field> (fun ctx -> Task.map (handler ctx) (f ctx))

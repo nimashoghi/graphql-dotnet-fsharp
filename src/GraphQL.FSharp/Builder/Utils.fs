@@ -91,6 +91,7 @@ module Field =
         (validator: 'arguments -> Result<'arguments, 'error list> Task)
         (field: Field<'arguments, 'field, 'source>) =
         let fields, constructor = getRecordInfo<'arguments> ()
+        // FIXME: This does not work with sync methods
         let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
         field.Resolver <-
             resolveAsync (
@@ -117,16 +118,16 @@ module Field =
         makeNullable field
         field
 
-    let resolveMethod (f: 'source -> 'arguments -> 'field Task) =
+    let resolveMethod resolver (f: 'source -> 'arguments -> _) =
         let fields, constructor = getRecordInfo<'arguments>()
-        resolveAsync (
+        resolver (
             fun (ctx: ResolveContext<'source>) ->
                 f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
-    let resolveCtxMethodAsync (f: ResolveContext<'source> -> 'arguments -> Task<'field>) =
+    let resolveCtxMethodAsync resolver (f: ResolveContext<'source> -> 'arguments -> _) =
         let fields, constructor = getRecordInfo<'arguments> ()
-        resolveAsync (
+        resolver (
             fun (ctx: ResolveContext<'source>) ->
                 f ctx (makeArguments<'arguments, 'source> fields constructor ctx)
         )

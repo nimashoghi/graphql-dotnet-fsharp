@@ -9,6 +9,12 @@ open Fake.Core
 open Fake.DotNet
 open Fake.IO
 
+module Shell =
+    let command command =
+        CreateProcess.fromRawCommand "cmd" ["/C"; command]
+
+    let commandf format = Printf.kprintf command format
+
 module DotNet =
     let clean settings =
         DotNet.exec settings "clean" "" |> ignore
@@ -116,6 +122,17 @@ Target.create "CountLOC" (fun _ ->
     |> Array.collect getProjectFiles
     |> Array.sumBy countLOC
     |> Trace.logf "LOC: %i\n"
+)
+
+module TodoChecker =
+    let run (file: FileInfo) =
+        Shell.commandf "todo-checker.cmd --single %s" file.FullName
+        |> Proc.run
+        |> ignore
+
+Target.create "TODOS" (fun _ ->
+    projects
+    |> Array.iter TodoChecker.run
 )
 
 open Fake.Core.TargetOperators

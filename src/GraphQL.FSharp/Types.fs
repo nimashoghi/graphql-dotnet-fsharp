@@ -5,6 +5,7 @@ open System
 open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading.Tasks
+open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Types
 
@@ -51,7 +52,6 @@ module Instances =
     let DecimalGraph = DecimalGraphType ()
     let FloatGraph = FloatGraphType ()
     let DoubleGraph = FloatGraphType ()
-    let IdGraph = IdGraphType ()
     let GuidGraph = IdGraphType ()
     let IntGraph = IntGraphType ()
     let StringGraph = StringGraphType ()
@@ -66,7 +66,8 @@ type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
     inherit ResolveFieldContext<'source> ()
 
     do
-        context |> Option.iter(
+        context
+        |> Option.iter (
             fun context ->
                 this.Source <- context.Source
                 this.FieldName <- context.FieldName
@@ -87,6 +88,9 @@ type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
                 this.Errors <- context.Errors
                 this.SubFields <- context.SubFields
         )
+
+        if isNull this.Errors
+        then this.Errors <- ExecutionErrors ()
 
     member this.AsObjectContext =
         ResolveFieldContext (
