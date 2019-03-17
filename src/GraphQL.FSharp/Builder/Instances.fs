@@ -10,24 +10,29 @@ open GraphQL.FSharp.Types
 type Endpoints = Field<obj> list
 let inline endpoints (endpoints: Endpoints) = endpoints
 
-let inline field (``type``: #IGraphType) parameters =
+let inline field<'arguments, 'field, 'source> (``type``: IGraphType) parameters =
     graphType ``type`` :: parameters
     |> reduceWith Field<'arguments, 'field, 'source>
 
-let inline object parameters =
-    reduceWith Object<'t> parameters
+let inline object<'t> parameters =
+    name typeof<'t>.Name :: parameters
+    |> reduceWith Object<'t>
 
-let inline ``interface`` parameters =
-    reduceWith Interface<'t> parameters
+let inline ``interface``<'t> parameters =
+    name typeof<'t>.Name :: parameters
+    |> reduceWith Interface<'t>
 
-let inline input parameters =
-    reduceWith InputObject<'t> parameters
+let inline input<'t> parameters =
+    name typeof<'t>.Name :: parameters
+    |> reduceWith InputObject<'t>
 
-let inline enum parameters =
-    reduceWith Enumeration<'t> parameters
+let inline enum<'t> parameters =
+    name typeof<'t>.Name :: parameters
+    |> reduceWith Enumeration<'t>
 
-let inline union parameters =
-    reduceWith Union<'t> parameters
+let inline union<'t> parameters =
+    name typeof<'t>.Name :: parameters
+    |> reduceWith Union<'t>
 
 let inline schema parameters =
     let schema =
@@ -38,7 +43,6 @@ let inline schema parameters =
                         member __.NameFor (name, _) = name
                 }
         )
-
     reduce schema parameters
 
 let inline (=>) x y = x, y

@@ -48,9 +48,7 @@ let ExpectedResult = """
 [<Test>]
 let ``Schema using synchronous resolver with methods returning task works properly`` () =
     let MyTypeGraph =
-        object [
-            ``type`` t<MyType>
-
+        object<MyType> [
             fields [
                 field __ [
                     resolve.method (fun this _ -> Task.FromResult(this.GetSomethingSync()))

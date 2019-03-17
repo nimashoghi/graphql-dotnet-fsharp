@@ -81,26 +81,6 @@ type DefaultValueHelper =
 
 let inline defaultValue value = operationUnit 100 <| fun target -> (DefaultValueHelper $ target) value
 
-type TypeHelper =
-    | TypeHelper
-
-    static member inline ($) (TypeHelper, field: Field<_, ^t, _>): ^t -> Field<_, ^t, _> =
-        fun _ ->
-            field
-
-    static member inline ($) (TypeHelper, argument: Argument< ^t>): ^t -> Argument< ^t> =
-        fun _ ->
-            argument
-
-    static member inline ($) (TypeHelper, object: Object< ^t>): ^t -> Object< ^t> =
-        fun _ ->
-            if false then ignore (new ^t ())
-            object.Name <- typeof< ^t>.Name // TODO: Look back at this
-            object
-
-let inline t< ^t> = Unchecked.defaultof< ^t>
-let inline ``type`` ``type`` = configure <| fun target -> (TypeHelper $ target) ``type``
-
 let inline graphType (value: #IGraphType) = configure <| fun target ->
     if box value |> isNull |> not
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))

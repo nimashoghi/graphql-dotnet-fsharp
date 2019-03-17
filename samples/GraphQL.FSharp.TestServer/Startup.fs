@@ -65,10 +65,7 @@ module Schema =
     open Model
 
     let MyTypeGraph =
-        object [
-            name "MyType"
-            ``type`` t<MyType>
-
+        object<MyType> [
             fields [
                 field __ [
                     documentation [
@@ -109,9 +106,7 @@ module Schema =
         ]
 
     let MyUnionFirstGraph =
-        object [
-            ``type`` t<MyUnionFirst>
-            name "MyUnionFirst"
+        object<MyUnionFirst> [
             fields [
                 field __ [
                     resolve.property (fun this -> Task.FromResult this.Name)
@@ -120,9 +115,7 @@ module Schema =
         ]
 
     let MyUnionSecondGraph =
-        object [
-            ``type`` t<MyUnionSecond>
-            name "MyUnionSecond"
+        object<MyUnionSecond> [
             fields [
                 field __ [
                     resolve.property (fun this -> Task.FromResult this.Age)

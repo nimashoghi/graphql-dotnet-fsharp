@@ -7,9 +7,7 @@ open GraphQL.FSharp.Types
 open GraphQL.FSharp.CommandLineSample.Model
 
 let MyTypeGraph =
-    object [
-        ``type`` t<MyType>
-
+    object<MyType> [
         fields [
             field __ [
                 resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync ()))
