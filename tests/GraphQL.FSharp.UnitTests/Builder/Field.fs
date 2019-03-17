@@ -11,17 +11,27 @@ open GraphQL.Types
 
 open GraphQL.FSharp.TestUtils.Assert
 
-module ``configure test`` =
-    [<Test>]
-    let ``basic test`` () =
-        field __ [
-            name "getTask"
-            resolve.method (fun _ _ -> Task.FromResult "Hello")
-            configureUnit (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
-        ]
-        |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
+type MyInferenceType = {
+    Name: string
+}
 
-module Quotations =
+[<Test>]
+let ``type inference`` () =
+    field<MyInferenceType, _, _>  __ [
+        name "myInferenceTypeField"
+    ]
+    |> fieldEqual "myInferenceTypeField" (fun () -> upcast NonNullGraphType (GraphQLTypeReference "MyInferenceType"))
+
+[<Test>]
+let ``configure test`` () =
+    field __ [
+        name "getTask"
+        resolve.method (fun _ _ -> Task.FromResult "Hello")
+        configureUnit (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
+    ]
+    |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
+
+module ``quotation tests`` =
     type MyObjectType =
         {
             Name: string

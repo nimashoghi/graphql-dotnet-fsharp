@@ -15,8 +15,9 @@ let inline argument<'argument> ``type`` parameters =
     |> reduceWith Argument<'argument>
 
 // TODO: Move type handling here
-let inline field<'arguments, 'field, 'source> ``type`` parameters =
-    graphType ``type`` :: parameters
+// TODO: type parameter order
+let inline field<'field,'arguments, 'source> ``type`` parameters =
+    graphOrSystemType ``type`` typeof<'field> :: parameters
     |> reduceWith Field<'arguments, 'field, 'source>
 
 let inline object<'t> parameters =

@@ -57,3 +57,14 @@ let ``basic test`` () =
         name "myArg"
     ]
     |> argumentEqual "myArg" (nonNull IntGraphType) None
+
+type MyType = {
+    Name: string
+}
+
+[<Test>]
+let ``type deduction test`` () =
+    argument<MyType> __ [
+        name "myTypeArg"
+    ]
+    |> argumentEqual "myTypeArg" (fun () -> NonNullGraphType (GraphQLTypeReference "MyType")) None

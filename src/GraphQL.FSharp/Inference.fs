@@ -26,8 +26,7 @@ let rec unwrapType nonNullDefault get ``type`` =
             ``type``, true
 
         | innerType ->
-            let ``type`` =
-                get innerType
+            let ``type`` = get innerType
             ``type``, false
 
     if nonNullDefault && not isNull
@@ -65,7 +64,5 @@ let getDefaultTypeOrReference ``type`` =
     getDefaultType ``type``
     |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
-
-let inline (|UnwrappedNonNull|)  (``type``: #IGraphType) = unwrapType true getDefaultTypeOrReference ``type``
 
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``

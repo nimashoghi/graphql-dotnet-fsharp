@@ -86,10 +86,12 @@ let inline graphType (value: #IGraphType) = configureUnit <| fun target ->
     if box value |> isNull |> not
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
 
-let inline graphOrSystemType (value: #IGraphType) ``type`` = configureUnit <| fun target ->
+// TODO: Update this and fix the logic
+let inline graphOrSystemType (value: #IGraphType) ``type`` = operationUnit Int32.MaxValue <| fun target ->
     if box value |> isNull |> not
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
-    else (^t: (member set_GraphType: IGraphType -> unit) target, createReference ``type``)
+    else if isInvalidType (^t: (member GraphType: IGraphType) target)
+    then (^t: (member set_GraphType: IGraphType -> unit) target, createReference ``type``)
 
 let inline metadata value = configureUnit <| fun target ->
     let metadata = (^t: (member Metadata: IDictionary<string, obj>) target)
