@@ -142,6 +142,7 @@ type Argument () =
 
     member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
 
+    // TODO: Remove GraphType
     member __.GraphType
         with get () = base.ResolvedType
         and set value = base.ResolvedType <- processNonNullity value

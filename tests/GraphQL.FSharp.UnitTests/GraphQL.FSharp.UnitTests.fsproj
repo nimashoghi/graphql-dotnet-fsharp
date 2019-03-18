@@ -9,8 +9,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils/GraphTypes.fs" />
-    <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Argument.fs" />
+    <Compile Include="Builder/Field.fs" />
+    <Compile Include="Builder/Operations.fs" />
     <Compile Include="Resolvers.fs" />
     <Compile Include="Inference.fs" />
     <Compile Include="Program.fs" />

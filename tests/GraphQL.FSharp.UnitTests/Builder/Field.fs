@@ -85,7 +85,7 @@ type MyOptionObject = {
 [<Test>]
 let ``Builder Field option types inferred`` () =
     field __ [
-        resolve.property (fun obj -> Task.FromResult obj.NameOption)
+        resolve.property (fun this -> Task.FromResult this.NameOption)
     ]
     |> fieldEqual "NameOption" (nullable StringGraphType)
 

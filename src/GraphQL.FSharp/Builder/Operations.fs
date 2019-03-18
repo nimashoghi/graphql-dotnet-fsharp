@@ -21,8 +21,8 @@ type IOperation<'t> =
     abstract member Invoke: 't -> 't
     abstract member Priority: int
 
-let inline (|Operation|) (operation: IOperation<_>) = operation.Invoke
-let inline (|Priority|) (operation: IOperation<_>) = operation.Priority
+let (|Operation|) (operation: IOperation<_>) = operation.Invoke
+let (|Priority|) (operation: IOperation<_>) = operation.Priority
 
 type FlattenOperation<'t> (parameters: IOperation<'t> list) =
     member val Parameters = parameters
@@ -34,9 +34,9 @@ type FlattenOperation<'t> (parameters: IOperation<'t> list) =
             |> List.fold (fun target (Operation f) -> f target) target
         member __.Priority = Int32.MinValue
 
-let inline flatten parameters = FlattenOperation parameters
+let flatten parameters = FlattenOperation parameters
 
-let inline processFlattening (parameters: IOperation<_> list) =
+let processFlattening (parameters: IOperation<_> list) =
     parameters
     |> List.collect (
         fun operation -> [
@@ -46,24 +46,24 @@ let inline processFlattening (parameters: IOperation<_> list) =
         ]
     )
 
-let inline reduce initial parameters =
+let reduce initial parameters =
     parameters
     |> processFlattening
     |> List.sortBy (|Priority|)
     |> List.fold (fun object (Operation operation) -> operation object) initial
 
-let inline reduceWith initial parameters = reduce (initial ()) parameters
+let reduceWith initial parameters = reduce (initial ()) parameters
 
-let inline operation priority f =
+let operation priority f =
     {
-        new IOperation< ^t> with
+        new IOperation<_> with
             member __.Invoke x = f x
             member __.Priority = priority
     }
-let inline operationUnit priority f = operation priority (fun x -> f x; x)
+let operationUnit priority f = operation priority (fun x -> f x; x)
 
-let inline configure f = operation 0 f
-let inline configureUnit f = operationUnit 0 f
+let configure f = operation 0 f
+let configureUnit f = operationUnit 0 f
 
 let inline name value = configureUnit <| fun target ->
     (^t: (member set_Name: string -> unit) target, value)
@@ -91,24 +91,27 @@ let inline graphType (value: #IGraphType) = configureUnit <| fun target ->
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
 
 // TODO: Update this and fix the logic
-let inline graphOrSystemType (value: #IGraphType) ``type`` = operationUnit Int32.MaxValue <| fun target ->
+let inline graphOrSystemType (value: #IGraphType) ``type`` = operationUnit Int32.MinValue <| fun target ->
     if box value |> isNull |> not
     then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
-    else if isInvalidType (^t: (member GraphType: IGraphType) target)
-    then (^t: (member set_GraphType: IGraphType -> unit) target, createReference ``type``)
+    else if isInvalidType (^t: (member ResolvedType: IGraphType) target)
+    then (^t: (member set_ResolvedType: IGraphType -> unit) target, createReference ``type``)
 
 let inline metadata value = configureUnit <| fun target ->
-    let metadata = (^t: (member Metadata: IDictionary<string, obj>) target)
+    let metadata =
+        (^t: (member Metadata: IDictionary<string, obj>) target)
+        |> Option.ofObj
+        |> Option.defaultValue (upcast Dictionary.empty)
     (^t: (member set_Metadata: IDictionary<string, obj> -> unit) target, Dictionary.merge metadata (Dictionary.ofList value))
 
 [<AutoOpen>]
 module Documentation =
-    let inline documentation operations = flatten operations
+    let documentation operations = flatten operations
 
     let inline description value = configureUnit <| fun target ->
         (^t: (member set_Description: string -> unit) target, value)
 
-    let inline argumentDocumentation (arguments: (string * string) list) = operationUnit 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let argumentDocumentation (arguments: (string * string) list) = operationUnit 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
         let queryArguments =
             field.Arguments
             |> Option.ofObj
@@ -139,6 +142,7 @@ module Documentation =
             )
         ]
 *)
+// TODO: Test the rest of this file
 [<AutoOpen>]
 module Field =
     let inline fieldArguments (arguments: IOperation<QueryArguments> list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
@@ -164,24 +168,19 @@ module Field =
     // TODO: Test sync methods.
     // TODO: Prevent async methods from returning null.
     type Resolve internal () =
-        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
             field.Resolver <- resolveAsync resolver
-
-            field
-            |> setType typeof<'field>
 
         member inline __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
                 |> Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr
-                |> setType typeof<'field>
 
         member inline __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
                 |> Field.setField (|MethodName|_|) (Field.resolveMethod resolveAsync) expr
                 |> Field.addArguments<'arguments, 'field, 'source>
-                |> setType typeof<'field>
 
         member inline __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
@@ -189,34 +188,6 @@ module Field =
 
                 field
                 |> Field.addArguments<'arguments, 'field, 'source>
-                |> setType typeof<'field>
-
-        member inline __.manualSync (resolver: ResolveContext<'source> -> 'field) = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-            field.Resolver <- resolve resolver
-
-            field
-            |> setType typeof<'field>
-
-        member inline __.propertySync ([<ReflectedDefinition true>] expr: Expr<'source -> 'field>) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field
-                |> Field.setField (|FieldName|_|) (withSource >> resolve) expr
-                |> setType typeof<'field>
-
-        member inline __.methodSync ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field>) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field
-                |> Field.setField (|MethodName|_|) (Field.resolveMethod resolve) expr
-                |> Field.addArguments<'arguments, 'field, 'source>
-                |> setType typeof<'field>
-
-        member inline __.contextMethodSync (resolver: ResolveContext<'source> -> 'arguments -> 'field) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field.Resolver <- (Field.resolveCtxMethodAsync resolve) resolver
-
-                field
-                |> Field.addArguments<'arguments, 'field, 'source>
-                |> setType typeof<'field>
 
     let resolve = Resolve ()
 
@@ -244,8 +215,7 @@ module Union =
             | _ -> null
         union
 
-    // TODO: Implement
-    let isValidUnion ``type`` = true
+    let isValidUnion ``type`` = FSharpType.IsUnion ``type``
 
     let inline unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
         assert not (isInvalidType ``type``)
