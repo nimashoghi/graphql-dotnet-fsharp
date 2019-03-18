@@ -15,6 +15,7 @@ open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
 let withSource f (ctx: ResolveContext<_>) = f ctx.Source
+let isInvalidType (``type``: IGraphType) = isNull ``type`` || Object.ReferenceEquals (``type``, invalidGraphType)
 
 let inline makeNullable (x: ^t) =
     match Option.ofObj (^t: (member ResolvedType: IGraphType) x) with
@@ -46,7 +47,6 @@ module Field =
         |> Array.iter field.Arguments.Add
 
         field
-
 
     let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then [||] else
@@ -151,7 +151,9 @@ module Schema =
     let abstractClasses ``type`` =
         let rec run (``type``: Type) = [
             let baseType = ``type``.BaseType
-            if not(isNull baseType) && baseType <> typeof<obj> && baseType.IsAbstract then
+            if not (isNull baseType)
+            && baseType <> typeof<obj>
+            && baseType.IsAbstract then
                 yield baseType
                 yield! run baseType
         ]
@@ -171,119 +173,10 @@ module Schema =
         let interfaces = types |> List.choose (|InterfaceGraphType|_|)
         List.allPairs objects interfaces
         |> List.filter (fun ((_, object), (_, ``interface``)) -> extends object ``interface``)
-        |> List.iter (fun ((object, _), (``interface``, _)) ->
-            ``interface``.AddPossibleType object
-            object.AddResolvedInterface ``interface``
+        |> List.iter (
+            fun ((object, _), (``interface``, _)) ->
+                ``interface``.AddPossibleType object
+                object.AddResolvedInterface ``interface``
         )
 
         types
-
-module Union =
-    let makePropField infer (prop: PropertyInfo) =
-        Field (
-            Name = prop.Name,
-            Resolver = (withSource >> resolve) prop.GetValue,
-            ResolvedType = infer prop.PropertyType
-        )
-
-    let addFields<'source>
-        (case: UnionCaseInfo)
-        (object: Object<obj>) =
-        case.GetFields ()
-        |> Array.map (makePropField createReference)
-        |> Array.iter (object.AddField >> ignore)
-
-        object
-
-    let setIsTypeOf<'source>
-        (case: UnionCaseInfo)
-        (object: Object<obj>) =
-        object.IsTypeOf <- (fun x ->
-            match x with
-            | :? 'source ->
-                FSharpValue.GetUnionFields (x, typeof<'source>)
-                |> (fun (case, _) -> case.Tag)
-                |> ((=) case.Tag)
-            | _ -> false)
-
-        object
-
-    let addTag (tag: int) (object: Object<obj>) =
-        let field =
-            EventStreamFieldType (
-                Name = "Tag"
-            )
-        field.ResolvedType <- NonNullGraphType (IntGraphType ())
-        field.Resolver <- resolve (fun _ -> tag)
-        object.AddField field |> ignore
-
-        object
-
-    let makeUnionCase<'source> (case: UnionCaseInfo) =
-        Object<obj> (
-            Name = sprintf "%s%s" typeof<'source>.Name case.Name
-        )
-        |> addTag case.Tag
-        |> addFields<'source> case
-        |> setIsTypeOf<'source> case
-
-    let addPossibleTypes (union: Union<'source>) =
-        if typeof<'source> = typeof<obj> then () else
-
-        assert (FSharpType.IsUnion typeof<'source>)
-
-        // TODO: Start using FSharpValue.Precompute...
-        let cases =
-            FSharpType.GetUnionCases typeof<'source>
-            |> Array.map(makeUnionCase<'source> >> (fun object -> object :> IObjectGraphType))
-
-        union.PossibleTypes <- cases
-
-module Enum =
-    let addEnumValues (enum: Enumeration<'t>) =
-        if typeof<'t>.IsEnum then
-            Enum.GetNames typeof<'t>
-            |> Array.map(fun name ->
-                EnumValueDefinition (
-                    Name = name,
-                    Value = Enum.Parse (typeof<'t>, name)
-                )
-            )
-            |> Array.iter enum.AddValue
-        elif FSharpType.IsUnion typeof<'t> then
-            FSharpType.GetUnionCases typeof<'t>
-            |> Array.map(fun case ->
-                if (not << Array.isEmpty) <| case.GetFields () then
-                    failwith "Union case cannot have fields!"
-                else
-                    EnumValueDefinition(
-                        Name = case.Name,
-                        Value = FSharpValue.MakeUnion(case, [||])
-                    )
-            )
-            |> Array.iter enum.AddValue
-        else failwith "Invalid enum type!"
-
-let inline setGraphType value (x: ^t) =
-    (^t: (member set_GraphType: IGraphType -> unit) x, value)
-    x
-
-let isInvalidType (``type``: IGraphType) = isNull ``type`` || Object.ReferenceEquals (``type``, invalidGraphType)
-
-let inline setType systemType (source: ^t) =
-    let resolvedType = (^t: (member ResolvedType: IGraphType) source)
-    let setResolvedType ``type`` = (^t: (member set_ResolvedType: IGraphType -> unit) (source, ``type``))
-    if isInvalidType resolvedType then setResolvedType (createReference systemType)
-    source
-
-module Argument =
-    let inline trySetType graphType systemType (x: ^t) =
-        if graphType <> __
-        then setGraphType graphType x
-        else setType systemType x
-
-    let makeArguments arguments =
-        arguments
-        |> List.map (fun arg -> arg :> QueryArgument)
-        |> List.toArray
-        |> QueryArguments
