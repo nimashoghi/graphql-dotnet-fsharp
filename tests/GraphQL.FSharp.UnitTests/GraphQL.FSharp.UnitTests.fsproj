@@ -8,6 +8,7 @@
     <ProjectReference Include="..\GraphQL.FSharp.TestUtils\GraphQL.FSharp.TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Generators.fs" />
     <Compile Include="Utils/GraphTypes.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
@@ -17,6 +18,8 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FsCheck" Version="2.13.0" />
+    <PackageReference Include="FsCheck.Nunit" Version="2.13.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
     <PackageReference Include="nunit" Version="3.11.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.12.0" />

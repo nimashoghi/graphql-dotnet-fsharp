@@ -49,6 +49,7 @@ let inline schema parameters =
                         member __.NameFor (name, _) = name
                 }
         )
+    schema.RegisterType<EmptyObjectGraphType> ()
     reduce schema parameters
 
 let inline (=>) x y = x, y

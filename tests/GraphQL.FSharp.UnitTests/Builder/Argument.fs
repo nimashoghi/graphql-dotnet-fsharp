@@ -2,6 +2,8 @@ module GraphQL.FSharp.UnitTests.Builder.Argument
 
 open System.Threading.Tasks
 open NUnit.Framework
+open FsCheck
+open FsCheck.NUnit
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open GraphQL.Types
@@ -72,12 +74,29 @@ let ``configure test`` () =
     ]
     |> argumentEqual "changedName" (nullable FloatGraphType) None
 
+[<Property>]
+let ``configure property`` (newName: string) =
+    argument<int> __ [
+        name "myArg"
+        configureUnit (fun arg -> arg.ResolvedType <- FloatGraph)
+        configureUnit (fun arg -> arg.Name <- newName)
+    ]
+    |> argumentEqual newName (nullable FloatGraphType) None
+
 [<Test>]
 let ``basic test`` () =
     argument<int> __ [
         name "myArg"
     ]
     |> argumentEqual "myArg" (nonNull IntGraphType) None
+
+[<Property>]
+let ``basic property`` (argName: string) (graph: IGraphType) =
+    argument __ [
+        name argName
+    ]
+    |> argumentEqual argName (fun () -> Graph graph) None
+
 
 type MyType = {
     Name: string

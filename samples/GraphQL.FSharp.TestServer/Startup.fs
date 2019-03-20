@@ -97,7 +97,7 @@ module Schema =
                     documentation [
                         description "Hello world"
                     ]
-                    resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync()))
+                    resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync ()))
                 ]
                 field __ [
                     resolve.method (fun this _ -> this.GetSomethingAsync ())
@@ -124,7 +124,7 @@ module Schema =
         ]
 
     let MyUnionGraph =
-        union [
+        union<MyUnion> [
             name "MyUnion"
             cases [
                 case FirstUnion MyUnionFirstGraph
@@ -133,7 +133,7 @@ module Schema =
         ]
 
     let MyEnumGraph =
-        enum [
+        enum<MyEnum> [
             name "MyEnum"
             cases [
                 case First []

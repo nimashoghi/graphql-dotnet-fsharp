@@ -67,6 +67,7 @@ module Field =
             |> Option.toObj
         )
 
+    // TODO: Take a look at null
     let makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (arguments: obj [])  =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
@@ -75,6 +76,10 @@ module Field =
         arguments
         |> constructor
         |> unbox<'arguments>
+
+    let makeArgumentArrayFromRecord (Lazy reader) (record: 'arguments) =
+        if typeof<'arguments> = typeof<obj> then [||] else
+        reader (box record)
 
     let makeArguments<'arguments, 'source> fields constructor ctx =
         if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
@@ -85,12 +90,13 @@ module Field =
     let getRecordInfo<'arguments> () =
         let fields = lazy (FSharpType.GetRecordFields typeof<'arguments>)
         let constructor = lazy (FSharpValue.PreComputeRecordConstructor typeof<'arguments>)
-        fields, constructor
+        let reader = lazy (FSharpValue.PreComputeRecordReader typeof<'arguments>)
+        fields, constructor, reader
 
     let validate
         (validator: 'arguments -> Result<'arguments, 'error list> Task)
         (field: Field<'arguments, 'field, 'source>) =
-        let fields, constructor = getRecordInfo<'arguments> ()
+        let fields, constructor, reader = getRecordInfo<'arguments> ()
         let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
         field.Resolver <-
             resolveAsync (
@@ -100,9 +106,10 @@ module Field =
                     let! validatedArguments = validator argumentRecord
 
                     match validatedArguments with
-                    | Ok _ ->
+                    | Ok arguments ->
+                        let validatedArgumentArray = makeArgumentArrayFromRecord reader arguments
                         let (Lazy fields) = fields
-                        Array.zip argumentArray fields
+                        Array.zip validatedArgumentArray fields
                         |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
 
                         return! oldResolver.Resolver ctx
@@ -118,14 +125,14 @@ module Field =
         field
 
     let resolveMethod resolver (f: 'source -> 'arguments -> _) =
-        let fields, constructor = getRecordInfo<'arguments>()
+        let fields, constructor, _ = getRecordInfo<'arguments>()
         resolver (
             fun (ctx: ResolveContext<'source>) ->
                 f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
     let resolveCtxMethodAsync resolver (f: ResolveContext<'source> -> 'arguments -> _) =
-        let fields, constructor = getRecordInfo<'arguments> ()
+        let fields, constructor, _ = getRecordInfo<'arguments> ()
         resolver (
             fun (ctx: ResolveContext<'source>) ->
                 f ctx (makeArguments<'arguments, 'source> fields constructor ctx)

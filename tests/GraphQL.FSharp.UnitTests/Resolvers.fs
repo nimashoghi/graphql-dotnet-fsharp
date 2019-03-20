@@ -4,72 +4,107 @@ open System.Collections.Generic
 open System.Threading.Tasks
 open NUnit.Framework
 open Swensen.Unquote
+open FsCheck.NUnit
 open FSharp.Utils
 open GraphQL.FSharp.Resolvers
 open GraphQL
 open GraphQL.FSharp.Types
 open Newtonsoft.Json
 
+let (=!!) (lhs: _ Task) rhs = lhs.Result =! rhs
+
 module ``resolve`` =
-    [<Test>]
+    [<Property>]
     let ``basic test`` () =
-        resolve(fun _ -> "Hello World")
+        resolveAsync(fun _ -> Task.FromResult "Hello World")
             .Resolver (ResolveContext ())
-        =! box "Hello World"
+        =!! box "Hello World"
+
+    [<Property>]
+    let ``basic property`` (value: obj) =
+        resolveAsync(fun _ -> Task.FromResult value)
+            .Resolver (ResolveContext ())
+        =!! box value
 
     [<Test>]
     let ``option positive test`` () =
-        resolve(fun _ -> Some "Hello World")
+        resolveAsync(fun _ -> Task.FromResult (Some "Hello World"))
             .Resolver (ResolveContext ())
-        =! box "Hello World"
+        =!! box "Hello World"
+
+    [<Property>]
+    let ``option positive property`` (value: obj) =
+        resolveAsync(fun _ -> Task.FromResult (Some value))
+            .Resolver (ResolveContext ())
+        =!! box value
 
     [<Test>]
     let ``option negative test`` () =
-        resolve(fun _ -> None: string option)
+        resolveAsync(fun _ -> Task.FromResult (None: string option))
             .Resolver (ResolveContext ())
-        =! box null
+        =!! box null
 
     [<Test>]
     let ``validation result positive test`` () =
-        resolve(fun _ -> Ok "Hello World": Result<string, string list>)
+        resolveAsync(fun _ -> Task.FromResult (Ok "Hello World": Result<string, string list>))
             .Resolver (ResolveContext ())
-        =! box "Hello World"
+        =!! box "Hello World"
+
+    [<Property>]
+    let ``validation result positive property`` (value: obj) =
+        resolveAsync(fun _ -> Task.FromResult (Ok value: Result<obj, string list>))
+            .Resolver (ResolveContext ())
+        =!! box value
 
     [<Test>]
     let ``validation result negative test`` () =
         let ctx = ResolveContext ()
-        resolve(fun _ -> Error ["error"]: Result<string, string list>)
+        resolveAsync(fun _ -> Task.FromResult (Error ["error"]: Result<string, string list>))
             .Resolver ctx
-        =! box null
+        =!! box null
         let errors =
             ctx.Errors
             |> Seq.toList
         List.length errors =! 1
         List.head(errors).Message =! "error"
 
+    [<Property>]
+    let ``validation result negative property`` (errors: string list) =
+        let ctx = ResolveContext ()
+        resolveAsync(fun _ -> Task.FromResult (Error errors: Result<string, string list>))
+            .Resolver ctx
+        =!! box null
+        let ctxErr =
+            ctx.Errors
+            |> Seq.toList
+        List.length ctxErr =! List.length errors
+        (ctxErr, errors)
+        ||> List.zip
+        |> List.iter (fun (ctxErr, errorMsg) -> ctxErr.Message =! string errorMsg)
+
     [<Test>]
     let ``result positive test`` () =
-        resolve(fun _ -> Ok "Hello World": Result<string, string>)
+        resolveAsync(fun _ -> Task.FromResult (Ok "Hello World": Result<string, string>))
             .Resolver (ResolveContext ())
-        =! box "Hello World"
+        =!! box "Hello World"
 
     [<Test>]
     let ``result negative test`` () =
         let ctx = ResolveContext ()
-        resolve(fun _ -> Error "error": Result<string, string>)
+        resolveAsync(fun _ -> Task.FromResult (Error "error": Result<string, string>))
             .Resolver ctx
-        =! box null
+        =!! box null
         let errors =
             ctx.Errors
             |> Seq.toList
         List.length errors =! 1
         List.head(errors).Message =! "error"
 
-module ``resolveHandler`` =
-    [<Test>]
-    let ``basic test`` () =
-        let resolver = resolveHandler (fun _ -> sprintf "%s - added" >> box) (fun _ -> "Hello world")
-        resolver.Resolver (ResolveContext ()) =! box "Hello world - added"
+// module ``resolveHandler`` =
+//     [<Test>]
+//     let ``basic test`` () =
+//         let resolver = resolveHandler (fun _ -> sprintf "%s - added" >> box) (fun _ -> "Hello world")
+//         resolver.Resolver (ResolveContext ()) =! box "Hello world - added"
 
 module ``resolveTaskHandler`` =
     [<Test>]

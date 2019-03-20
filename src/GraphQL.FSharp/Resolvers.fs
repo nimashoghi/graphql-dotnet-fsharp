@@ -8,16 +8,6 @@ open GraphQL
 
 open GraphQL.FSharp.Types
 
-let resolveHandler
-    (handler: ResolveContext<'source> -> 'field -> obj)
-    (f: ResolveContext<'source> -> 'field) =
-    Resolver<'source, 'field> (fun ctx -> handler ctx (f ctx))
-
-let resolveTaskHandler
-    (handler: ResolveContext<'source> -> 'field -> obj)
-    (f: ResolveContext<'source> -> 'field Task) =
-    AsyncResolver<'source, 'field> (fun ctx -> Task.map (handler ctx) (f ctx))
-
 let handleError (error: obj) =
     match Dictionary.ofObj error with
     // TODO: fix this later
@@ -46,5 +36,9 @@ let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
             null
     | value -> value
 
-let resolve f = resolveHandler handleObject f
-let resolveAsync f = resolveTaskHandler handleObject f
+let resolveTaskHandler
+    (handler: ResolveContext<'source> -> 'field -> obj)
+    (f: ResolveContext<'source> -> 'field Task) =
+    AsyncResolver<'source, 'field> (fun ctx -> Task.map (handler ctx) (f ctx))
+
+let inline resolveAsync f = resolveTaskHandler handleObject f

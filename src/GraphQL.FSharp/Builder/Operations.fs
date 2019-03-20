@@ -142,34 +142,43 @@ module Documentation =
             )
         ]
 *)
-// TODO: Test the rest of this file
 [<AutoOpen>]
 module Field =
-    let inline fieldArguments (arguments: IOperation<QueryArguments> list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let inline fieldArguments (arguments: Argument list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
         let queryArguments =
             field.Arguments
             |> Option.ofObj
-            |> Option.defaultValue (QueryArguments ())
+            |> Option.map (Seq.cast<QueryArgument> >> Seq.toList)
+            |> Option.defaultValue []
 
         arguments
-        |> List.fold (fun arguments (Operation f) -> f arguments) queryArguments
+        |> List.map (fun argument -> argument :> QueryArgument)
+        |> (@) queryArguments
+        |> List.groupBy (fun argument -> argument.Name)
+        |> List.map (fun (_, list) -> List.last list)
+        |> QueryArguments
         |> field.set_Arguments
 
     // TODO: Confirm priority values
     let inline validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = operation 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
         Field.validate validator field
 
-    let inline subscribe (subscribe: ResolveEventStreamContext<'source> -> Task<IObservable<'field>>) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    // TODO: Test this
+    let inline subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
         field.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
 
-        if isNull field.Resolver
-        then field.Resolver <- resolve (fun (ctx: ResolveContext<'source>) -> unbox<'field> ctx.Source)
+        if isNull field.Resolver then
+            field.Resolver <-
+                resolveAsync (
+                    fun (ctx: ResolveContext<'source>) ->
+                        Task.FromResult (unbox<'field> ctx.Source)
+                )
 
-    // TODO: Test sync methods.
     // TODO: Prevent async methods from returning null.
     type Resolve internal () =
-        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
-            field.Resolver <- resolveAsync resolver
+        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) =
+            configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+                field.Resolver <- resolveAsync resolver
 
         member inline __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
@@ -219,7 +228,7 @@ module Union =
 
     let inline unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
         assert not (isInvalidType ``type``)
-        assert isValidUnion typeof<'object>
+        assert isValidUnion typeof<'union>
 
         {
             Init = fun union ->
@@ -236,7 +245,6 @@ module Enum =
     let inline value (value: ^value) = configureUnit <| fun target ->
         (^t: (member set_Value: ^value -> unit) target, value)
 
-    // TODO: Implement
     let isValidEnum (``type``: Type) =
         ``type``.IsEnum
         || FSharpType.IsUnion ``type``
@@ -253,6 +261,8 @@ module Enum =
             case.Name
 
     let inline enumCase (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
+        assert isValidEnum typeof<'enum>
+
         properties
         |> List.append [
             name (getEnumValueName case)

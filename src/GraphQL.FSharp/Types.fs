@@ -9,6 +9,15 @@ open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Types
 
+type EmptyObjectGraphType () as this =
+    inherit ScalarGraphType ()
+
+    do this.Name <- "Object"
+
+    override __.Serialize _ = null
+    override __.ParseValue _ = null
+    override __.ParseLiteral _ = null
+
 type NullGraphType (?``type``) =
     inherit GraphType ()
 
@@ -146,6 +155,14 @@ type Argument () =
     member __.GraphType
         with get () = base.ResolvedType
         and set value = base.ResolvedType <- processNonNullity value
+
+let (|Graph|) (``type``: #IGraphType) =
+    match ``type`` :> IGraphType with
+    | :? NonNullGraphType as nonNullType -> nonNullType :> IGraphType
+    | :? NullGraphType as nullType -> nullType.ResolvedType
+    | ``type`` -> NonNullGraphType ``type`` :> IGraphType
+
+let Graph ``type`` = (|Graph|) ``type``
 
 type Argument<'t> () =
     inherit Argument ()
