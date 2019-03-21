@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="Generators.fs" />
     <Compile Include="Utils/GraphTypes.fs" />
+    <Compile Include="Utils/Quotations.fs" />
     <Compile Include="Builder/Argument.fs" />
     <Compile Include="Builder/Field.fs" />
     <Compile Include="Builder/Operations.fs" />

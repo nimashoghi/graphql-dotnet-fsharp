@@ -17,5 +17,5 @@ let addWebsockets (builder: IGraphQLBuilder) = builder.AddWebSockets()
 
 let addNameConverter (builder: IGraphQLBuilder) = builder.AddDefaultFieldNameConverter()
 
-let inline addAuthorization<'t when 't: equality and 't :> IPolicy> optionBuilder (builder: IGraphQLBuilder) =
+let addAuthorization<'t when 't: equality and 't :> IPolicy> optionBuilder (builder: IGraphQLBuilder) =
     builder.AddAuthorization<'t> optionBuilder

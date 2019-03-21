@@ -7,40 +7,40 @@ open GraphQL.FSharp.Builder.Operations
 open GraphQL.FSharp.Types
 
 type Endpoints = Field<obj> list
-let inline endpoints (endpoints: Endpoints) = endpoints
+let endpoints (endpoints: Endpoints) = endpoints
 
-let inline argument<'argument> ``type`` parameters =
+let argument<'argument> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'argument> :: parameters
     |> reduceWith Argument<'argument>
 
 // TODO: Move type handling here
 // TODO: type parameter order
 // TODO: Warn if no resolver
-let inline field<'field,'arguments, 'source> ``type`` parameters =
+let field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'field> :: parameters
     |> reduceWith Field<'arguments, 'field, 'source>
 
-let inline object<'t> parameters =
+let object<'t> parameters =
     name typeof<'t>.Name :: parameters
     |> reduceWith Object<'t>
 
-let inline ``interface``<'t> parameters =
+let ``interface``<'t> parameters =
     name typeof<'t>.Name :: parameters
     |> reduceWith Interface<'t>
 
-let inline input<'t> parameters =
+let input<'t> parameters =
     name typeof<'t>.Name :: parameters
     |> reduceWith InputObject<'t>
 
-let inline enum<'t> parameters =
+let enum<'t> parameters =
     name typeof<'t>.Name :: parameters
     |> reduceWith Enumeration<'t>
 
-let inline union<'t> parameters =
+let union<'t> parameters =
     name typeof<'t>.Name :: parameters
     |> reduceWith Union<'t>
 
-let inline schema parameters =
+let schema parameters =
     let schema =
         new Schema (
             FieldNameConverter =
@@ -52,4 +52,4 @@ let inline schema parameters =
     schema.RegisterType<EmptyObjectGraphType> ()
     reduce schema parameters
 
-let inline (=>) x y = x, y
+let (=>) x y = x, y

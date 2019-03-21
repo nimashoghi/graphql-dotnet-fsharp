@@ -74,12 +74,12 @@ let inline deprecate value = configureUnit <| fun target ->
 type DefaultValueHelper =
     | DefaultValueHelper
 
-    static member inline ($) (DefaultValueHelper, field: Field<_, ^t, _>): ^t -> unit =
+    static member ($) (DefaultValueHelper, field: Field<_,'t, _>): 't -> unit =
         fun value ->
             field.DefaultValue <- box value
             makeNullable field
 
-    static member inline ($) (DefaultValueHelper, argument: Argument< ^t>): ^t -> unit =
+    static member ($) (DefaultValueHelper, argument: Argument<'t>): 't -> unit =
         fun value ->
             argument.DefaultValue <- box value
             makeNullable argument
@@ -144,7 +144,7 @@ module Documentation =
 *)
 [<AutoOpen>]
 module Field =
-    let inline fieldArguments (arguments: Argument list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let fieldArguments (arguments: Argument list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
         let queryArguments =
             field.Arguments
             |> Option.ofObj
@@ -160,11 +160,11 @@ module Field =
         |> field.set_Arguments
 
     // TODO: Confirm priority values
-    let inline validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = operation 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = operation 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
         Field.validate validator field
 
     // TODO: Test this
-    let inline subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
         field.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
 
         if isNull field.Resolver then
@@ -174,24 +174,23 @@ module Field =
                         Task.FromResult (unbox<'field> ctx.Source)
                 )
 
-    // TODO: Prevent async methods from returning null.
     type Resolve internal () =
-        member inline __.manual (resolver: ResolveContext<'source> -> 'field Task) =
+        member __.manual (resolver: ResolveContext<'source> -> 'field Task) =
             configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field.Resolver <- resolveAsync resolver
 
-        member inline __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
+        member __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
                 |> Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr
 
-        member inline __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field Task>) =
+        member __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field Task>) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field
                 |> Field.setField (|MethodName|_|) (Field.resolveMethod resolveAsync) expr
                 |> Field.addArguments<'arguments, 'field, 'source>
 
-        member inline __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
+        member __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
             configure <| fun (field: Field<'arguments, 'field, 'source>) ->
                 field.Resolver <- (Field.resolveCtxMethodAsync resolveAsync) resolver
 
@@ -202,7 +201,7 @@ module Field =
 
 [<AutoOpen>]
 module Object =
-    let inline fields (fields: Field<'source> list) = configureUnit <| fun (object: #ComplexGraphType<'source>) ->
+    let fields (fields: Field<'source> list) = configureUnit <| fun (object: #ComplexGraphType<'source>) ->
         fields
         |> List.iter (object.AddField >> ignore)
 
@@ -226,7 +225,7 @@ module Union =
 
     let isValidUnion ``type`` = FSharpType.IsUnion ``type``
 
-    let inline unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
+    let unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
         assert not (isInvalidType ``type``)
         assert isValidUnion typeof<'union>
 
@@ -236,7 +235,7 @@ module Union =
                 resolveUnion<'object, 'union> ``type`` union
         }
 
-    let inline unionCases (cases: UnionCase<'union> list) = configure <| fun (union: Union<'union>) ->
+    let unionCases (cases: UnionCase<'union> list) = configure <| fun (union: Union<'union>) ->
         cases
         |> List.fold (fun union case -> case.Init union) union
 
@@ -260,7 +259,7 @@ module Enum =
                 |> fst
             case.Name
 
-    let inline enumCase (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
+    let enumCase (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
         assert isValidEnum typeof<'enum>
 
         properties
@@ -270,29 +269,29 @@ module Enum =
         ]
         |> reduceWith EnumerationValue<'enum>
 
-    let inline enumCases (values: EnumerationValue<'enum> list) = configureUnit <| fun (enum: Enumeration<'enum>) ->
+    let enumCases (values: EnumerationValue<'enum> list) = configureUnit <| fun (enum: Enumeration<'enum>) ->
         enum.Name <- getEnumName<'enum> ()
         List.iter enum.AddValue values
 
 type CaseHelper =
     | CaseHelper
 
-    static member inline ($) (CaseHelper, properties) = fun case -> enumCase case properties
-    static member inline ($) (CaseHelper, graph) = fun case -> unionCase case graph
+    static member ($) (CaseHelper, properties) = fun case -> enumCase case properties
+    static member ($) (CaseHelper, graph) = fun case -> unionCase case graph
 
 let inline case case properties = (CaseHelper $ properties) case
 
 type CasesHelper =
     | CasesHelper
 
-    static member inline ($) (CasesHelper, values) = enumCases values
-    static member inline ($) (CasesHelper, properties) = unionCases properties
+    static member ($) (CasesHelper, values) = enumCases values
+    static member ($) (CasesHelper, properties) = unionCases properties
 
 let inline cases properties = CasesHelper $ properties
 
 [<AutoOpen>]
 module Schema =
-    let inline query (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let query (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Query",
@@ -303,7 +302,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Query <- object
 
-    let inline mutation (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let mutation (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Mutation",
@@ -314,7 +313,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Mutation <- object
 
-    let inline subscription (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let subscription (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Subscription",
@@ -325,7 +324,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Subscription <- object
 
-    let inline types (types: IGraphType list) = configureUnit <| fun (schema: #Schema) ->
+    let types (types: IGraphType list) = configureUnit <| fun (schema: #Schema) ->
         types
         |> Schema.handleInterfaces
         |> List.toArray
@@ -334,7 +333,7 @@ module Schema =
 type ArgumentsHelper =
     | ArgumentsHelper
 
-    static member inline ($) (ArgumentsHelper, properties) = argumentDocumentation properties
-    static member inline ($) (ArgumentsHelper, properties) = fieldArguments properties
+    static member ($) (ArgumentsHelper, properties) = argumentDocumentation properties
+    static member ($) (ArgumentsHelper, properties) = fieldArguments properties
 
 let inline arguments properties = ArgumentsHelper $ properties

@@ -7,11 +7,11 @@ open FSharp.Quotations.Patterns
 
 let rec internal (|DeepPattern|_|) (|Pattern|_|) (expr: Expr) =
     match expr with
-    | Pattern value -> Some value
     | ShapeLambda (_, expr) -> (|DeepPattern|_|) (|Pattern|_|) expr
     | ShapeCombination (_, exprs) ->
         exprs
         |> List.tryPick ((|DeepPattern|_|) (|Pattern|_|))
+        |> Option.orElse ((|Pattern|_|) expr)
     | ShapeVar _ -> None
 
 let internal (|GetMethod|_|) expr =

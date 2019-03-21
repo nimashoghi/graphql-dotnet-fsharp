@@ -111,13 +111,11 @@ module Field =
                         let (Lazy fields) = fields
                         Array.zip validatedArgumentArray fields
                         |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
-
                         return! oldResolver.Resolver ctx
                     | Error errors ->
                         errors
                         |> List.map (box >> string >> GraphQL.ExecutionError)
                         |> ctx.Errors.AddRange
-
                         return null
                 }
             )
