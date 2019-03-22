@@ -117,12 +117,11 @@ let inline defaultValue value = Operation.CreateUnit Priority.DefaultValue <| fu
 
 let notNull x = box x |> isNull |> not
 let shouldBeNullable (``type``: Type) =
-    let (|Object|_|) (``type``: Type) = if ``type`` = typeof<obj> then Some () else None
+    let (|ObjectType|_|) (``type``: Type) = if ``type`` = typeof<obj> then Some () else None
     match ``type`` with
-    | Object -> false
-    | Option _
-    | ValidationResult _
-    | Result _ -> true
+    | ObjectType -> false
+    | OptionType _
+    | ResultType _ -> true
     | _ -> false
 
 let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUnit Priority.InferredGraphType <| fun target ->

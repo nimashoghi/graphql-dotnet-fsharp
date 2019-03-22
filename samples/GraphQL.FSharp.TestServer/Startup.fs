@@ -152,9 +152,9 @@ module Schema =
                 name "GetMyUnion"
                 resolve.method (fun _ _ -> Task.FromResult (FirstUnion {Name = "hello"}))
             ]
-            field __ [
+            field MyTypeGraph [
                 name "GetMyType"
-                resolve.method (fun _ _ -> Task.FromResult (MyType ()))
+                resolve.method (fun _ _ -> Task.FromResult (Ok (MyType ())))
             ]
             field __ [
                 name "Validate"
