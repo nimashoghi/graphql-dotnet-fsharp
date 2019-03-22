@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>0.0.9</Version>
+    <Version>0.0.10</Version>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
   </PropertyGroup>
   <ItemGroup>
@@ -12,6 +12,7 @@
     <Compile Include="Resolvers.fs" />
     <Compile Include="Builder/Utils.fs" />
     <Compile Include="Builder/Operations.fs" />
+    <Compile Include="Builder/Analyzers.fs" />
     <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />

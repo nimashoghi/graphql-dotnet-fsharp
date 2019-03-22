@@ -34,7 +34,7 @@ module TypePatterns =
     let (|NonNull|_|) ``type`` = getGraphType<NonNullGraphType> ``type``
     let (|Null|_|) ``type`` = getGraphType<NullGraphType> ``type``
 
-    let processNonNullity ``type`` =
+    let processGraphType isNull (``type``: #IGraphType) =
         let rec run isNull (``type``: IGraphType) =
             match ``type`` with
             | null -> null
@@ -43,7 +43,7 @@ module TypePatterns =
             | NonNull ``type`` -> ``type`` :> IGraphType
             | ``type`` when isNull -> ``type``
             | ``type`` -> NonNullGraphType ``type`` :> IGraphType
-        run false ``type``
+        run isNull ``type``
 
 [<AutoOpen>]
 module Instances =
@@ -68,7 +68,7 @@ module Instances =
     let TimeSpanSecondsGraph = TimeSpanSecondsGraphType ()
     let UriGraph = UriGraphType ()
     let NullGraph (``type``: #IGraphType) = NullGraphType (``type`` :> IGraphType)
-    let ListGraph (``type``: #IGraphType) = ListGraphType (processNonNullity ``type``)
+    let ListGraph (``type``: #IGraphType) = ListGraphType (processGraphType false ``type``)
     let __: IGraphType = null
 
 type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
@@ -151,28 +151,11 @@ type Argument () =
 
     member val Metadata: IDictionary<string, obj> = upcast Dictionary () with get, set
 
-    // TODO: Remove GraphType
-    member __.GraphType
-        with get () = base.ResolvedType
-        and set value = base.ResolvedType <- processNonNullity value
-
-let (|Graph|) (``type``: #IGraphType) =
-    match ``type`` :> IGraphType with
-    | :? NonNullGraphType as nonNullType -> nonNullType :> IGraphType
-    | :? NullGraphType as nullType -> nullType.ResolvedType
-    | ``type`` -> NonNullGraphType ``type`` :> IGraphType
-
-let Graph ``type`` = (|Graph|) ``type``
-
 type Argument<'t> () =
     inherit Argument ()
 
 type Field () =
     inherit EventStreamFieldType ()
-
-    member __.GraphType
-        with get () = base.ResolvedType
-        and set value = base.ResolvedType <- processNonNullity value
 
 type Field<'source> () =
     inherit Field ()
@@ -180,7 +163,7 @@ type Field<'source> () =
 type Field<'field, 'source> () =
     inherit Field<'source> ()
 
-type Field<'arguments, 'field, 'source> () =
+type Field<'field, 'arguments, 'source> () =
     inherit Field<'field, 'source> ()
 
 type EnumerationValue () =

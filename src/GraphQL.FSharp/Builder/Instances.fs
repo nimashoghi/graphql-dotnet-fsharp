@@ -11,33 +11,38 @@ let endpoints (endpoints: Endpoints) = endpoints
 
 let argument<'argument> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'argument> :: parameters
+    |> flattenOperations
     |> reduceWith Argument<'argument>
 
-// TODO: Move type handling here
-// TODO: type parameter order
-// TODO: Warn if no resolver
 let field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'field> :: parameters
-    |> reduceWith Field<'arguments, 'field, 'source>
+    |> flattenOperations
+    |> Analyzers.field
+    |> reduceWith Field<'field, 'arguments, 'source>
 
 let object<'t> parameters =
     name typeof<'t>.Name :: parameters
+    |> flattenOperations
     |> reduceWith Object<'t>
 
 let ``interface``<'t> parameters =
     name typeof<'t>.Name :: parameters
+    |> flattenOperations
     |> reduceWith Interface<'t>
 
 let input<'t> parameters =
     name typeof<'t>.Name :: parameters
+    |> flattenOperations
     |> reduceWith InputObject<'t>
 
 let enum<'t> parameters =
     name typeof<'t>.Name :: parameters
+    |> flattenOperations
     |> reduceWith Enumeration<'t>
 
 let union<'t> parameters =
     name typeof<'t>.Name :: parameters
+    |> flattenOperations
     |> reduceWith Union<'t>
 
 let schema parameters =
@@ -50,6 +55,8 @@ let schema parameters =
                 }
         )
     schema.RegisterType<EmptyObjectGraphType> ()
-    reduce schema parameters
+    parameters
+    |> flattenOperations
+    |> reduce schema
 
 let (=>) x y = x, y

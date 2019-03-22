@@ -57,7 +57,7 @@ type AuthorizationSettings<'t when 't: equality and 't :> IPolicy> =
     member this.InvokeOnOptions (options: AuthorizationOptions) =
         options.InvokeHandlersAfterFailure <- this.InvokeHandlersAfterFailure
 
-type Field<'arguments, 'field, 'source> with
+type Field<'field, 'arguments, 'source> with
     member this.Authorize<'t when 't: equality and 't :> IPolicy> (policy: 't) =
         let case, _ =
             FSharpValue.GetUnionFields (
@@ -66,7 +66,7 @@ type Field<'arguments, 'field, 'source> with
             )
         this.AuthorizeWith (mkName case.Name)
 
-let authorize policy = configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+let authorize policy = Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
     field.Authorize policy
     field
 

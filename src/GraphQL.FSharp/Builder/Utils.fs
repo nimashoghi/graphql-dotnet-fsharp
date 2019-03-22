@@ -25,7 +25,11 @@ let inline makeNullable (x: ^t) =
     | _ -> ()
 
 module Field =
-    let addArguments<'arguments, 'field, 'source> (field: Field<'arguments, 'field, 'source>) =
+    let setResolver resolver (field: Field<'field, 'arguments, 'source>) =
+        field.Resolver <- resolver
+        field
+
+    let addArguments (field: Field<'field, 'arguments, 'source>) =
         if typeof<'arguments> = typeof<obj> then field else
 
         if isNull field.Arguments
@@ -95,7 +99,7 @@ module Field =
 
     let validate
         (validator: 'arguments -> Result<'arguments, 'error list> Task)
-        (field: Field<'arguments, 'field, 'source>) =
+        (field: Field<'field, 'arguments, 'source>) =
         let fields, constructor, reader = getRecordInfo<'arguments> ()
         let oldResolver = field.Resolver :?> AsyncResolver<'source, 'field>
         field.Resolver <-

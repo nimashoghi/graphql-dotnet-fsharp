@@ -23,11 +23,32 @@ let ``type inference`` () =
     |> fieldEqual "myInferenceTypeField" (fun () -> upcast NonNullGraphType (GraphQLTypeReference "MyInferenceType"))
 
 [<Test>]
+let ``type inference with validation return type`` () =
+    field<Result<MyInferenceType, _ list>, _, _>  __ [
+        name "myInferenceTypeField"
+    ]
+    |> fieldEqual "myInferenceTypeField" (fun () -> upcast GraphQLTypeReference "MyInferenceType")
+
+[<Test>]
+let ``type inference with result return type`` () =
+    field<Result<MyInferenceType, _>, _, _>  __ [
+        name "myInferenceTypeField"
+    ]
+    |> fieldEqual "myInferenceTypeField" (fun () -> upcast GraphQLTypeReference "MyInferenceType")
+
+[<Test>]
+let ``type inference with option return type`` () =
+    field<MyInferenceType option, _, _>  __ [
+        name "myInferenceTypeField"
+    ]
+    |> fieldEqual "myInferenceTypeField" (fun () -> upcast GraphQLTypeReference "MyInferenceType")
+
+[<Test>]
 let ``configure test`` () =
     field __ [
         name "getTask"
         resolve.method (fun _ _ -> Task.FromResult "Hello")
-        configureUnit (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
+        configureUnit "" (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
     ]
     |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
 

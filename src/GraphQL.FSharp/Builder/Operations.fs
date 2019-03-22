@@ -3,10 +3,12 @@ module GraphQL.FSharp.Builder.Operations
 
 open System
 open System.Collections.Generic
+open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Reflection
 open FSharp.Utils
+open FSharp.Utils.Reflection
 open GraphQL.Resolvers
 open GraphQL.Subscription
 open GraphQL.Types
@@ -17,26 +19,46 @@ open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils.Quotations
 
+[<Struct>]
+type Priority = Priority of Priority: int
+
+[<RequireQualifiedAccess>]
+module Priority =
+    let Min = Priority Int32.MinValue
+    let Max = Priority Int32.MaxValue
+    let Default = Priority 0
+
+    let Flatten = Min
+    let InferredGraphType = Min
+    let DefaultValue = Priority 100
+    let Validation = Priority 150
+    let ArgumentDocumentation = Priority 200
+
 type IOperation<'t> =
+    abstract member Id: string
     abstract member Invoke: 't -> 't
-    abstract member Priority: int
+    abstract member Priority: Priority
 
 let (|Operation|) (operation: IOperation<_>) = operation.Invoke
-let (|Priority|) (operation: IOperation<_>) = operation.Priority
+let (|Priority|) (operation: IOperation<_>) =
+    let (Priority priority) = operation.Priority
+    priority
+let (|Id|) (operation: IOperation<_>) = operation.Id
 
 type FlattenOperation<'t> (parameters: IOperation<'t> list) =
     member val Parameters = parameters
 
     interface IOperation<'t> with
+        member __.Id = "Flatten"
         member __.Invoke target =
             parameters
             |> List.sortBy (|Priority|)
             |> List.fold (fun target (Operation f) -> f target) target
-        member __.Priority = Int32.MinValue
+        member __.Priority = Priority.Flatten
 
 let flatten parameters = FlattenOperation parameters
 
-let processFlattening (parameters: IOperation<_> list) =
+let flattenOperations (parameters: IOperation<_> list) =
     parameters
     |> List.collect (
         fun operation -> [
@@ -48,27 +70,34 @@ let processFlattening (parameters: IOperation<_> list) =
 
 let reduce initial parameters =
     parameters
-    |> processFlattening
     |> List.sortBy (|Priority|)
     |> List.fold (fun object (Operation operation) -> operation object) initial
 
 let reduceWith initial parameters = reduce (initial ()) parameters
 
-let operation priority f =
+let operation id priority f =
     {
         new IOperation<_> with
+            member __.Id = id
             member __.Invoke x = f x
             member __.Priority = priority
     }
-let operationUnit priority f = operation priority (fun x -> f x; x)
+let operationUnit id priority f = operation id priority (fun x -> f x; x)
 
-let configure f = operation 0 f
-let configureUnit f = operationUnit 0 f
+let configure id f = operation id Priority.Default f
+let configureUnit id f = operationUnit id Priority.Default f
 
-let inline name value = configureUnit <| fun target ->
+type Operation private () =
+    static member Create (priority, [<CallerMemberName>] ?name) = fun f -> operation (Option.get name) priority f
+    static member CreateUnit (priority, [<CallerMemberName>] ?name) = fun f -> operationUnit (Option.get name) priority f
+
+    static member Configure (f, [<CallerMemberName>] ?name) = configure (Option.get name) f
+    static member ConfigureUnit (f, [<CallerMemberName>] ?name) = configureUnit (Option.get name) f
+
+let inline name value = Operation.ConfigureUnit <| fun target ->
     (^t: (member set_Name: string -> unit) target, value)
 
-let inline deprecate value = configureUnit <| fun target ->
+let inline deprecate value = Operation.ConfigureUnit <| fun target ->
     (^t: (member set_DeprecationReason: string -> unit) target, value)
 
 type DefaultValueHelper =
@@ -84,20 +113,25 @@ type DefaultValueHelper =
             argument.DefaultValue <- box value
             makeNullable argument
 
-let inline defaultValue value = operationUnit 100 <| fun target -> (DefaultValueHelper $ target) value
+let inline defaultValue value = Operation.CreateUnit Priority.DefaultValue <| fun target -> (DefaultValueHelper $ target) value
 
-let inline graphType (value: #IGraphType) = configureUnit <| fun target ->
-    if box value |> isNull |> not
-    then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
+let notNull x = box x |> isNull |> not
+let shouldBeNullable (``type``: Type) =
+    let (|Object|_|) (``type``: Type) = if ``type`` = typeof<obj> then Some () else None
+    match ``type`` with
+    | Object -> false
+    | Option _
+    | ValidationResult _
+    | Result _ -> true
+    | _ -> false
 
-// TODO: Update this and fix the logic
-let inline graphOrSystemType (value: #IGraphType) ``type`` = operationUnit Int32.MinValue <| fun target ->
-    if box value |> isNull |> not
-    then (^t: (member set_GraphType: IGraphType -> unit) target, (value :> IGraphType))
-    else if isInvalidType (^t: (member ResolvedType: IGraphType) target)
-    then (^t: (member set_ResolvedType: IGraphType -> unit) target, createReference ``type``)
+let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUnit Priority.InferredGraphType <| fun target ->
+    if notNull value then
+        (^t: (member set_ResolvedType: IGraphType -> unit) target, processGraphType (shouldBeNullable ``type``) value)
+    else if isInvalidType (^t: (member ResolvedType: IGraphType) target) then
+        (^t: (member set_ResolvedType: IGraphType -> unit) target, createReference ``type``)
 
-let inline metadata value = configureUnit <| fun target ->
+let inline metadata value = Operation.ConfigureUnit <| fun target ->
     let metadata =
         (^t: (member Metadata: IDictionary<string, obj>) target)
         |> Option.ofObj
@@ -108,10 +142,10 @@ let inline metadata value = configureUnit <| fun target ->
 module Documentation =
     let documentation operations = flatten operations
 
-    let inline description value = configureUnit <| fun target ->
+    let inline description value = Operation.ConfigureUnit <| fun target ->
         (^t: (member set_Description: string -> unit) target, value)
 
-    let argumentDocumentation (arguments: (string * string) list) = operationUnit 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let argumentDocumentation (arguments: (string * string) list) = Operation.CreateUnit Priority.ArgumentDocumentation <| fun (field: Field<'field, 'arguments, 'source>) ->
         let queryArguments =
             field.Arguments
             |> Option.ofObj
@@ -127,7 +161,6 @@ module Documentation =
         )
         |> List.iter (fun (arg, value) -> arg.Description <- value)
 
-// TODO: Do not keep on adding arguments
 (*
     TODO: Watch out for this case:
         Field [
@@ -144,27 +177,27 @@ module Documentation =
 *)
 [<AutoOpen>]
 module Field =
-    let fieldArguments (arguments: Argument list) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let fieldArguments (arguments: Argument list) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
         let queryArguments =
             field.Arguments
             |> Option.ofObj
             |> Option.map (Seq.cast<QueryArgument> >> Seq.toList)
             |> Option.defaultValue []
-
+        let arguments =
+            arguments
+            |> List.map (fun argument -> argument :> QueryArgument)
+            |> (@) queryArguments
         arguments
-        |> List.map (fun argument -> argument :> QueryArgument)
-        |> (@) queryArguments
-        |> List.groupBy (fun argument -> argument.Name)
-        |> List.map (fun (_, list) -> List.last list)
+        |> List.uniqueBy (fun argument -> argument.Name)
         |> QueryArguments
         |> field.set_Arguments
 
     // TODO: Confirm priority values
-    let validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = operation 100 <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = Operation.Create Priority.Validation <| fun (field: Field<'field, 'arguments, 'source>) ->
         Field.validate validator field
 
     // TODO: Test this
-    let subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
+    let subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
         field.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
 
         if isNull field.Resolver then
@@ -176,32 +209,32 @@ module Field =
 
     type Resolve internal () =
         member __.manual (resolver: ResolveContext<'source> -> 'field Task) =
-            configureUnit <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field.Resolver <- resolveAsync resolver
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setResolver (resolveAsync resolver)
 
         member __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field Task>) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
                 field
                 |> Field.setField (|FieldName|_|) (withSource >> resolveAsync) expr
 
         member __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field Task>) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
                 field
                 |> Field.setField (|MethodName|_|) (Field.resolveMethod resolveAsync) expr
-                |> Field.addArguments<'arguments, 'field, 'source>
+                |> Field.addArguments
 
         member __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
-            configure <| fun (field: Field<'arguments, 'field, 'source>) ->
-                field.Resolver <- (Field.resolveCtxMethodAsync resolveAsync) resolver
-
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
                 field
-                |> Field.addArguments<'arguments, 'field, 'source>
+                |> Field.setResolver ((Field.resolveCtxMethodAsync resolveAsync) resolver)
+                |> Field.addArguments
 
     let resolve = Resolve ()
 
 [<AutoOpen>]
 module Object =
-    let fields (fields: Field<'source> list) = configureUnit <| fun (object: #ComplexGraphType<'source>) ->
+    let fields (fields: Field<'source> list) = Operation.ConfigureUnit <| fun (object: #ComplexGraphType<'source>) ->
         fields
         |> List.iter (object.AddField >> ignore)
 
@@ -235,13 +268,13 @@ module Union =
                 resolveUnion<'object, 'union> ``type`` union
         }
 
-    let unionCases (cases: UnionCase<'union> list) = configure <| fun (union: Union<'union>) ->
+    let unionCases (cases: UnionCase<'union> list) = Operation.Configure <| fun (union: Union<'union>) ->
         cases
         |> List.fold (fun union case -> case.Init union) union
 
 [<AutoOpen>]
 module Enum =
-    let inline value (value: ^value) = configureUnit <| fun target ->
+    let inline value (value: ^value) = Operation.ConfigureUnit <| fun target ->
         (^t: (member set_Value: ^value -> unit) target, value)
 
     let isValidEnum (``type``: Type) =
@@ -265,11 +298,11 @@ module Enum =
         properties
         |> List.append [
             name (getEnumValueName case)
-            configure (fun value -> value.Value <- box case; value)
+            Operation.Configure (fun value -> value.Value <- box case; value)
         ]
         |> reduceWith EnumerationValue<'enum>
 
-    let enumCases (values: EnumerationValue<'enum> list) = configureUnit <| fun (enum: Enumeration<'enum>) ->
+    let enumCases (values: EnumerationValue<'enum> list) = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
         enum.Name <- getEnumName<'enum> ()
         List.iter enum.AddValue values
 
@@ -291,7 +324,7 @@ let inline cases properties = CasesHelper $ properties
 
 [<AutoOpen>]
 module Schema =
-    let query (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let query (endpoints: Field<obj> list) = Operation.ConfigureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Query",
@@ -302,7 +335,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Query <- object
 
-    let mutation (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let mutation (endpoints: Field<obj> list) = Operation.ConfigureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Mutation",
@@ -313,7 +346,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Mutation <- object
 
-    let subscription (endpoints: Field<obj> list) = configureUnit <| fun (schema: #Schema) ->
+    let subscription (endpoints: Field<obj> list) = Operation.ConfigureUnit <| fun (schema: #Schema) ->
         let object =
             Object<obj> (
                 Name = "Subscription",
@@ -324,7 +357,7 @@ module Schema =
         |> List.iter (object.AddField >> ignore)
         schema.Subscription <- object
 
-    let types (types: IGraphType list) = configureUnit <| fun (schema: #Schema) ->
+    let types (types: IGraphType list) = Operation.ConfigureUnit <| fun (schema: #Schema) ->
         types
         |> Schema.handleInterfaces
         |> List.toArray

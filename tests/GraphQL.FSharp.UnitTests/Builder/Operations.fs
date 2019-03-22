@@ -20,8 +20,9 @@ module ``active patterns`` =
     let operation =
         {
             new IOperation<int> with
+                member __.Id = ""
                 member __.Invoke i = f i
-                member __.Priority = 0
+                member __.Priority = Priority 0
         }
 
     [<Test>]
@@ -75,16 +76,6 @@ module ``defaultValue`` =
             |> f
         argument.DefaultValue =! box value
         argument.ResolvedType =! ``type``.ResolvedType
-
-type GraphTypeTester () =
-    member val GraphType: IGraphType = null with get, set
-
-[<Property>]
-let ``graphtype`` (``type``: IGraphType) =
-    let graph =
-        GraphTypeTester ()
-        |> (|Operation|) (graphType ``type``)
-    graph.GraphType =! ``type``
 
 type MetadataTester () =
     member val Metadata: IDictionary<string, obj> = null with get, set
@@ -182,7 +173,7 @@ module ``Field`` =
             then Error ["Invalid Input"]
             else Ok {|args with Name = sprintf "%s-Modified" args.Name|}
         let field =
-            Field<{|Name: string|}, obj, obj> (
+            Field<obj, {|Name: string|}, obj> (
                 ResolvedType = NonNullGraphType StringGraph,
                 Resolver = AsyncResolver<obj, obj> (fun ctx -> Task.FromResult ctx.Arguments.["Name"])
             )
@@ -223,7 +214,7 @@ module ``Field`` =
                         Task.FromResult expected
                 )
             ]
-            |> reduceWith Field<obj, string, obj>
+            |> reduceWith Field<string, obj, obj>
         let ctx =
             ResolveFieldContext (
                 Errors = ExecutionErrors ()
@@ -247,7 +238,7 @@ module ``Field`` =
             [
                 resolve.property (fun this -> Task.FromResult this.Property)
             ]
-            |> reduceWith Field<obj, string, PropertyType>
+            |> reduceWith Field<string, obj, PropertyType>
         let ctx =
             ResolveContext<PropertyType> (
                 Source = {Property = expected}

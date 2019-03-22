@@ -69,8 +69,8 @@ let ``automatically inferred arguments from record`` () =
 let ``configure test`` () =
     argument<int> __ [
         name "myArg"
-        configureUnit (fun arg -> arg.ResolvedType <- FloatGraph)
-        configureUnit (fun arg -> arg.Name <- "changedName")
+        configureUnit "" (fun arg -> arg.ResolvedType <- FloatGraph)
+        configureUnit "" (fun arg -> arg.Name <- "changedName")
     ]
     |> argumentEqual "changedName" (nullable FloatGraphType) None
 
@@ -78,8 +78,8 @@ let ``configure test`` () =
 let ``configure property`` (newName: string) =
     argument<int> __ [
         name "myArg"
-        configureUnit (fun arg -> arg.ResolvedType <- FloatGraph)
-        configureUnit (fun arg -> arg.Name <- newName)
+        configureUnit "" (fun arg -> arg.ResolvedType <- FloatGraph)
+        configureUnit "" (fun arg -> arg.Name <- newName)
     ]
     |> argumentEqual newName (nullable FloatGraphType) None
 
@@ -92,10 +92,10 @@ let ``basic test`` () =
 
 [<Property>]
 let ``basic property`` (argName: string) (graph: IGraphType) =
-    argument __ [
+    argument graph [
         name argName
     ]
-    |> argumentEqual argName (fun () -> Graph graph) None
+    |> argumentEqual argName (fun () -> processGraphType false graph) None
 
 
 type MyType = {
