@@ -1,8 +1,14 @@
 module GraphQL.FSharp.Inference
 
 open System
+open System.Reflection
+open System.Runtime.CompilerServices
+open FSharp.Reflection
 open FSharp.Utils.Reflection
+open GraphQL.Resolvers
 open GraphQL.Types
+
+open GraphQL.FSharp.Types
 
 let rec unwrapType nonNullDefault get ``type`` =
     let graphType, isNull =
@@ -66,3 +72,44 @@ let getDefaultTypeOrReference ``type`` =
     |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
 
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``
+
+let isAnonymousRecord (``type``: Type) =
+    Attribute.IsDefined (``type``, typeof<CompilerGeneratedAttribute>, false)
+    && ``type``.IsGenericType && ``type``.Name.Contains("AnonymousType")
+    && ``type``.Name.StartsWith("<>")
+    && ``type``.Attributes &&& TypeAttributes.NotPublic = TypeAttributes.NotPublic
+    && FSharpType.IsRecord ``type``
+
+let makeAnonymousReturnType name ``type`` =
+    let object =
+        ObjectGraphType (
+            Name = name
+        )
+    FSharpType.GetRecordFields ``type``
+    |> Array.map (
+        fun property ->
+            Field (
+                Name = property.Name,
+                ResolvedType = createReference property.PropertyType,
+                Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+            )
+        )
+    |> Array.iter (object.AddField >> ignore)
+
+    object
+
+let fieldName (field: Field<'field, 'arguments, 'source>) = sprintf "%s%sType" typeof<'source>.Name field.Name
+
+let getDefaultTypeOrCreateAnonOrReference (field: Field<'field, 'arguments, 'source>) ``type`` =
+    getDefaultType ``type``
+    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
+    |> Option.orElseWith (
+        fun () ->
+            if isAnonymousRecord ``type``
+            then Some (upcast makeAnonymousReturnType (fieldName field) ``type``)
+            else None
+    )
+    |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
+
+let createReferenceForField (field: Field<'field, 'arguments, 'source>) =
+    unwrapType true (getDefaultTypeOrCreateAnonOrReference field) typeof<'field>

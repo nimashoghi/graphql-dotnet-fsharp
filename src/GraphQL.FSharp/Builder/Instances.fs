@@ -16,7 +16,7 @@ let argument<'argument> ``type`` parameters =
 
 // TODO: Test subscriptions properly
 // TOOD: Test new anon record stuff properly
-// FIXME: Subscriptions are broken in the current version of GraphQL + GraphQL.Server
+// FIXME: Subscription that return primitives are broken in the current version of GraphQL + GraphQL.Server
 let field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemTypeField ``type`` :: parameters
     |> flattenOperations

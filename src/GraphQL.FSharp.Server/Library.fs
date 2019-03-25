@@ -11,11 +11,15 @@ let addGraphQL optionBuilder (services: IServiceCollection) =
                 options.EnableMetrics <- true
                 optionBuilder options
         )
-        .AddDefaultFieldNameConverter()
+        .AddDefaultFieldNameConverter ()
 
-let addWebsockets (builder: IGraphQLBuilder) = builder.AddWebSockets()
+let addFSharpDefaults (builder: IGraphQLBuilder) = builder.AddFSharpDefaults ()
 
-let addNameConverter (builder: IGraphQLBuilder) = builder.AddDefaultFieldNameConverter()
+let addWebsockets (builder: IGraphQLBuilder) = builder.AddWebSockets ()
+
+let addNameConverter (builder: IGraphQLBuilder) = builder.AddDefaultFieldNameConverter ()
+
+let addDocumentExecutor (builder: IGraphQLBuilder) = builder.AddDocumentExecutor ()
 
 let addAuthorization<'t when 't: equality and 't :> IPolicy> optionBuilder (builder: IGraphQLBuilder) =
     builder.AddAuthorization<'t> optionBuilder

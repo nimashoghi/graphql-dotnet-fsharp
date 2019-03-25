@@ -2,7 +2,6 @@ module GraphQL.FSharp.Builder.Utils
 
 open System
 open System.Reflection
-open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Utils.Quotations
@@ -201,34 +200,8 @@ module Field =
         field
 
     let setSubscriptionResolver (field: Field<'field, 'arguments, 'source>) =
-        field.Resolver <- FuncFieldResolver<'field> (fun ctx -> unbox<'field> ctx.Source)
+        field.Resolver <- FuncFieldResolver<_> (fun ctx -> ctx.Source)
         field
-
-    let isAnonymousRecord (``type``: Type) =
-        Attribute.IsDefined (``type``, typeof<CompilerGeneratedAttribute>, false)
-        && ``type``.IsGenericType && ``type``.Name.Contains("AnonymousType")
-        && ``type``.Name.StartsWith("<>")
-        && ``type``.Attributes &&& TypeAttributes.NotPublic = TypeAttributes.NotPublic
-        && FSharpType.IsRecord ``type``
-
-    let makeAnonymousReturnType (field: Field<'field, 'arguments, 'source>) =
-        let object =
-            ObjectGraphType (
-                // TODO: What about obj?
-                Name = sprintf "%s%sType" typeof<'source>.Name field.Name
-            )
-        FSharpType.GetRecordFields typeof<'field>
-        |> Array.map (
-            fun property ->
-                Field (
-                    Name = property.Name,
-                    ResolvedType = createReference property.PropertyType,
-                    Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
-                )
-            )
-        |> Array.iter (object.AddField >> ignore)
-
-        object
 
 module Schema =
     let abstractClasses ``type`` =

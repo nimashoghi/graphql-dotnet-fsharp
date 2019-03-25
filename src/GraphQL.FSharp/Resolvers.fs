@@ -54,8 +54,8 @@ let resolveSubscriberHandler
     (f: ResolveContext<'source> -> 'field IObservable Task) =
     AsyncStreamResolver<'source, 'field> (
         fun ctx -> task {
-            let! x = f ctx
-            return x.Select box
+            let! obs = f ctx
+            return obs.Select (handler ctx)
         }
     )
 
