@@ -243,6 +243,33 @@ module Schema =
                         }
                 )
             ]
+            field __ [
+                name "TestAnonResult"
+                validate (
+                    fun (args: {|Name: string|}) -> validation {
+                        validate name in validateName args.Name
+                        return
+                            {|
+                                args with
+                                    Name = name
+                            |}
+                    }
+                )
+                subscribe (
+                    fun _ args ->
+                        task {
+                            return Observable
+                                .Return({|Name = args.Name|})
+                                .CombineLatest(
+                                    Observable.Interval(System.TimeSpan.FromSeconds 1.),
+                                    fun x y ->
+                                        if y = 1L
+                                        then Error ["Some error"]
+                                        else Ok {|Name = sprintf "%s %i" x.Name y|}
+                                )
+                        }
+                )
+            ]
         ]
 
     let Schema =
@@ -261,12 +288,14 @@ type Startup() =
     member __.ConfigureServices(services: IServiceCollection) =
         services
             .AddSingleton(Schema.Schema)
-            .AddGraphQL(fun options ->
-                options.ExposeExceptions <- false
-                options.EnableMetrics <- true
+            .AddGraphQL(
+                fun options ->
+                    options.ExposeExceptions <- false
+                    options.EnableMetrics <- true
             )
             .AddWebSockets()
             .AddDefaultFieldNameConverter()
+            .AddDocumentExecutor()
             |> ignore
         ()
 

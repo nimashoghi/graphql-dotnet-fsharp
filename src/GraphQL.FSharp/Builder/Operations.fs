@@ -126,14 +126,11 @@ let shouldBeNullable (``type``: Type) =
     | _ -> false
 
 // TODO: Clean up later
-// TODO: Check priority integration w/ makeNullable
 let graphOrSystemTypeField (value: #IGraphType) = Operation.CreateUnit Priority.InferredGraphTypeField <| fun (field: Field<'field, 'arguments, 'source>) ->
     if notNull value then
         field.ResolvedType <- processGraphType (shouldBeNullable typeof<'field>) value
-    else if Field.isAnonymousRecord typeof<'field> then
-        field.ResolvedType <- Field.makeAnonymousReturnType field
     else if isInvalidType field.ResolvedType then
-        field.ResolvedType <- createReference typeof<'field>
+        field.ResolvedType <- createReferenceForField field
 
 let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUnit Priority.InferredGraphType <| fun target ->
     if notNull value then
