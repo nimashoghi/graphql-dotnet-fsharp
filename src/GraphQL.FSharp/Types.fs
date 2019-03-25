@@ -7,6 +7,7 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 open GraphQL
 open GraphQL.Resolvers
+open GraphQL.Subscription
 open GraphQL.Types
 
 type EmptyObjectGraphType () as this =
@@ -72,7 +73,7 @@ module Instances =
     let __: IGraphType = null
 
 type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
-    inherit ResolveFieldContext<'source> ()
+    inherit ResolveEventStreamContext<'source> ()
 
     do
         context
@@ -134,6 +135,9 @@ type ResolveContext<'source> (?context: ResolveFieldContext<'source>) as this =
 let makeContext<'source> (ctx: ResolveFieldContext) =
     ResolveContext<'source>(ResolveFieldContext<'source> ctx)
 
+let makeStreamContext<'source> (ctx: ResolveEventStreamContext) =
+    ResolveContext<'source> (ResolveEventStreamContext<'source> ctx)
+
 type Resolver<'source, 'field> (f: ResolveContext<'source> -> obj) =
     member val Resolver = f
 
@@ -145,6 +149,12 @@ type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> obj Task) =
 
     interface IFieldResolver with
         member __.Resolve ctx = box (f (makeContext<'source> ctx))
+
+type AsyncStreamResolver<'source, 'field> (f: ResolveContext<'source> -> obj IObservable Task) =
+    member val Resolver = f
+
+    interface IAsyncEventStreamResolver with
+        member __.SubscribeAsync ctx = f (makeStreamContext<'source> ctx)
 
 type Argument () =
     inherit QueryArgument (Instances.invalidGraphType)

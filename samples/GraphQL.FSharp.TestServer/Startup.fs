@@ -1,5 +1,6 @@
 namespace GraphQL.FSharp.TestServer
 
+open System.Reactive.Linq
 open System.Threading.Tasks
 open FSharp.Utils.Tasks
 open Microsoft.AspNetCore.Builder
@@ -13,6 +14,10 @@ open GraphQL.FSharp.Types
 open Validation.Builder
 
 module Model =
+    type MySubscriptionWrapper = {
+        Name: string
+    }
+
     type MyType() =
         member __.GetSomethingSync () = "hello world"
         member __.GetSomethingAsync () = Task.FromResult "hello world async"
@@ -63,6 +68,17 @@ module Validation =
 
 module Schema =
     open Model
+
+    let MySubscriptionWrapperGraph =
+        object<MySubscriptionWrapper> [
+            name "MySubscriptionWrapper"
+            fields [
+                field __ [
+                    name "Name"
+                    resolve.property (fun this -> task { return this.Name })
+                ]
+            ]
+        ]
 
     let MyTypeGraph =
         object<MyType> [
@@ -143,7 +159,7 @@ module Schema =
         ]
 
     let Query =
-        endpoints [
+        query [
             field __ [
                 name "GetMyEnum"
                 resolve.method (fun _ _ -> Task.FromResult MyEnum.Third)
@@ -178,11 +194,64 @@ module Schema =
             ]
         ]
 
+    let validateName name =
+        match name with
+        | "Invalid" -> Error ["Invalid name!"]
+        | _ -> Ok name
+
+    let Subscription =
+        subscription [
+            field __ [
+                name "Test"
+                validate (
+                    fun (args: {|Name: string|}) -> validation {
+                        validate name in validateName args.Name
+                        return
+                            {|
+                                args with
+                                    Name = name
+                            |}
+                    }
+                )
+                subscribe (
+                    fun _ args ->
+                        task {
+                            return Observable
+                                .Return({Name = args.Name}: MySubscriptionWrapper)
+                                .CombineLatest(Observable.Interval(System.TimeSpan.FromSeconds 1.), fun x y -> {Name = sprintf "%s %i" x.Name y}: MySubscriptionWrapper)
+                        }
+                )
+            ]
+            field __ [
+                name "TestAnon"
+                validate (
+                    fun (args: {|Name: string|}) -> validation {
+                        validate name in validateName args.Name
+                        return
+                            {|
+                                args with
+                                    Name = name
+                            |}
+                    }
+                )
+                subscribe (
+                    fun _ args ->
+                        task {
+                            return Observable
+                                .Return({|Name = args.Name|})
+                                .CombineLatest(Observable.Interval(System.TimeSpan.FromSeconds 1.), fun x y -> {|Name = sprintf "%s %i" x.Name y|})
+                        }
+                )
+            ]
+        ]
+
     let Schema =
         schema [
-            query Query
+            Query
+            Subscription
             types [
                 MyTypeGraph
+                MySubscriptionWrapperGraph
                 MyUnionGraph
                 MyEnumGraph
             ]

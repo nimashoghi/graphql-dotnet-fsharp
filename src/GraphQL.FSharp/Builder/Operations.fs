@@ -30,6 +30,7 @@ module Priority =
 
     let Flatten = Min
     let InferredGraphType = Min
+    let InferredGraphTypeField = Priority 50
     let DefaultValue = Priority 100
     let Validation = Priority 150
     let ArgumentDocumentation = Priority 200
@@ -124,6 +125,16 @@ let shouldBeNullable (``type``: Type) =
     | ResultType _ -> true
     | _ -> false
 
+// TODO: Clean up later
+// TODO: Check priority integration w/ makeNullable
+let graphOrSystemTypeField (value: #IGraphType) = Operation.CreateUnit Priority.InferredGraphTypeField <| fun (field: Field<'field, 'arguments, 'source>) ->
+    if notNull value then
+        field.ResolvedType <- processGraphType (shouldBeNullable typeof<'field>) value
+    else if Field.isAnonymousRecord typeof<'field> then
+        field.ResolvedType <- Field.makeAnonymousReturnType field
+    else if isInvalidType field.ResolvedType then
+        field.ResolvedType <- createReference typeof<'field>
+
 let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUnit Priority.InferredGraphType <| fun target ->
     if notNull value then
         (^t: (member set_ResolvedType: IGraphType -> unit) target, processGraphType (shouldBeNullable ``type``) value)
@@ -174,6 +185,7 @@ module Documentation =
             )
         ]
 *)
+// TODO: If we return anonymous records, we should automatically infer & create that type
 [<AutoOpen>]
 module Field =
     let fieldArguments (arguments: Argument list) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
@@ -191,20 +203,14 @@ module Field =
         |> QueryArguments
         |> field.set_Arguments
 
-    // TODO: Confirm priority values
     let validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = Operation.Create Priority.Validation <| fun (field: Field<'field, 'arguments, 'source>) ->
         Field.validate validator field
 
-    // TODO: Test this
-    let subscribe (subscribe: ResolveEventStreamContext<'source> -> 'field IObservable Task) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
-        field.AsyncSubscriber <- AsyncEventStreamResolver<_, _> (Func<_, _> subscribe)
-
-        if isNull field.Resolver then
-            field.Resolver <-
-                resolveAsync (
-                    fun (ctx: ResolveContext<'source>) ->
-                        Task.FromResult (unbox<'field> ctx.Source)
-                )
+    let subscribe (subscribe: 'source -> 'arguments -> 'field IObservable Task) = Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+        field
+        |> Field.setSubscriber (Field.resolveMethod resolveSubscriberAsync subscribe)
+        |> Field.setSubscriptionResolver
+        |> Field.addArguments
 
     type Resolve internal () =
         member __.manual (resolver: ResolveContext<'source> -> 'field Task) =

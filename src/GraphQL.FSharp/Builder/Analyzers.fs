@@ -1,5 +1,8 @@
 module GraphQL.FSharp.Builder.Analyzers
 
+// TODO: Run analyzers only once
+// TODO: AspNetCore analyzer for WebSockets
+
 open System
 
 open GraphQL.FSharp.Builder.Operations

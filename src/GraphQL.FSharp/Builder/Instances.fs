@@ -14,10 +14,13 @@ let argument<'argument> ``type`` parameters =
     |> flattenOperations
     |> reduceWith Argument<'argument>
 
+// TODO: Test subscriptions properly
+// TOOD: Test new anon record stuff properly
+// FIXME: Subscriptions are broken in the current version of GraphQL + GraphQL.Server
 let field<'field,'arguments, 'source> ``type`` parameters =
-    graphOrSystemType ``type`` typeof<'field> :: parameters
+    graphOrSystemTypeField ``type`` :: parameters
     |> flattenOperations
-    |> Analyzers.field
+    // |> Analyzers.field
     |> reduceWith Field<'field, 'arguments, 'source>
 
 let object<'t> parameters =

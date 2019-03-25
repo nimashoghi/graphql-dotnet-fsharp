@@ -1,8 +1,11 @@
 module GraphQL.FSharp.Resolvers
 
+open System
 open System.Collections
+open System.Reactive.Linq
 open System.Threading.Tasks
 open FSharp.Utils
+open FSharp.Utils.Tasks
 open FSharp.Utils.Reflection
 open GraphQL
 
@@ -39,6 +42,22 @@ let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
 let resolveTaskHandler
     (handler: ResolveContext<'source> -> 'field -> obj)
     (f: ResolveContext<'source> -> 'field Task) =
-    AsyncResolver<'source, 'field> (fun ctx -> Task.map (handler ctx) (f ctx))
+    AsyncResolver<'source, 'field> (
+        fun ctx -> task {
+            let! x = f ctx
+            return handler ctx x
+        }
+    )
 
-let inline resolveAsync f = resolveTaskHandler handleObject f
+let resolveSubscriberHandler
+    (handler: ResolveContext<'source> -> 'field -> obj)
+    (f: ResolveContext<'source> -> 'field IObservable Task) =
+    AsyncStreamResolver<'source, 'field> (
+        fun ctx -> task {
+            let! x = f ctx
+            return x.Select box
+        }
+    )
+
+let resolveAsync f = resolveTaskHandler handleObject f
+let resolveSubscriberAsync f = resolveSubscriberHandler handleObject f

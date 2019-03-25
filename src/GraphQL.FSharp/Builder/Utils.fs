@@ -2,11 +2,13 @@ module GraphQL.FSharp.Builder.Utils
 
 open System
 open System.Reflection
+open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Utils.Quotations
 open FSharp.Utils.Tasks
 open FSharp.Reflection
+open GraphQL.Resolvers
 open GraphQL.Types
 
 open GraphQL.FSharp.Inference
@@ -97,7 +99,7 @@ module Field =
         let reader = lazy (FSharpValue.PreComputeRecordReader typeof<'arguments>)
         fields, constructor, reader
 
-    let validate
+    let validateField
         (validator: 'arguments -> Result<'arguments, 'error list> Task)
         (field: Field<'field, 'arguments, 'source>) =
         let fields, constructor, reader = getRecordInfo<'arguments> ()
@@ -125,6 +127,45 @@ module Field =
             )
         makeNullable field
         field
+
+    let validateSubscription
+        (validator: 'arguments -> Result<'arguments, 'error list> Task)
+        (field: Field<'field, 'arguments, 'source>) =
+        let fields, constructor, reader = getRecordInfo<'arguments> ()
+        let oldSubscriber = field.AsyncSubscriber :?> AsyncStreamResolver<'source, 'field>
+        field.AsyncSubscriber <-
+            resolveSubscriberAsync (
+                fun (ctx: ResolveContext<'source>) -> task {
+                    let argumentArray = makeArgumentArray<'arguments, 'source> fields ctx
+                    let argumentRecord = makeArgumentRecord<'arguments> constructor argumentArray
+                    let! validatedArguments = validator argumentRecord
+
+                    match validatedArguments with
+                    | Ok arguments ->
+                        let validatedArgumentArray = makeArgumentArrayFromRecord reader arguments
+                        let (Lazy fields) = fields
+                        Array.zip validatedArgumentArray fields
+                        |> Array.iter (fun (value, prop) -> ctx.Arguments.[prop.Name] <- value)
+                        return! oldSubscriber.Resolver ctx
+                    | Error errors ->
+                        errors
+                        |> List.map (box >> string >> GraphQL.ExecutionError)
+                        |> ctx.Errors.AddRange
+                        return null
+                }
+            )
+        makeNullable field
+        field
+
+    let (|NormalField|SubsriptionField|) (field: Field<_, _, _>) =
+        if (not << isNull) field.AsyncSubscriber
+        then SubsriptionField
+        else NormalField
+
+    let validate validator field =
+        match field with
+        | NormalField -> validateField validator field
+        | SubsriptionField -> validateSubscription validator field
 
     let resolveMethod resolver (f: 'source -> 'arguments -> _) =
         let fields, constructor, _ = getRecordInfo<'arguments>()
@@ -155,6 +196,39 @@ module Field =
         field.Resolver <- resolver f
         field
 
+    let setSubscriber subscriber (field: Field<'field, 'arguments, 'source>) =
+        field.AsyncSubscriber <- subscriber
+        field
+
+    let setSubscriptionResolver (field: Field<'field, 'arguments, 'source>) =
+        field.Resolver <- FuncFieldResolver<'field> (fun ctx -> unbox<'field> ctx.Source)
+        field
+
+    let isAnonymousRecord (``type``: Type) =
+        Attribute.IsDefined (``type``, typeof<CompilerGeneratedAttribute>, false)
+        && ``type``.IsGenericType && ``type``.Name.Contains("AnonymousType")
+        && ``type``.Name.StartsWith("<>")
+        && ``type``.Attributes &&& TypeAttributes.NotPublic = TypeAttributes.NotPublic
+        && FSharpType.IsRecord ``type``
+
+    let makeAnonymousReturnType (field: Field<'field, 'arguments, 'source>) =
+        let object =
+            ObjectGraphType (
+                // TODO: What about obj?
+                Name = sprintf "%s%sType" typeof<'source>.Name field.Name
+            )
+        FSharpType.GetRecordFields typeof<'field>
+        |> Array.map (
+            fun property ->
+                Field (
+                    Name = property.Name,
+                    ResolvedType = createReference property.PropertyType,
+                    Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+                )
+            )
+        |> Array.iter (object.AddField >> ignore)
+
+        object
 
 module Schema =
     let abstractClasses ``type`` =
