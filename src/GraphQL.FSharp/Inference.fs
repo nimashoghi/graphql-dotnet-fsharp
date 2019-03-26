@@ -1,6 +1,7 @@
 module GraphQL.FSharp.Inference
 
 open System
+open System.Text.RegularExpressions
 open System.Reflection
 open System.Runtime.CompilerServices
 open FSharp.Reflection
@@ -61,6 +62,14 @@ let defaultTypes = dict [
     typeof<TimeSpan>, graphType TimeSpanMillisecondsGraphType
 ]
 
+// TODO: test this
+let typeName (``type``: Type) =
+    Regex.Replace (
+        input = ``type``.Name,
+        pattern = @"^I(\w+)Grain$",
+        replacement = "$1"
+    )
+
 let getDefaultType ``type`` =
     match defaultTypes.TryGetValue ``type`` with
     | true, f -> Some (f ())
@@ -69,7 +78,7 @@ let getDefaultType ``type`` =
 let getDefaultTypeOrReference ``type`` =
     getDefaultType ``type``
     |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
-    |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
+    |> Option.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
 
 let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``
 
@@ -109,7 +118,7 @@ let getDefaultTypeOrCreateAnonOrReference (field: Field<'field, 'arguments, 'sou
             then Some (upcast makeAnonymousReturnType (fieldName field) ``type``)
             else None
     )
-    |> Option.defaultValue (GraphQLTypeReference ``type``.Name :> IGraphType)
+    |> Option.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
 
 let createReferenceForField (field: Field<'field, 'arguments, 'source>) =
     unwrapType true (getDefaultTypeOrCreateAnonOrReference field) typeof<'field>

@@ -4,6 +4,7 @@ module GraphQL.FSharp.Builder.Instances
 open GraphQL.Conversion
 
 open GraphQL.FSharp.Builder.Operations
+open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 
 type Endpoints = Field<obj> list
@@ -24,27 +25,27 @@ let field<'field,'arguments, 'source> ``type`` parameters =
     |> reduceWith Field<'field, 'arguments, 'source>
 
 let object<'t> parameters =
-    name typeof<'t>.Name :: parameters
+    name (typeName typeof<'t>) :: parameters
     |> flattenOperations
     |> reduceWith Object<'t>
 
 let ``interface``<'t> parameters =
-    name typeof<'t>.Name :: parameters
+    name (typeName typeof<'t>) :: parameters
     |> flattenOperations
     |> reduceWith Interface<'t>
 
 let input<'t> parameters =
-    name typeof<'t>.Name :: parameters
+    name (typeName typeof<'t>) :: parameters
     |> flattenOperations
     |> reduceWith InputObject<'t>
 
 let enum<'t> parameters =
-    name typeof<'t>.Name :: parameters
+    name (typeName typeof<'t>) :: parameters
     |> flattenOperations
     |> reduceWith Enumeration<'t>
 
 let union<'t> parameters =
-    name typeof<'t>.Name :: parameters
+    name (typeName typeof<'t>) :: parameters
     |> flattenOperations
     |> reduceWith Union<'t>
 
