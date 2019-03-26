@@ -1,6 +1,7 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Utils.Quotations
 
+open System.Reflection
 open FSharp.Quotations
 open FSharp.Quotations.ExprShape
 open FSharp.Quotations.Patterns
@@ -24,10 +25,29 @@ let internal (|GetProperty|_|) expr =
     | PropertyGet (Some _, prop, _) -> Some prop
     | _ -> None
 
+let internal hasNoArgs (method: MethodInfo) =
+    let args = method.GetParameters ()
+    let argLength = Array.length args
+    argLength = 0 || (argLength = 1 && args.[0].ParameterType = typeof<unit>)
+
 let (|FieldName|_|) expr =
-    expr
-    |> (|DeepPattern|_|) (|GetProperty|_|)
-    |> Option.map (fun prop -> prop.Name)
+    let propertyGetter =
+        expr
+        |> (|DeepPattern|_|) (|GetProperty|_|)
+        |> Option.map (fun prop -> prop.Name)
+
+    let getterMethod =
+        expr
+        |> (|DeepPattern|_|) (|GetMethod|_|)
+        |> Option.bind (
+            fun method ->
+                if method.Name.StartsWith "Get" && hasNoArgs method
+                then Some (method.Name.Substring "Get".Length)
+                else None
+        )
+
+    propertyGetter
+    |> Option.orElse getterMethod
 
 let (|MethodName|_|) expr =
     expr
