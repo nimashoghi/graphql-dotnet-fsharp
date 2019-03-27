@@ -59,7 +59,7 @@ let ``Schema using synchronous resolver with methods returning task works proper
             ]
         ]
     let Query =
-        endpoints [
+        query [
             field __ [
                 name "GetMyType"
                 resolve.method (fun _ _ -> Task.FromResult(MyType()))
@@ -71,7 +71,7 @@ let ``Schema using synchronous resolver with methods returning task works proper
         ]
     let Schema =
         schema [
-            query Query
+            Query
             types [
                 MyTypeGraph
             ]

@@ -21,6 +21,7 @@ let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
     match box x with
     | null -> null
     | Option opt -> Option.toObj opt
+    | ValueOption opt -> ValueOption.toObj opt
     | ValidationResult result ->
         match result with
         | Ok value -> value

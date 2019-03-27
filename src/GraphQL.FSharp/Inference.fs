@@ -16,7 +16,8 @@ let rec unwrapType nonNullDefault get ``type`` =
         match ``type`` with
         | NullableType innerType
         | ResultType (innerType, _)
-        | OptionType innerType ->
+        | OptionType innerType
+        | ValueOptionType innerType ->
             let ``type`` = unwrapType false get innerType
             ``type``, true
 

@@ -68,7 +68,7 @@ let ExpectedResult = """
 [<Test>]
 let ``Schema using asynchronous resolver with methods returning task works properly`` () =
     let Query =
-        endpoints [
+        query [
             field __ [
                 name "Validate"
                 validate (
@@ -92,7 +92,7 @@ let ``Schema using asynchronous resolver with methods returning task works prope
         ]
     let Schema =
         schema [
-            query Query
+            Query
         ]
 
     queryEqual QueryString ExpectedResult Schema

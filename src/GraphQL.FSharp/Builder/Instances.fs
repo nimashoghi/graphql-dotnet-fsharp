@@ -1,14 +1,18 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Instances
 
+open System.Threading.Tasks
 open GraphQL.Conversion
+open GraphQL.Types
 
 open GraphQL.FSharp.Builder.Operations
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
 
 type Endpoints = Field<obj> list
-let endpoints (endpoints: Endpoints) = endpoints
+type Types = IGraphType list
+
+let inline (=>) x y = x, y
 
 let argument<'argument> ``type`` parameters =
     graphOrSystemType ``type`` typeof<'argument> :: parameters
@@ -21,8 +25,11 @@ let argument<'argument> ``type`` parameters =
 let field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemTypeField ``type`` :: parameters
     |> flattenOperations
-    // |> Analyzers.field
     |> reduceWith Field<'field, 'arguments, 'source>
+
+let endpoint endpointName ``type`` parameters =
+    name endpointName :: parameters
+    |> field ``type``
 
 let object<'t> parameters =
     name (typeName typeof<'t>) :: parameters
@@ -63,4 +70,4 @@ let schema parameters =
     |> flattenOperations
     |> reduce schema
 
-let (=>) x y = x, y
+let endpoints (endpoints: Field<obj> list): Endpoints = endpoints

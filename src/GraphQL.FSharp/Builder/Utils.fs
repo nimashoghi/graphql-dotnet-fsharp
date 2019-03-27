@@ -173,6 +173,13 @@ module Field =
                 f ctx.Source (makeArguments<'arguments, 'source> fields constructor ctx)
         )
 
+    let resolveEndpoint resolver (f: 'arguments -> _) =
+        let fields, constructor, _ = getRecordInfo<'arguments>()
+        resolver (
+            fun (ctx: ResolveContext<'source>) ->
+                f (makeArguments<'arguments, 'source> fields constructor ctx)
+        )
+
     let resolveCtxMethodAsync resolver (f: ResolveContext<'source> -> 'arguments -> _) =
         let fields, constructor, _ = getRecordInfo<'arguments> ()
         resolver (

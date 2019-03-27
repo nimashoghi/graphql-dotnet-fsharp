@@ -226,6 +226,12 @@ module Field =
                 |> Field.setField (|MethodName|_|) (Field.resolveMethod resolveAsync) expr
                 |> Field.addArguments
 
+        member __.endpoint ([<ReflectedDefinition true>] expr: Expr<'arguments -> 'field Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, obj>) ->
+                field
+                |> Field.setField (|MethodName|_|) (Field.resolveEndpoint resolveAsync) expr
+                |> Field.addArguments
+
         member __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field Task) =
             Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
                 field

@@ -19,7 +19,7 @@ let MyTypeGraph =
     ]
 
 let Query =
-    endpoints [
+    query [
         field __  [
             name "getMyType"
             resolve.method (fun _ _ -> Task.FromResult (MyType ()))
@@ -28,7 +28,7 @@ let Query =
 
 let Schema =
     schema [
-        query Query
+        Query
         types [
             MyTypeGraph
         ]
