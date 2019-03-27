@@ -213,8 +213,8 @@ module Schema =
                             |}
                     }
                 )
-                subscribe (
-                    fun _ args ->
+                subscribe.endpoint (
+                    fun args ->
                         task {
                             return Observable
                                 .Return({Name = args.Name}: MySubscriptionWrapper)
@@ -234,8 +234,8 @@ module Schema =
                             |}
                     }
                 )
-                subscribe (
-                    fun _ args ->
+                subscribe.endpoint (
+                    fun args ->
                         task {
                             return Observable
                                 .Return({|Name = args.Name|})
@@ -255,10 +255,38 @@ module Schema =
                             |}
                     }
                 )
-                subscribe (
-                    fun _ args ->
+                subscribe.endpoint (
+                    fun args ->
                         task {
                             return Observable
+                                .Return({|Name = args.Name|})
+                                .CombineLatest(
+                                    Observable.Interval(System.TimeSpan.FromSeconds 1.),
+                                    fun x y ->
+                                        if y = 1L
+                                        then Error ["Some error"]
+                                        else Ok {|Name = sprintf "%s %i" x.Name y|}
+                                )
+                        }
+                )
+            ]
+            field __ [
+                name "TestAnonResultWithFailure"
+                validate (
+                    fun (args: {|Name: string|}) -> validation {
+                        validate name in validateName args.Name
+                        return
+                            {|
+                                args with
+                                    Name = name
+                            |}
+                    }
+                )
+                subscribe.endpointResult (
+                    fun args ->
+                        task {
+                            if args.Name = "invalidName" then return Error ["myError"] else
+                            return Ok <| Observable
                                 .Return({|Name = args.Name|})
                                 .CombineLatest(
                                     Observable.Interval(System.TimeSpan.FromSeconds 1.),

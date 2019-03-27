@@ -60,5 +60,21 @@ let resolveSubscriberHandler
         }
     )
 
+let resolveSubscriberWithErrorsHandler
+    (handler: ResolveContext<'source> -> 'field -> obj)
+    (f: ResolveContext<'source> -> Result<'field IObservable, 'error list> Task) =
+    AsyncStreamResolver<'source, 'field> (
+        fun ctx -> task {
+            match! f ctx with
+            | Ok obs -> return obs.Select (handler ctx)
+            | Error errors ->
+                errors
+                |> List.map handleError
+                |> ctx.Errors.AddRange
+                return Observable.Return Unchecked.defaultof<_>
+        }
+    )
+
 let resolveAsync f = resolveTaskHandler handleObject f
 let resolveSubscriberAsync f = resolveSubscriberHandler handleObject f
+let resolveSubscriberWithErrorsAsync f = resolveSubscriberWithErrorsHandler handleObject f

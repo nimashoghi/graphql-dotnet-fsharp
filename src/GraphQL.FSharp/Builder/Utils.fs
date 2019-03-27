@@ -202,6 +202,21 @@ module Field =
         field.Resolver <- resolver f
         field
 
+    let setFieldSubscriber (|FieldName|_|) resolver (expr: Expr<_ -> _>) (field: Field<_, _, _>) =
+        let f, name =
+            match expr with
+            | WithValueTyped (f, expr) ->
+                match expr with
+                | FieldName name -> f, Some name
+                | _ -> f, None
+            | _ -> invalidArg "setField" "The expression passed to setField must have a value with it!"
+
+        if isNull field.Name || field.Name = ""
+        then Option.iter field.set_Name name
+
+        field.AsyncSubscriber <- resolver f
+        field
+
     let setSubscriber subscriber (field: Field<'field, 'arguments, 'source>) =
         field.AsyncSubscriber <- subscriber
         field

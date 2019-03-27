@@ -8,6 +8,7 @@ open System.Threading.Tasks
 open FSharp.Quotations
 open FSharp.Reflection
 open FSharp.Utils
+open FSharp.Utils.Tasks
 open FSharp.Utils.Reflection
 open GraphQL.Resolvers
 open GraphQL.Subscription
@@ -203,11 +204,74 @@ module Field =
     let validate (validator: 'arguments -> Result<'arguments, 'error list> Task) = Operation.Create Priority.Validation <| fun (field: Field<'field, 'arguments, 'source>) ->
         Field.validate validator field
 
-    let subscribe (subscribe: 'source -> 'arguments -> 'field IObservable Task) = Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
-        field
-        |> Field.setSubscriber (Field.resolveMethod resolveSubscriberAsync subscribe)
-        |> Field.setSubscriptionResolver
-        |> Field.addArguments
+    type Subscribe internal () =
+        member __.manual (resolver: ResolveContext<'source> -> 'field IObservable Task) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setSubscriber (resolveSubscriberAsync resolver)
+                |> Field.setSubscriptionResolver
+
+        member __.property ([<ReflectedDefinition true>] expr: Expr<'source -> 'field IObservable Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setFieldSubscriber (|FieldName|_|) (withSource >> resolveSubscriberAsync) expr
+                |> Field.setSubscriptionResolver
+
+        member __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field IObservable Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setFieldSubscriber (|MethodName|_|) (Field.resolveMethod resolveSubscriberAsync) expr
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+        member __.endpoint ([<ReflectedDefinition true>] expr: Expr<'arguments -> 'field IObservable Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, obj>) ->
+                field
+                |> Field.setFieldSubscriber (|MethodName|_|) (Field.resolveEndpoint resolveSubscriberAsync) expr
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+        member __.contextMethod (resolver: ResolveContext<'source> -> 'arguments -> 'field IObservable Task) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setSubscriber (Field.resolveMethod resolveSubscriberAsync resolver)
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+        member __.manualResult (resolver: ResolveContext<'source> -> Result<'field IObservable, 'error list> Task) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setSubscriber (resolveSubscriberWithErrorsAsync resolver)
+                |> Field.setSubscriptionResolver
+
+        member __.propertyResult ([<ReflectedDefinition true>] expr: Expr<'source -> Result<'field IObservable, 'error list> Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setFieldSubscriber (|FieldName|_|) (withSource >> resolveSubscriberWithErrorsAsync) expr
+                |> Field.setSubscriptionResolver
+
+        member __.methodResult ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> Result<'field IObservable, 'error list> Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setFieldSubscriber (|MethodName|_|) (Field.resolveMethod resolveSubscriberWithErrorsAsync) expr
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+        member __.endpointResult ([<ReflectedDefinition true>] expr: Expr<'arguments -> Result<'field IObservable, 'error list> Task>) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, obj>) ->
+                field
+                |> Field.setFieldSubscriber (|MethodName|_|) (Field.resolveEndpoint resolveSubscriberWithErrorsAsync) expr
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+        member __.contextMethodResult (resolver: ResolveContext<'source> -> 'arguments -> Result<'field IObservable, 'error list> Task) =
+            Operation.Configure <| fun (field: Field<'field, 'arguments, 'source>) ->
+                field
+                |> Field.setSubscriber (Field.resolveMethod resolveSubscriberWithErrorsAsync resolver)
+                |> Field.setSubscriptionResolver
+                |> Field.addArguments
+
+    let subscribe = Subscribe ()
 
     type Resolve internal () =
         member __.manual (resolver: ResolveContext<'source> -> 'field Task) =
