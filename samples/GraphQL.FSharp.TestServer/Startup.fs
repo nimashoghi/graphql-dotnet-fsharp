@@ -42,6 +42,20 @@ module Model =
     | Second
     | Third
 
+    type MyEnumUnion =
+    | MyEnumUnionFirst
+    | MyEnumUnionSecond
+    | MyEnumUnionThird
+
+    type MyEnumEnum =
+    | MyEnumEnumFirst = 0
+    | MyEnumEnumSecond = 1
+    | MyEnumEnumThird = 2
+
+    type MyAutoUnion =
+    | MyAutoUnionFirstCase of {|Name: string|}
+    | MyAutoUnionSecondCase of {|Age: int|}
+
 [<AutoOpen>]
 module Validation =
     let validateAge (age: int) =
@@ -158,6 +172,21 @@ module Schema =
             ]
         ]
 
+    let MyEnumUnionGraph =
+        enum<MyEnumUnion> [
+            enumAuto
+        ]
+
+    let MyEnumEnumGraph =
+        enum<MyEnumEnum> [
+            enumAuto
+        ]
+
+    let MyAutoUnionGraph =
+        union<MyAutoUnion> [
+            unionAuto
+        ]
+
     let Query =
         query [
             field __ [
@@ -171,6 +200,23 @@ module Schema =
             field MyTypeGraph [
                 name "GetMyType"
                 resolve.method (fun _ _ -> Task.FromResult (Ok (MyType ())))
+            ]
+
+            field __ [
+                name "MyEnumUnion"
+                resolve.endpoint (fun _ -> task { return MyEnumUnion.MyEnumUnionFirst })
+            ]
+            field __ [
+                name "MyEnumEnum"
+                resolve.endpoint (fun _ -> task { return MyEnumEnum.MyEnumEnumFirst })
+            ]
+            field __ [
+                name "AutoUnionFirst"
+                resolve.endpoint (fun _ -> task { return MyAutoUnion.MyAutoUnionFirstCase {|Name = "hello"|} })
+            ]
+            field __ [
+                name "AutoUnionSecond"
+                resolve.endpoint (fun _ -> task { return MyAutoUnion.MyAutoUnionSecondCase {|Age = 1|} })
             ]
             field __ [
                 name "Validate"
@@ -309,6 +355,9 @@ module Schema =
                 MySubscriptionWrapperGraph
                 MyUnionGraph
                 MyEnumGraph
+                MyEnumUnionGraph
+                MyEnumEnumGraph
+                MyAutoUnionGraph
             ]
         ]
 

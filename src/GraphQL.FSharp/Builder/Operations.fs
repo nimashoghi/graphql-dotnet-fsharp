@@ -344,6 +344,68 @@ module Union =
         cases
         |> List.fold (fun union case -> case.Init union) union
 
+    // TODO: Handle generic types
+    let unionAuto<'union> = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
+        let ``type`` = typeof<'union>
+        assert FSharpType.IsUnion ``type``
+
+        let cases = FSharpType.GetUnionCases ``type``
+
+        if isNull union.Name then union.Name <- ``type``.Name
+
+        let getFirstField (case: UnionCaseInfo) =
+            let fields = case.GetFields ()
+            assert (Array.length fields = 1)
+            let field = fields.[0]
+            assert isAnonymousRecord field.PropertyType
+            field
+
+        let caseObjectTypes =
+            cases
+            |> Array.map (
+                fun case ->
+                    let object =
+                        Object<obj> (
+                            Name = case.Name
+                        )
+
+                    let reader = FSharpValue.PreComputeUnionReader case
+                    let reader object = reader object |> Array.head
+
+                    let field = getFirstField case
+                    FSharpType.GetRecordFields field.PropertyType
+                    |> Array.map (
+                        fun property ->
+                            Field (
+                                Name = property.Name,
+                                ResolvedType = createReference property.PropertyType,
+                                Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue (reader ctx.Source))
+                            )
+                    )
+                    |> Array.iter (object.AddField >> ignore)
+
+                    object
+            )
+
+        caseObjectTypes |> Array.iter (union.AddPossibleType)
+
+        let caseTypes =
+            cases
+            |> Array.map (fun case -> case.Tag)
+
+        let typeMapping =
+            (caseTypes, caseObjectTypes)
+            ||> Array.zip
+            |> dict
+
+        let tagReader = FSharpValue.PreComputeUnionTagReader ``type``
+        union.ResolveType <-
+            fun object ->
+                if not <| ``type``.IsAssignableFrom (object.GetType ()) then null else
+                match typeMapping.TryGetValue (tagReader object) with
+                | true, graph -> upcast graph
+                | false, _ -> null
+
 [<AutoOpen>]
 module Enum =
     let inline value (value: ^value) = Operation.ConfigureUnit <| fun target ->
@@ -377,6 +439,42 @@ module Enum =
     let enumCases (values: EnumerationValue<'enum> list) = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
         enum.Name <- getEnumName<'enum> ()
         List.iter enum.AddValue values
+
+    let internal (|Enum|UnionEnum|) (``type``: Type) =
+        if ``type``.IsEnum then Enum
+        else if FSharpType.IsUnion ``type`` then
+            assert
+                (
+                    FSharpType.GetUnionCases ``type``
+                    |> Array.map (fun case -> case.GetFields ())
+                    |> Array.forall Array.isEmpty
+                )
+            UnionEnum
+        else failwith "Invalid type!"
+
+    let enumAuto<'enum> = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
+        let ``type`` = typeof<'enum>
+        match ``type`` with
+        | Enum ->
+            Enum.GetNames ``type``
+            |> Array.map (
+                fun name ->
+                    EnumerationValue<'enum> (
+                        Name = name,
+                        Value = Enum.Parse (``type``, name)
+                    )
+            )
+            |> Array.iter enum.AddValue
+        | UnionEnum ->
+            FSharpType.GetUnionCases ``type``
+            |> Array.map (
+                fun case ->
+                    EnumerationValue<'enum> (
+                        Name = case.Name,
+                        Value = FSharpValue.MakeUnion (case, [||])
+                    )
+            )
+            |> Array.iter enum.AddValue
 
 type CaseHelper =
     | CaseHelper
