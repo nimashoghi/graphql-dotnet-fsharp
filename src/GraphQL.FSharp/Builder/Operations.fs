@@ -6,6 +6,8 @@ open System.Collections.Generic
 open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open FSharp.Quotations
+open FSharp.Quotations.ExprShape
+open FSharp.Quotations.Patterns
 open FSharp.Reflection
 open FSharp.Utils
 open FSharp.Utils.Tasks
@@ -131,7 +133,7 @@ let graphOrSystemTypeField (value: #IGraphType) = Operation.CreateUnit Priority.
     if notNull value then
         field.ResolvedType <- processGraphType (shouldBeNullable typeof<'field>) value
     else if isInvalidType field.ResolvedType then
-        field.ResolvedType <- createReferenceForField field
+        field.ResolvedType <- createReferenceForField field typeof<'field>
 
 let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUnit Priority.InferredGraphType <| fun target ->
     if notNull value then
@@ -183,7 +185,6 @@ module Documentation =
             )
         ]
 *)
-// TODO: If we return anonymous records, we should automatically infer & create that type
 [<AutoOpen>]
 module Field =
     let fieldArguments (arguments: Argument list) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
@@ -310,6 +311,27 @@ module Object =
         fields
         |> List.iter (object.AddField >> ignore)
 
+    let isValidObject (``type``: Type) = not ``type``.IsAbstract
+
+    [<RequireQualifiedAccess>]
+    module Object =
+        let auto<'object> (_: _ list) = Operation.ConfigureUnit <| fun (object: Object<'object>) ->
+            let ``type`` = typeof<'object>
+            assert isValidObject ``type``
+
+            FSharpType.GetRecordFields ``type``
+            |> Array.map (
+                fun property ->
+                    let field =
+                        Field<'object> (
+                            Name = property.Name,
+                            Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue ctx.Source)
+                        )
+                    field.ResolvedType <- createReferenceForField field property.PropertyType
+                    field
+            )
+            |> Array.iter (object.AddField >> ignore)
+
 [<AutoOpen>]
 module Union =
     type UnionCase<'union> = {
@@ -330,81 +352,82 @@ module Union =
 
     let isValidUnion ``type`` = FSharpType.IsUnion ``type``
 
-    let unionCase (case: 'object -> 'union) (``type``: Object<'object>) =
-        assert not (isInvalidType ``type``)
-        assert isValidUnion typeof<'union>
+    [<RequireQualifiedAccess>]
+    module Union =
+        let case (case: 'object -> 'union) (``type``: Object<'object>) =
+            assert not (isInvalidType ``type``)
+            assert isValidUnion typeof<'union>
 
-        {
-            Init = fun union ->
-                union.AddPossibleType ``type``
-                resolveUnion<'object, 'union> ``type`` union
-        }
+            {
+                Init = fun union ->
+                    union.AddPossibleType ``type``
+                    resolveUnion<'object, 'union> ``type`` union
+            }
 
-    let unionCases (cases: UnionCase<'union> list) = Operation.Configure <| fun (union: Union<'union>) ->
-        cases
-        |> List.fold (fun union case -> case.Init union) union
-
-    // TODO: Handle generic types
-    let unionAuto<'union> = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
-        let ``type`` = typeof<'union>
-        assert FSharpType.IsUnion ``type``
-
-        let cases = FSharpType.GetUnionCases ``type``
-
-        if isNull union.Name then union.Name <- ``type``.Name
-
-        let getFirstField (case: UnionCaseInfo) =
-            let fields = case.GetFields ()
-            assert (Array.length fields = 1)
-            let field = fields.[0]
-            assert isAnonymousRecord field.PropertyType
-            field
-
-        let caseObjectTypes =
+        let cases (cases: UnionCase<'union> list) = Operation.Configure <| fun (union: Union<'union>) ->
             cases
-            |> Array.map (
-                fun case ->
-                    let object =
-                        Object<obj> (
-                            Name = case.Name
-                        )
+            |> List.fold (fun union case -> case.Init union) union
 
-                    let reader = FSharpValue.PreComputeUnionReader case
-                    let reader object = reader object |> Array.head
+        let auto<'union> (_: _ list) = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
+            let ``type`` = typeof<'union>
+            assert (FSharpType.IsUnion ``type`` && not ``type``.IsGenericType)
 
-                    let field = getFirstField case
-                    FSharpType.GetRecordFields field.PropertyType
-                    |> Array.map (
-                        fun property ->
-                            Field (
-                                Name = property.Name,
-                                ResolvedType = createReference property.PropertyType,
-                                Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue (reader ctx.Source))
+            let cases = FSharpType.GetUnionCases ``type``
+
+            if isNull union.Name then union.Name <- ``type``.Name
+
+            let getFirstField (case: UnionCaseInfo) =
+                let fields = case.GetFields ()
+                assert (Array.length fields = 1)
+                let field = fields.[0]
+                assert isAnonymousRecord field.PropertyType
+                field
+
+            let caseObjectTypes =
+                cases
+                |> Array.map (
+                    fun case ->
+                        let object =
+                            Object<obj> (
+                                Name = case.Name
                             )
-                    )
-                    |> Array.iter (object.AddField >> ignore)
 
-                    object
-            )
+                        let reader = FSharpValue.PreComputeUnionReader case
+                        let reader object = reader object |> Array.head
 
-        caseObjectTypes |> Array.iter (union.AddPossibleType)
+                        let field = getFirstField case
+                        FSharpType.GetRecordFields field.PropertyType
+                        |> Array.map (
+                            fun property ->
+                                Field (
+                                    Name = property.Name,
+                                    ResolvedType = createReference property.PropertyType,
+                                    Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue (reader ctx.Source))
+                                )
+                        )
+                        |> Array.iter (object.AddField >> ignore)
 
-        let caseTypes =
-            cases
-            |> Array.map (fun case -> case.Tag)
+                        object
+                )
 
-        let typeMapping =
-            (caseTypes, caseObjectTypes)
-            ||> Array.zip
-            |> dict
+            caseObjectTypes |> Array.iter (union.AddPossibleType)
 
-        let tagReader = FSharpValue.PreComputeUnionTagReader ``type``
-        union.ResolveType <-
-            fun object ->
-                if not <| ``type``.IsAssignableFrom (object.GetType ()) then null else
-                match typeMapping.TryGetValue (tagReader object) with
-                | true, graph -> upcast graph
-                | false, _ -> null
+            let caseTypes =
+                cases
+                |> Array.map (fun case -> case.Tag)
+
+            let typeMapping =
+                (caseTypes, caseObjectTypes)
+                ||> Array.zip
+                |> dict
+
+            let tagReader = FSharpValue.PreComputeUnionTagReader ``type``
+            union.ResolveType <-
+                fun object ->
+                    if not <| ``type``.IsAssignableFrom (object.GetType ()) then null else
+                    match typeMapping.TryGetValue (tagReader object) with
+                    | true, graph -> upcast graph
+                    | false, _ -> null
 
 [<AutoOpen>]
 module Enum =
@@ -426,20 +449,6 @@ module Enum =
                 |> fst
             case.Name
 
-    let enumCase (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
-        assert isValidEnum typeof<'enum>
-
-        properties
-        |> List.append [
-            name (getEnumValueName case)
-            Operation.Configure (fun value -> value.Value <- box case; value)
-        ]
-        |> reduceWith EnumerationValue<'enum>
-
-    let enumCases (values: EnumerationValue<'enum> list) = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
-        enum.Name <- getEnumName<'enum> ()
-        List.iter enum.AddValue values
-
     let internal (|Enum|UnionEnum|) (``type``: Type) =
         if ``type``.IsEnum then Enum
         else if FSharpType.IsUnion ``type`` then
@@ -452,43 +461,59 @@ module Enum =
             UnionEnum
         else failwith "Invalid type!"
 
-    let enumAuto<'enum> = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
-        let ``type`` = typeof<'enum>
-        match ``type`` with
-        | Enum ->
-            Enum.GetNames ``type``
-            |> Array.map (
-                fun name ->
-                    EnumerationValue<'enum> (
-                        Name = name,
-                        Value = Enum.Parse (``type``, name)
-                    )
-            )
-            |> Array.iter enum.AddValue
-        | UnionEnum ->
-            FSharpType.GetUnionCases ``type``
-            |> Array.map (
-                fun case ->
-                    EnumerationValue<'enum> (
-                        Name = case.Name,
-                        Value = FSharpValue.MakeUnion (case, [||])
-                    )
-            )
-            |> Array.iter enum.AddValue
+    [<RequireQualifiedAccess>]
+    module Enum =
+        let case (case: 'enum) (properties: IOperation<EnumerationValue<'enum>> list) =
+            assert isValidEnum typeof<'enum>
+
+            properties
+            |> List.append [
+                name (getEnumValueName case)
+                Operation.Configure (fun value -> value.Value <- box case; value)
+            ]
+            |> reduceWith EnumerationValue<'enum>
+
+        let cases (values: EnumerationValue<'enum> list) = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
+            enum.Name <- getEnumName<'enum> ()
+            List.iter enum.AddValue values
+
+        let auto<'enum> (_: _ list) = Operation.ConfigureUnit <| fun (enum: Enumeration<'enum>) ->
+            let ``type`` = typeof<'enum>
+            match ``type`` with
+            | Enum ->
+                Enum.GetNames ``type``
+                |> Array.map (
+                    fun name ->
+                        EnumerationValue<'enum> (
+                            Name = name,
+                            Value = Enum.Parse (``type``, name)
+                        )
+                )
+                |> Array.iter enum.AddValue
+            | UnionEnum ->
+                FSharpType.GetUnionCases ``type``
+                |> Array.map (
+                    fun case ->
+                        EnumerationValue<'enum> (
+                            Name = case.Name,
+                            Value = FSharpValue.MakeUnion (case, [||])
+                        )
+                )
+                |> Array.iter enum.AddValue
 
 type CaseHelper =
     | CaseHelper
 
-    static member ($) (CaseHelper, properties) = fun case -> enumCase case properties
-    static member ($) (CaseHelper, graph) = fun case -> unionCase case graph
+    static member ($) (CaseHelper, properties) = fun case -> Enum.case case properties
+    static member ($) (CaseHelper, graph) = fun case -> Union.case case graph
 
 let inline case case properties = (CaseHelper $ properties) case
 
 type CasesHelper =
     | CasesHelper
 
-    static member ($) (CasesHelper, values) = enumCases values
-    static member ($) (CasesHelper, properties) = unionCases properties
+    static member ($) (CasesHelper, values) = Enum.cases values
+    static member ($) (CasesHelper, properties) = Union.cases properties
 
 let inline cases properties = CasesHelper $ properties
 

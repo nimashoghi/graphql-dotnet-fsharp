@@ -92,7 +92,7 @@ let isAnonymousRecord (``type``: Type) =
 
 let makeAnonymousReturnType name ``type`` =
     let object =
-        ObjectGraphType (
+        Object<obj> (
             Name = name
         )
     FSharpType.GetRecordFields ``type``
@@ -108,9 +108,9 @@ let makeAnonymousReturnType name ``type`` =
 
     object
 
-let fieldName (field: Field<'field, 'arguments, 'source>) = sprintf "%s%sType" typeof<'source>.Name field.Name
+let fieldName (field: Field<'source>) = sprintf "%s%s" typeof<'source>.Name field.Name
 
-let getDefaultTypeOrCreateAnonOrReference (field: Field<'field, 'arguments, 'source>) ``type`` =
+let getDefaultTypeOrCreateAnonOrReference (field: Field<'source>) ``type`` =
     getDefaultType ``type``
     |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
     |> Option.orElseWith (
@@ -121,5 +121,5 @@ let getDefaultTypeOrCreateAnonOrReference (field: Field<'field, 'arguments, 'sou
     )
     |> Option.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
 
-let createReferenceForField (field: Field<'field, 'arguments, 'source>) =
-    unwrapType true (getDefaultTypeOrCreateAnonOrReference field) typeof<'field>
+let createReferenceForField (field: Field<'source>) ``type`` =
+    unwrapType true (getDefaultTypeOrCreateAnonOrReference field) ``type``

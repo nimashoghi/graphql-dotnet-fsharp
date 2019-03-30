@@ -56,6 +56,19 @@ module Model =
     | MyAutoUnionFirstCase of {|Name: string|}
     | MyAutoUnionSecondCase of {|Age: int|}
 
+    type AutoRecord = {
+        Name: string
+        Age: int
+        Id: System.Guid
+        MyAutoUnion: MyAutoUnion
+        AnonymousRecordType:
+            {|
+                First: int
+                Second: float
+                Third: int list
+            |}
+    }
+
 [<AutoOpen>]
 module Validation =
     let validateAge (age: int) =
@@ -174,17 +187,22 @@ module Schema =
 
     let MyEnumUnionGraph =
         enum<MyEnumUnion> [
-            enumAuto
+            Enum.auto []
         ]
 
     let MyEnumEnumGraph =
         enum<MyEnumEnum> [
-            enumAuto
+            Enum.auto []
         ]
 
     let MyAutoUnionGraph =
         union<MyAutoUnion> [
-            unionAuto
+            Union.auto []
+        ]
+
+    let AutoRecordGraph =
+        object<AutoRecord> [
+            Object.auto []
         ]
 
     let Query =
@@ -201,7 +219,26 @@ module Schema =
                 name "GetMyType"
                 resolve.method (fun _ _ -> Task.FromResult (Ok (MyType ())))
             ]
-
+            field __ [
+                name "GetAutoRecordGraph"
+                resolve.endpoint (
+                    fun _ ->
+                        task {
+                            return {
+                                Name = ""
+                                Age = 12
+                                Id = System.Guid.Empty
+                                MyAutoUnion = MyAutoUnionFirstCase {|Name = "test"|}
+                                AnonymousRecordType =
+                                    {|
+                                        First = 1
+                                        Second = 1.
+                                        Third = [1]
+                                    |}
+                            }
+                        }
+                )
+            ]
             field __ [
                 name "MyEnumUnion"
                 resolve.endpoint (fun _ -> task { return MyEnumUnion.MyEnumUnionFirst })
@@ -351,6 +388,7 @@ module Schema =
             Query
             Subscription
             types [
+                AutoRecordGraph
                 MyTypeGraph
                 MySubscriptionWrapperGraph
                 MyUnionGraph
