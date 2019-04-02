@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open NUnit.Framework
 open FsCheck
 open FsCheck.NUnit
+open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open GraphQL.Types
@@ -25,7 +26,7 @@ let ``automatically inferred arguments from validation`` () =
                     return args
                 }
             )
-            resolve.method (fun _ _ -> Task.FromResult null)
+            resolve.method (fun _ _ -> vtask { return null })
         ]
 
     getArg "Name" f
@@ -39,7 +40,7 @@ let ``automatically inferred arguments from anonymous record`` () =
     let f =
         field __ [
             name "test"
-            resolve.method (fun _ (_: {|Name: string; Age: int|}) -> null)
+            resolve.method (fun _ (_: {|Name: string; Age: int|}) -> vtask { return Unchecked.defaultof<_> })
         ]
     getArg "Name" f
     |> argumentEqual "Name" (nonNull StringGraphType) None
@@ -54,7 +55,7 @@ let ``automatically inferred arguments from record`` () =
     let f =
         field __ [
             name "test"
-            resolve.method (fun _ (_: Input) -> null)
+            resolve.method (fun _ (_: Input) -> vtask { return Unchecked.defaultof<_> })
         ]
     getArg "Name" f
     |> argumentEqual "Name" (nonNull StringGraphType) None

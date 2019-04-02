@@ -4,6 +4,7 @@ open System
 open System.Threading.Tasks
 open NUnit.Framework
 open Swensen.Unquote
+open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
@@ -47,7 +48,7 @@ let ``type inference with option return type`` () =
 let ``configure test`` () =
     field __ [
         name "getTask"
-        resolve.method (fun _ _ -> Task.FromResult "Hello")
+        resolve.method (fun _ _ -> vtask { return "Hello" })
         configureUnit "" (fun this -> this.Name <- "getTaskChanged"; this.ResolvedType <- FloatGraphType ())
     ]
     |> fieldEqual "getTaskChanged" (nullable FloatGraphType)
@@ -76,12 +77,12 @@ module ``quotation tests`` =
 let ``Builder Field task return types`` () =
     field __ [
         name "getTask"
-        resolve.method (fun _ _ -> Task.FromResult "Hello")
+        resolve.method (fun _ _ -> vtask { return "Hello" })
     ]
     |> fieldEqual "getTask" (nonNull StringGraphType)
 
 type MyTaskObject() =
-    member __.GetNameStored () = Task.FromResult "Hello"
+    member __.GetNameStored () = vtask { return "Hello " }
 
 [<Test>]
 let ``Builder Field task return types inferred`` () =
@@ -94,7 +95,7 @@ let ``Builder Field task return types inferred`` () =
 let ``Builder Field option types`` () =
     field __ [
         name "optionField"
-        resolve.method (fun _ _ -> Task.FromResult (Some "hello"))
+        resolve.method (fun _ _ -> vtask { return (Some "hello") })
     ]
     |> fieldEqual "optionField" (nullable StringGraphType)
 
@@ -106,7 +107,7 @@ type MyOptionObject = {
 [<Test>]
 let ``Builder Field option types inferred`` () =
     field __ [
-        resolve.property (fun this -> Task.FromResult this.NameOption)
+        resolve.property (fun this -> vtask { return this.NameOption })
     ]
     |> fieldEqual "NameOption" (nullable StringGraphType)
 
@@ -122,14 +123,14 @@ type MyType = {
 //     raises<ArgumentException>
 //         <@
 //             field __ [
-//                 resolve.property (fun x -> Task.FromResult (x.Name.ToString ()))
+//                 resolve.property (fun x -> vtask { return (x.Name.ToString ()) })
 //             ]
 //         @>
 
 [<Test>]
 let ``Builder Field valid getter`` () =
     field __ [
-        resolve.property (fun x -> Task.FromResult x.Name)
+        resolve.property (fun x -> vtask { return x.Name })
     ]
     |> fieldEqual "Name" (nonNull StringGraphType)
 
@@ -141,14 +142,14 @@ type SomeType = {
 [<Test>]
 let ``Builder Field inferred field type without default value should be non nullable`` () =
     field __ [
-        resolve.property (fun x -> Task.FromResult x.Testing)
+        resolve.property (fun x -> vtask { return x.Testing })
     ]
     |> fieldEqual "Testing" (nonNull BooleanGraphType)
 
 [<Test>]
 let ``Builder Field inferred field type with default value should be nullable`` () =
     field __ [
-        resolve.property (fun x -> Task.FromResult x.Testing)
+        resolve.property (fun x -> vtask { return x.Testing })
         defaultValue false
     ]
     |> fieldEqual "Testing" (nullable BooleanGraphType)

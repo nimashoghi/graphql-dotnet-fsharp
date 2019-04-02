@@ -3,8 +3,10 @@ module GraphQL.FSharp.Types
 
 open System
 open System.Collections.Generic
+open System.Reactive.Linq
 open System.Runtime.InteropServices
 open System.Threading.Tasks
+open FSharp.Utils.Tasks
 open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Subscription
@@ -138,23 +140,27 @@ let makeContext<'source> (ctx: ResolveFieldContext) =
 let makeStreamContext<'source> (ctx: ResolveEventStreamContext) =
     ResolveContext<'source> (ResolveEventStreamContext<'source> ctx)
 
-type Resolver<'source, 'field> (f: ResolveContext<'source> -> obj) =
+type Resolver<'source, 'field> (f: ResolveContext<'source> -> 'field) =
     member val Resolver = f
 
     interface IFieldResolver with
         member __.Resolve ctx = box (f (makeContext<'source> ctx))
 
-type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> obj Task) =
+type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> 'field ValueTask) =
     member val Resolver = f
 
     interface IFieldResolver with
-        member __.Resolve ctx = box (f (makeContext<'source> ctx))
+        member __.Resolve ctx = task { return! f (makeContext<'source> ctx) } |> box
 
-type AsyncStreamResolver<'source, 'field> (f: ResolveContext<'source> -> obj IObservable Task) =
+type AsyncStreamResolver<'source, 'field> (f: ResolveContext<'source> -> 'field IObservable ValueTask) =
     member val Resolver = f
 
     interface IAsyncEventStreamResolver with
-        member __.SubscribeAsync ctx = f (makeStreamContext<'source> ctx)
+        member __.SubscribeAsync ctx =
+            task {
+                let! obs = f (makeStreamContext<'source> ctx)
+                return obs.Select (fun x -> box x)
+            }
 
 type Argument () =
     inherit QueryArgument (Instances.invalidGraphType)

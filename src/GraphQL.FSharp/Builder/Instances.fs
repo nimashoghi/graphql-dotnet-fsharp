@@ -1,7 +1,6 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Instances
 
-open System.Threading.Tasks
 open GraphQL.Conversion
 open GraphQL.Types
 
@@ -23,7 +22,9 @@ let argument<'argument> ``type`` parameters =
 // TOOD: Test new anon record stuff properly
 // FIXME: Subscription that return primitives are broken in the current version of GraphQL + GraphQL.Server
 let field<'field,'arguments, 'source> ``type`` parameters =
-    graphOrSystemTypeField ``type`` :: parameters
+    graphOrSystemTypeField ``type``
+    :: addArguments ()
+    :: parameters
     |> flattenOperations
     |> reduceWith Field<'field, 'arguments, 'source>
 

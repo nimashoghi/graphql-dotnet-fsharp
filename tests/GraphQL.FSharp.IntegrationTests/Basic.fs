@@ -2,6 +2,7 @@ module GraphQL.FSharp.IntegrationTests.Tasks
 
 open System.Threading.Tasks
 open NUnit.Framework
+open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 
@@ -51,10 +52,10 @@ let ``Schema using synchronous resolver with methods returning task works proper
         object<MyType> [
             fields [
                 field __ [
-                    resolve.method (fun this _ -> Task.FromResult(this.GetSomethingSync()))
+                    resolve.method (fun this _ -> vtask { return this.GetSomethingSync () })
                 ]
                 field __ [
-                    resolve.method (fun this _ -> this.GetSomethingAsync())
+                    resolve.method (fun this _ -> vtask { return! this.GetSomethingAsync () })
                 ]
             ]
         ]
@@ -62,11 +63,11 @@ let ``Schema using synchronous resolver with methods returning task works proper
         query [
             field __ [
                 name "GetMyType"
-                resolve.method (fun _ _ -> Task.FromResult(MyType()))
+                resolve.method (fun _ _ -> vtask { return MyType () })
             ]
             field __ [
                 name "GetMyTypeAsync"
-                resolve.method (fun _ _ -> Task.FromResult(MyType()))
+                resolve.method (fun _ _ -> vtask { return MyType () })
             ]
         ]
     let Schema =

@@ -87,7 +87,7 @@ let ``Schema using asynchronous resolver with methods returning task works prope
                             |}
                     }
                 )
-                resolve.method (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
+                resolve.method (fun _ args -> vtask { return sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height })
             ]
         ]
     let Schema =

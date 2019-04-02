@@ -1,6 +1,6 @@
 module GraphQL.FSharp.CommandLineSample.Schema
 
-open System.Threading.Tasks
+open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 
@@ -10,10 +10,10 @@ let MyTypeGraph =
     object<MyType> [
         fields [
             field __ [
-                resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync ()))
+                resolve.method (fun this _ -> vtask { return this.GetSomethingSync () })
             ]
             field __ [
-                resolve.method (fun this _ -> this.GetSomethingAsync ())
+                resolve.method (fun this _ -> vtask { return! this.GetSomethingAsync () })
             ]
         ]
     ]
@@ -22,7 +22,7 @@ let Query =
     query [
         field __  [
             name "getMyType"
-            resolve.method (fun _ _ -> Task.FromResult (MyType ()))
+            resolve.method (fun _ _ -> vtask { return MyType () })
         ]
     ]
 

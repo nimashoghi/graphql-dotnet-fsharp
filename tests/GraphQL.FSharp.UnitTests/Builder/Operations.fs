@@ -8,8 +8,9 @@ open FsCheck
 open FsCheck.NUnit
 open Swensen.Unquote
 open FSharp.Utils
+open FSharp.Utils.Tasks
 open GraphQL
-open GraphQL.FSharp.Builder.Operations
+open GraphQL.FSharp.Builder
 open GraphQL.FSharp.Types
 open GraphQL.Types
 
@@ -125,7 +126,7 @@ module ``Documentation`` =
         target.Description =! value
 
     [<Property>]
-    let ``argumentDocumentation`` (value: IDictionary<ValidNameString, ValidNameString>) =
+    let ``Documentation.arguments`` (value: IDictionary<ValidNameString, ValidNameString>) =
         let value =
             value
             |> Seq.map (fun (KeyValue (ValidNameString name, ValidNameString desc)) -> name, desc)
@@ -145,7 +146,7 @@ module ``Documentation`` =
         |> field.set_Arguments
 
         field
-        |> (|Operation|) (argumentDocumentation value)
+        |> (|Operation|) (Documentation.arguments value)
         |> ignore
 
         for argument in field.Arguments do
@@ -160,7 +161,7 @@ module ``Field`` =
             |> List.map (fun (_, arguments) -> List.head arguments :> Argument)
 
         let field =
-            [fieldArguments argumentList]
+            [arguments argumentList]
             |> reduce field
 
         for argument in argumentList do
@@ -172,14 +173,16 @@ module ``Field`` =
             if String.IsNullOrWhiteSpace args.Name
             then Error ["Invalid Input"]
             else Ok {|args with Name = sprintf "%s-Modified" args.Name|}
+        // let field =
+        //     Field<obj, {|Name: string|}, obj> (
+        //         ResolvedType = NonNullGraphType StringGraph,
+        //         Resolver = AsyncResolver<obj, obj> (fun ctx -> vtask { return ctx.Arguments.["Name"] })
+        //     )
         let field =
-            Field<obj, {|Name: string|}, obj> (
-                ResolvedType = NonNullGraphType StringGraph,
-                Resolver = AsyncResolver<obj, obj> (fun ctx -> Task.FromResult ctx.Arguments.["Name"])
-            )
-        let field =
-            [validate (fun args -> Task.FromResult (validator args))]
-            |> reduce field
+            field (NonNullGraphType StringGraph) [
+                validate (fun args -> vtask { return validator args })
+                resolve.endpoint (fun args -> vtask { return args.Name })
+            ]
 
         field.ResolvedType =! upcast StringGraph
 
@@ -189,10 +192,10 @@ module ``Field`` =
                 Errors = ExecutionErrors ()
             )
         ctx.Arguments <- Dictionary.ofList ["Name", box input] :?> Dictionary<_, _>
-        let result = (field.Resolver.Resolve ctx :?> obj Task).Result
+        let result = (field.Resolver.Resolve ctx :?> string Task).Result
         match validator {|Name = input|} with
         | Ok value ->
-            result :?> string =! value.Name
+            result =! value.Name
         | Error errors ->
             test <@ isNull result @>
             test <@ not (isNull ctx.Errors) @>
@@ -203,31 +206,31 @@ module ``Field`` =
                         |> Seq.exists (fun e -> e.Message = error)
                     @>
 
-    [<Property>]
-    let ``manual resolve`` (NonEmptyString expected) (errors: NonEmptyString list) =
-        let errors = errors |> List.map (fun (NonEmptyString str) -> str)
-        let field =
-            [
-                resolve.manual (
-                    fun ctx ->
-                        errors |> List.iter (fun error -> ctx.Errors.Add (ExecutionError error))
-                        Task.FromResult expected
-                )
-            ]
-            |> reduceWith Field<string, obj, obj>
-        let ctx =
-            ResolveFieldContext (
-                Errors = ExecutionErrors ()
-            )
-        let result = (field.Resolver.Resolve ctx :?> obj Task).Result :?> string
-        for error in errors do
-            test
-                <@
-                    ctx.Errors
-                    |> Seq.exists (fun e -> e.Message = error)
-                @>
+    // [<Property>]
+    // let ``manual resolve`` (NonEmptyString expected) (errors: NonEmptyString list) =
+    //     let errors = errors |> List.map (fun (NonEmptyString str) -> str)
+    //     let field =
+    //         [
+    //             resolve.manual (
+    //                 fun ctx ->
+    //                     errors |> List.iter (fun error -> ctx.Errors.Add (ExecutionError error))
+    //                     Task.FromResult expected
+    //             )
+    //         ]
+    //         |> reduceWith Field<string, obj, obj>
+    //     let ctx =
+    //         ResolveFieldContext (
+    //             Errors = ExecutionErrors ()
+    //         )
+    //     let result = (field.Resolver.Resolve ctx :?> obj Task).Result :?> string
+    //     for error in errors do
+    //         test
+    //             <@
+    //                 ctx.Errors
+    //                 |> Seq.exists (fun e -> e.Message = error)
+    //             @>
 
-        result =! expected
+    //     result =! expected
 
     type PropertyType = {
         mutable Property: string
@@ -236,12 +239,12 @@ module ``Field`` =
     let ``property resolve`` (ValidNameString expected) =
         let field =
             [
-                resolve.property (fun this -> Task.FromResult this.Property)
+                resolve.property (fun this -> vtask { return this.Property })
             ]
             |> reduceWith Field<string, obj, PropertyType>
         let ctx =
             ResolveContext<PropertyType> (
                 Source = {Property = expected}
             )
-        let result = (field.Resolver.Resolve ctx.AsObjectContext :?> obj Task).Result :?> string
+        let result = (field.Resolver.Resolve ctx.AsObjectContext :?> string Task).Result
         result =! expected

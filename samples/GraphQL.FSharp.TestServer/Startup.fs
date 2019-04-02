@@ -87,7 +87,7 @@ module Validation =
         else Error ["Invalid Name"]
 
     let validateAsyncName (name: string) =
-        task {
+        vtask {
             if name = "AsyncAlice"
             then return Ok "AsyncAlice"
             else return Error ["Invalid Name"]
@@ -102,7 +102,7 @@ module Schema =
             fields [
                 field __ [
                     name "Name"
-                    resolve.property (fun this -> task { return this.Name })
+                    resolve.property (fun this -> vtask { return this.Name })
                 ]
             ]
         ]
@@ -111,11 +111,9 @@ module Schema =
         object<MyType> [
             fields [
                 field __ [
-                    documentation [
-                        description "Hello world"
-                        arguments [
-                            "IntegerParam" => "Some integer parameter!"
-                        ]
+                    Documentation.description "Hello world"
+                    Documentation.arguments [
+                        "IntegerParam" => "Some integer parameter!"
                     ]
                     resolve.method (
                         fun
@@ -127,23 +125,22 @@ module Schema =
                                 OptionalParam: int option
                                 ResultParam: Result<int, string>
                             |})
-                            -> Task.FromResult (
-                                this.MethodWithParam
-                                    args.IntegerParam
-                                    args.ListParam
-                                    args.OptionalParam
-                                    args.ResultParam
-                            )
+                            -> vtask {
+                                return
+                                    this.MethodWithParam
+                                        args.IntegerParam
+                                        args.ListParam
+                                        args.OptionalParam
+                                        args.ResultParam
+                            }
                     )
                 ]
                 field __ [
-                    documentation [
-                        description "Hello world"
-                    ]
-                    resolve.method (fun this _ -> Task.FromResult (this.GetSomethingSync ()))
+                    Documentation.description "Hello world"
+                    resolve.method (fun this _ -> vtask { return this.GetSomethingSync () })
                 ]
                 field __ [
-                    resolve.method (fun this _ -> this.GetSomethingAsync ())
+                    resolve.method (fun this _ -> vtask { return! this.GetSomethingAsync () })
                 ]
             ]
         ]
@@ -152,7 +149,7 @@ module Schema =
         object<MyUnionFirst> [
             fields [
                 field __ [
-                    resolve.property (fun this -> Task.FromResult this.Name)
+                    resolve.property (fun this -> vtask { return this.Name })
                 ]
             ]
         ]
@@ -161,7 +158,7 @@ module Schema =
         object<MyUnionSecond> [
             fields [
                 field __ [
-                    resolve.property (fun this -> Task.FromResult this.Age)
+                    resolve.property (fun this -> vtask { return this.Age })
                 ]
             ]
         ]
@@ -169,19 +166,19 @@ module Schema =
     let MyUnionGraph =
         union<MyUnion> [
             name "MyUnion"
-            cases [
-                case FirstUnion MyUnionFirstGraph
-                case SecondUnion MyUnionSecondGraph
+            Union.cases [
+                Union.case FirstUnion MyUnionFirstGraph
+                Union.case SecondUnion MyUnionSecondGraph
             ]
         ]
 
     let MyEnumGraph =
         enum<MyEnum> [
             name "MyEnum"
-            cases [
-                case First []
-                case Second []
-                case Third []
+            Enum.cases [
+                Enum.case First []
+                Enum.case Second []
+                Enum.case Third []
             ]
         ]
 
@@ -209,21 +206,21 @@ module Schema =
         query [
             field __ [
                 name "GetMyEnum"
-                resolve.method (fun _ _ -> Task.FromResult MyEnum.Third)
+                resolve.method (fun _ _ -> vtask { return MyEnum.Third })
             ]
             field __ [
                 name "GetMyUnion"
-                resolve.method (fun _ _ -> Task.FromResult (FirstUnion {Name = "hello"}))
+                resolve.method (fun _ _ -> vtask { return (FirstUnion {Name = "hello"}) })
             ]
             field MyTypeGraph [
                 name "GetMyType"
-                resolve.method (fun _ _ -> Task.FromResult (Ok (MyType ())))
+                resolve.method (fun _ _ -> vtask { return (Ok (MyType ())) })
             ]
             field __ [
                 name "GetAutoRecordGraph"
                 resolve.endpoint (
                     fun _ ->
-                        task {
+                        vtask {
                             return {
                                 Name = ""
                                 Age = 12
@@ -241,19 +238,19 @@ module Schema =
             ]
             field __ [
                 name "MyEnumUnion"
-                resolve.endpoint (fun _ -> task { return MyEnumUnion.MyEnumUnionFirst })
+                resolve.endpoint (fun _ -> vtask { return MyEnumUnion.MyEnumUnionFirst })
             ]
             field __ [
                 name "MyEnumEnum"
-                resolve.endpoint (fun _ -> task { return MyEnumEnum.MyEnumEnumFirst })
+                resolve.endpoint (fun _ -> vtask { return MyEnumEnum.MyEnumEnumFirst })
             ]
             field __ [
                 name "AutoUnionFirst"
-                resolve.endpoint (fun _ -> task { return MyAutoUnion.MyAutoUnionFirstCase {|Name = "hello"|} })
+                resolve.endpoint (fun _ -> vtask { return MyAutoUnion.MyAutoUnionFirstCase {|Name = "hello"|} })
             ]
             field __ [
                 name "AutoUnionSecond"
-                resolve.endpoint (fun _ -> task { return MyAutoUnion.MyAutoUnionSecondCase {|Age = 1|} })
+                resolve.endpoint (fun _ -> vtask { return MyAutoUnion.MyAutoUnionSecondCase {|Age = 1|} })
             ]
             field __ [
                 name "Validate"
@@ -273,7 +270,7 @@ module Schema =
                             |}
                     }
                 )
-                resolve.method (fun _ args -> Task.FromResult (sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height))
+                resolve.method (fun _ args -> vtask { return sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height })
             ]
         ]
 
@@ -298,7 +295,7 @@ module Schema =
                 )
                 subscribe.endpoint (
                     fun args ->
-                        task {
+                        vtask {
                             return Observable
                                 .Return({Name = args.Name}: MySubscriptionWrapper)
                                 .CombineLatest(Observable.Interval(System.TimeSpan.FromSeconds 1.), fun x y -> {Name = sprintf "%s %i" x.Name y}: MySubscriptionWrapper)
@@ -319,7 +316,7 @@ module Schema =
                 )
                 subscribe.endpoint (
                     fun args ->
-                        task {
+                        vtask {
                             return Observable
                                 .Return({|Name = args.Name|})
                                 .CombineLatest(Observable.Interval(System.TimeSpan.FromSeconds 1.), fun x y -> {|Name = sprintf "%s %i" x.Name y|})
@@ -340,7 +337,7 @@ module Schema =
                 )
                 subscribe.endpoint (
                     fun args ->
-                        task {
+                        vtask {
                             return Observable
                                 .Return({|Name = args.Name|})
                                 .CombineLatest(
@@ -367,9 +364,9 @@ module Schema =
                 )
                 subscribe.endpointResult (
                     fun args ->
-                        task {
-                            if args.Name = "invalidName" then return Error ["myError"] else
-                            return Ok <| Observable
+                        vtask {
+                            if args.Name = "invalidName" then return Observable.Return (Error ["myError"]) else
+                            return Observable
                                 .Return({|Name = args.Name|})
                                 .CombineLatest(
                                     Observable.Interval(System.TimeSpan.FromSeconds 1.),

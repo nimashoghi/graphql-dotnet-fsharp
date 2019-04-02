@@ -2,14 +2,19 @@ module GraphQL.FSharp.Resolvers
 
 open System
 open System.Collections
-open System.Reactive.Linq
 open System.Threading.Tasks
 open FSharp.Utils
 open FSharp.Utils.Tasks
-open FSharp.Utils.Reflection
 open GraphQL
 
 open GraphQL.FSharp.Types
+
+[<Struct>]
+type ResolvedValue<'value, 'error> =
+| ValueValue of Value: 'value
+| OptionValue of Option: 'value option
+| ValueOptionValue of ValueOption: 'value voption
+| ResultValue of Result: Result<'value, 'error list>
 
 let handleError (error: obj) =
     match Dictionary.ofObj error with
@@ -17,64 +22,46 @@ let handleError (error: obj) =
     | Some dict -> ExecutionError (error.GetType().Name, dict :?> IDictionary)
     | None -> ExecutionError (string error)
 
-let handleObject (ctx: ResolveContext<'source>) (x: 'field) =
-    match box x with
-    | null -> null
-    | Option opt -> Option.toObj opt
-    | ValueOption opt -> ValueOption.toObj opt
-    | ValidationResult result ->
-        match result with
-        | Ok value -> value
+module Option =
+    let toValueOption x =
+        match x with
+        | Some x -> ValueSome x
+        | None -> ValueNone
+
+let internal handleCtxOption addErrors value =
+    match value with
+    | ValueValue x -> ValueSome x
+    | OptionValue x -> Option.toValueOption x
+    | ValueOptionValue x -> x
+    | ResultValue x ->
+        match x with
+        | Ok x -> ValueSome x
         | Error errors ->
             errors
             |> List.map handleError
-            |> ctx.Errors.AddRange
-            null
-    | Result result ->
-        match result with
-        | Ok value -> value
-        | Error errors ->
-            errors
-            |> handleError
-            |> ctx.Errors.Add
-            null
-    | value -> value
+            |> addErrors
 
-let resolveTaskHandler
-    (handler: ResolveContext<'source> -> 'field -> obj)
-    (f: ResolveContext<'source> -> 'field Task) =
+            ValueNone
+
+let internal handleCtx addErrors value =
+    handleCtxOption addErrors value
+    |> ValueOption.defaultValue Unchecked.defaultof<_>
+
+let resolve (f: ResolveContext<'source> -> ResolvedValue<'field, 'error>) =
+    Resolver<'source, 'field> (fun ctx -> f ctx |> handleCtx ctx.Errors.AddRange)
+
+let resolveAsync (f: ResolveContext<'source> -> ResolvedValue<'field, 'error> ValueTask) =
     AsyncResolver<'source, 'field> (
-        fun ctx -> task {
-            let! x = f ctx
-            return handler ctx x
+        fun ctx -> vtask {
+            let! value = f ctx
+            return handleCtx ctx.Errors.AddRange value
         }
     )
 
-let resolveSubscriberHandler
-    (handler: ResolveContext<'source> -> 'field -> obj)
-    (f: ResolveContext<'source> -> 'field IObservable Task) =
+let resolveSubscription (f: ResolveContext<'source> -> ResolvedValue<'field IObservable, 'error> ValueTask) =
     AsyncStreamResolver<'source, 'field> (
-        fun ctx -> task {
-            let! obs = f ctx
-            return obs.Select (handler ctx)
+        fun ctx -> vtask {
+            let! value = f ctx
+            return handleCtx ctx.Errors.AddRange value
         }
     )
-
-let resolveSubscriberWithErrorsHandler
-    (handler: ResolveContext<'source> -> 'field -> obj)
-    (f: ResolveContext<'source> -> Result<'field IObservable, 'error list> Task) =
-    AsyncStreamResolver<'source, 'field> (
-        fun ctx -> task {
-            match! f ctx with
-            | Ok obs -> return obs.Select (handler ctx)
-            | Error errors ->
-                errors
-                |> List.map handleError
-                |> ctx.Errors.AddRange
-                return Observable.Return Unchecked.defaultof<_>
-        }
-    )
-
-let resolveAsync f = resolveTaskHandler handleObject f
-let resolveSubscriberAsync f = resolveSubscriberHandler handleObject f
-let resolveSubscriberWithErrorsAsync f = resolveSubscriberWithErrorsHandler handleObject f
