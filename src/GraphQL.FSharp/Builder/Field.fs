@@ -9,6 +9,7 @@ open FSharp.Quotations
 open FSharp.Reflection
 open FSharp.Utils
 open FSharp.Utils.Quotations
+open FSharp.Utils.Reflection
 open FSharp.Utils.Tasks
 open GraphQL.Types
 
@@ -69,7 +70,7 @@ let validate (validator: 'arguments -> Result<'arguments, 'error list> ValueTask
         )
 
 // TODO: What about nested objects? e.g. {|Prop = {|Name = "hi"}|}
-let addArguments () = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
+let internal addArguments () = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
     if typeof<'arguments> = typeof<obj> then () else
 
     if isNull field.Arguments
@@ -90,7 +91,7 @@ let addArguments () = Operation.ConfigureUnit <| fun (field: Field<'field, 'argu
     )
     |> Array.iter field.Arguments.Add
 
-let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
+let internal makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
     if typeof<'arguments> = typeof<obj> then [||] else
 
     let (Lazy fields) = fields
@@ -110,7 +111,7 @@ let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: 
     )
 
 // TODO: Take a look at null (which leads to unbox throwing)
-let makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (arguments: obj [])  =
+let internal makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (arguments: obj [])  =
     if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
     let (Lazy constructor) = constructor
@@ -119,13 +120,13 @@ let makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (argument
     |> constructor
     |> unbox<'arguments>
 
-let makeArguments<'arguments, 'source> fields constructor ctx =
+let internal makeArguments<'arguments, 'source> fields constructor ctx =
     if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
 
     makeArgumentArray<'arguments, 'source> fields ctx
     |> makeArgumentRecord<'arguments> constructor
 
-let getRecordInfo<'arguments> () =
+let internal getRecordInfo<'arguments> () =
     let fields = lazy (FSharpType.GetRecordFields typeof<'arguments>)
     let constructor = lazy (FSharpValue.PreComputeRecordConstructor typeof<'arguments>)
     let reader = lazy (FSharpValue.PreComputeRecordReader typeof<'arguments>)
@@ -142,7 +143,7 @@ let internal susbscribeHelper
     field.AsyncSubscriber <- resolveSubscription resolver
     field.Resolver <- resolve (fun ctx -> ctx.Source)
 
-let getValidator (field: Field<'field, 'arguments, 'source>) =
+let internal getValidator (field: Field<'field, 'arguments, 'source>) =
     if not <| field.HasMetadata "Validator" then None else
     field.Metadata.["Validator"]
     |> tryUnbox<Validator<'arguments>>
@@ -178,7 +179,7 @@ type Subscribe internal () =
 
 let subscribe = Subscribe ()
 
-let setName (|NamePattern|_|) expr (field: Field<_, _, _>) =
+let internal setName (|NamePattern|_|) expr (field: Field<_, _, _>) =
     match expr with
     | WithValueTyped (_, expr) ->
         match expr with
@@ -188,7 +189,7 @@ let setName (|NamePattern|_|) expr (field: Field<_, _, _>) =
         | _ -> ()
     | _ -> ()
 
-let getValue expr =
+let internal getValue expr =
     match expr with
     | WithValueTyped (value, _) -> value
     | _ -> failwith "Could not extract value out of expression!"
@@ -281,3 +282,16 @@ type Resolve internal () =
     member __.endpointResult (resolver: 'arguments -> Result<'field, 'error list> ValueTask) = resolveEndpoint true ResultValue resolver
 
 let resolve = Resolve ()
+
+exception IncorrectFieldTypeException of Type: Type
+
+let internal ensureCorrectType () = Operation.CreateUnit Priority.EnsureCorrectType <| fun (_: Field<'field, _, _>) ->
+    match typeof<'field> with
+    | OptionType _
+    | ValueOptionType _
+    | ResultType _
+    | NullableType _
+    | ObservableType _
+    | TaskType _
+    | ValueTaskType _ -> raise (IncorrectFieldTypeException typeof<'field>)
+    | _ -> ()

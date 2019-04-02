@@ -11,6 +11,7 @@ module Priority =
     let Max = Priority Int32.MaxValue
     let Default = Priority 0
 
+    let EnsureCorrectType = Min
     let Flatten = Min
     let InferredGraphType = Priority -200
     let Validation = Priority -100
