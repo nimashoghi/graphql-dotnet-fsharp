@@ -140,27 +140,42 @@ let makeContext<'source> (ctx: ResolveFieldContext) =
 let makeStreamContext<'source> (ctx: ResolveEventStreamContext) =
     ResolveContext<'source> (ResolveEventStreamContext<'source> ctx)
 
-type Resolver<'source, 'field> (f: ResolveContext<'source> -> 'field) =
-    member val Resolver = f
+type Resolver<'source, 'field> (handler: ResolveContext<'source> -> 'field -> obj, f: ResolveContext<'source> -> 'field) =
+    member __.Resolver ctx =
+        let handler = handler ctx
+        handler (f ctx)
 
     interface IFieldResolver with
-        member __.Resolve ctx = box (f (makeContext<'source> ctx))
+        member this.Resolve ctx =
+            makeContext<'source> ctx
+            |> this.Resolver
 
-type AsyncResolver<'source, 'field> (f: ResolveContext<'source> -> 'field ValueTask) =
-    member val Resolver = f
+type AsyncResolver<'source, 'field> (handler: ResolveContext<'source> -> 'field -> obj, f: ResolveContext<'source> -> 'field ValueTask) =
+    member __.Resolver ctx =
+        let handler = handler ctx
+        task {
+            let! value = f ctx
+            return handler value
+        }
 
     interface IFieldResolver with
-        member __.Resolve ctx = task { return! f (makeContext<'source> ctx) } |> box
+        member this.Resolve ctx =
+            makeContext<'source> ctx
+            |> this.Resolver
+            |> box
 
-type AsyncStreamResolver<'source, 'field> (f: ResolveContext<'source> -> 'field IObservable ValueTask) =
-    member val Resolver = f
+type AsyncStreamResolver<'source, 'field> (handler: ResolveContext<'source> -> 'field -> obj, f: ResolveContext<'source> -> 'field IObservable ValueTask) =
+    member __.Resolver ctx =
+        let handler = handler ctx
+        task {
+            let! obs = f ctx
+            return obs.Select handler
+        }
 
     interface IAsyncEventStreamResolver with
-        member __.SubscribeAsync ctx =
-            task {
-                let! obs = f (makeStreamContext<'source> ctx)
-                return obs.Select (fun x -> box x)
-            }
+        member this.SubscribeAsync ctx =
+            makeStreamContext<'source> ctx
+            |> this.Resolver
 
 type Argument () =
     inherit QueryArgument (Instances.invalidGraphType)

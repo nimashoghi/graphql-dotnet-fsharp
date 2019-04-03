@@ -1,9 +1,11 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Utils.GraphTypes
 
+open System
+open System.Text.RegularExpressions
 open GraphQL.Types
 
-let graphTypeNameConfig detailed (x: #IGraphType) =
+let prettyPrintNameConfig detailed (x: #IGraphType) =
     let rec run (x: IGraphType) =
         match x with
         | :? GraphQLTypeReference as x ->
@@ -21,8 +23,15 @@ let graphTypeNameConfig detailed (x: #IGraphType) =
         | x -> sprintf "%s" x.Name
     run (x :> IGraphType)
 
-let graphTypeName x = graphTypeNameConfig false x
-let graphTypeNameDetailed x = graphTypeNameConfig true x
+let prettyPrintName x = prettyPrintNameConfig false x
+let prettyPrintNameDetailed x = prettyPrintNameConfig true x
+
+let typeName (``type``: Type) =
+    Regex.Replace (
+        input = ``type``.Name,
+        pattern = @"^I(\w+)Grain$",
+        replacement = "$1"
+    )
 
 let (|InterfaceGraphType|_|) (``type``: IGraphType) =
     match ``type`` with

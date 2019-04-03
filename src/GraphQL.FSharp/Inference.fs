@@ -1,7 +1,7 @@
-module GraphQL.FSharp.Inference
+module rec GraphQL.FSharp.Inference
 
 open System
-open System.Text.RegularExpressions
+open System.Collections.Generic
 open System.Reflection
 open System.Runtime.CompilerServices
 open FSharp.Reflection
@@ -10,8 +10,9 @@ open GraphQL.Resolvers
 open GraphQL.Types
 
 open GraphQL.FSharp.Types
+open GraphQL.FSharp.Utils
 
-let rec unwrapType nonNullDefault get ``type`` =
+let rec internal unwrapType nonNullDefault get ``type`` =
     let graphType, isNull =
         match ``type`` with
         | NullableType innerType
@@ -41,85 +42,57 @@ let rec unwrapType nonNullDefault get ``type`` =
     then NonNullGraphType graphType :> IGraphType
     else graphType
 
-let private graphType (f: unit -> #ScalarGraphType) = f >> (fun graph -> graph :> ScalarGraphType)
+let internal defaultTypes: IDictionary<Type, IGraphType> =
+    dict [
+        typeof<string>, upcast (StringGraphType ())
+        typeof<bool>, upcast (BooleanGraphType ())
+        typeof<float>, upcast (FloatGraphType ())
+        typeof<float32>, upcast (FloatGraphType ())
+        typeof<decimal>, upcast (DecimalGraphType ())
+        typeof<int8>, upcast (IntGraphType ())
+        typeof<int16>, upcast (IntGraphType ())
+        typeof<int32>, upcast (IntGraphType ())
+        typeof<int64>, upcast (IntGraphType ())
+        typeof<uint8>, upcast (IntGraphType ())
+        typeof<uint16>, upcast (IntGraphType ())
+        typeof<uint32>, upcast (IntGraphType ())
+        typeof<uint64>, upcast (IntGraphType ())
+        typeof<Guid>, upcast (IdGraphType ())
+        typeof<DateTime>, upcast (DateTimeGraphType ())
+        typeof<DateTimeOffset>, upcast (DateTimeOffsetGraphType ())
+        typeof<TimeSpan>, upcast (TimeSpanMillisecondsGraphType ())
+    ]
 
-let defaultTypes = dict [
-    typeof<string>, graphType StringGraphType
-    typeof<bool>, graphType BooleanGraphType
-    typeof<float>, graphType FloatGraphType
-    typeof<float32>, graphType FloatGraphType
-    typeof<decimal>, graphType DecimalGraphType
-    typeof<int8>, graphType IntGraphType
-    typeof<int16>, graphType IntGraphType
-    typeof<int32>, graphType IntGraphType
-    typeof<int64>, graphType IntGraphType
-    typeof<uint8>, graphType IntGraphType
-    typeof<uint16>, graphType IntGraphType
-    typeof<uint32>, graphType IntGraphType
-    typeof<uint64>, graphType IntGraphType
-    typeof<Guid>, graphType IdGraphType
-    typeof<DateTime>, graphType DateTimeGraphType
-    typeof<DateTimeOffset>, graphType DateTimeOffsetGraphType
-    typeof<TimeSpan>, graphType TimeSpanMillisecondsGraphType
-]
+type IDictionary<'key, 'value> with
+    member this.TryGetValueOption (key: 'key) =
+        match this.TryGetValue key with
+        | true, value -> ValueSome value
+        | _ -> ValueNone
 
-// TODO: test this
-let typeName (``type``: Type) =
-    Regex.Replace (
-        input = ``type``.Name,
-        pattern = @"^I(\w+)Grain$",
-        replacement = "$1"
-    )
-
-let getDefaultType ``type`` =
-    match defaultTypes.TryGetValue ``type`` with
-    | true, f -> Some (f ())
-    | false, _ -> None
-
-let getDefaultTypeOrReference ``type`` =
-    getDefaultType ``type``
-    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
-    |> Option.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
-
-let createReference ``type`` = unwrapType true getDefaultTypeOrReference ``type``
-
-let isAnonymousRecord (``type``: Type) =
-    Attribute.IsDefined (``type``, typeof<CompilerGeneratedAttribute>, false)
-    && ``type``.IsGenericType && ``type``.Name.Contains("AnonymousType")
-    && ``type``.Name.StartsWith("<>")
-    && ``type``.Attributes &&& TypeAttributes.NotPublic = TypeAttributes.NotPublic
-    && FSharpType.IsRecord ``type``
-
-let makeAnonymousReturnType name ``type`` =
-    let object =
-        Object<obj> (
-            Name = name
-        )
-    FSharpType.GetRecordFields ``type``
-    |> Array.map (
-        fun property ->
-            Field (
-                Name = property.Name,
-                ResolvedType = createReference property.PropertyType,
-                Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+let internal getAnonymousType anonymousName ``type`` =
+    if not <| isAnonymousRecord ``type`` then ValueNone else
+    match anonymousName with
+    | ValueSome name ->
+        let object = Object<obj> (Name = name)
+        FSharpType.GetRecordFields ``type``
+        |> Array.map (
+            fun property ->
+                Field (
+                    Name = property.Name,
+                    ResolvedType = createReference (ValueSome <| sprintf "%s%s" name property.Name) property.PropertyType,
+                    Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+                )
             )
-        )
-    |> Array.iter (object.AddField >> ignore)
+        |> Array.iter (object.AddField >> ignore)
+        ValueSome (object :> IGraphType)
+    | ValueNone -> ValueNone
 
-    object
+let internal getDefaultTypeOrCreateAnonOrReference anonymousName ``type`` =
+    defaultTypes.TryGetValueOption ``type``
+    |> ValueOption.orElseWith (fun () -> getAnonymousType anonymousName ``type``)
+    |> ValueOption.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
 
-let fieldName (field: Field<'source>) = sprintf "%s%s" typeof<'source>.Name field.Name
+let internal createReference anonymousName ``type`` = unwrapType true (getDefaultTypeOrCreateAnonOrReference anonymousName) ``type``
 
-let getDefaultTypeOrCreateAnonOrReference (field: Field<'source>) ``type`` =
-    getDefaultType ``type``
-    |> Option.map (fun ``type`` -> ``type`` :> IGraphType)
-    |> Option.orElseWith (
-        fun () ->
-            if isAnonymousRecord ``type``
-            then Some (upcast makeAnonymousReturnType (fieldName field) ``type``)
-            else None
-    )
-    |> Option.defaultValue (GraphQLTypeReference (typeName ``type``) :> IGraphType)
-
-let createReferenceForField (field: Field<'source>) ``type`` =
-    unwrapType true (getDefaultTypeOrCreateAnonOrReference field) ``type``
+let infer ``type`` =  createReference ValueNone ``type``
+let inferField (field: #Field<'source>) ``type`` = createReference (ValueSome <| sprintf "%s%s" typeof<'source>.Name field.Name) ``type``

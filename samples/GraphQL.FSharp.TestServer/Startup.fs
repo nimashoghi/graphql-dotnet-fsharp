@@ -293,7 +293,7 @@ module Schema =
                             |}
                     }
                 )
-                subscribe.endpoint (
+                subscribe (
                     fun args ->
                         vtask {
                             return Observable
@@ -314,7 +314,7 @@ module Schema =
                             |}
                     }
                 )
-                subscribe.endpoint (
+                subscribe (
                     fun args ->
                         vtask {
                             return Observable
@@ -335,7 +335,7 @@ module Schema =
                             |}
                     }
                 )
-                subscribe.endpoint (
+                subscribe (
                     fun args ->
                         vtask {
                             return Observable
@@ -362,7 +362,7 @@ module Schema =
                             |}
                     }
                 )
-                subscribe.endpointResult (
+                subscribe (
                     fun args ->
                         vtask {
                             if args.Name = "invalidName" then return Observable.Return (Error ["myError"]) else

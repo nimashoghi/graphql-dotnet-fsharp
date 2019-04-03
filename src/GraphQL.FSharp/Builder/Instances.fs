@@ -5,8 +5,8 @@ open GraphQL.Conversion
 open GraphQL.Types
 
 open GraphQL.FSharp.Builder.Operations
-open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Types
+open GraphQL.FSharp.Utils
 
 type Endpoints = Field<obj> list
 type Types = IGraphType list
@@ -22,8 +22,7 @@ let argument<'argument> ``type`` parameters =
 // TOOD: Test new anon record stuff properly
 // FIXME: Subscription that return primitives are broken in the current version of GraphQL + GraphQL.Server
 let field<'field,'arguments, 'source> ``type`` parameters =
-    Field.ensureCorrectType ()
-    :: graphOrSystemTypeField ``type``
+    graphOrSystemTypeField ``type``
     :: addArguments ()
     :: parameters
     |> flattenOperations

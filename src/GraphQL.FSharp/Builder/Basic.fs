@@ -39,7 +39,7 @@ let graphOrSystemTypeField (value: #IGraphType) = Operation.CreateUnit Priority.
     if (not << isNull) (box value) then
         field.ResolvedType <- processGraphType (shouldBeNullable typeof<'field>) value
     else if isInvalidType field.ResolvedType then
-        field.ResolvedType <- createReferenceForField field typeof<'field>
+        field.ResolvedType <- inferField field typeof<'field>
 
     if field.HasMetadata "Validator" then makeNullable field
 
@@ -47,7 +47,7 @@ let inline graphOrSystemType (value: #IGraphType) ``type`` = Operation.CreateUni
     if (not << isNull) (box value) then
         (^t: (member set_ResolvedType: IGraphType -> unit) target, processGraphType (shouldBeNullable ``type``) value)
     else if isInvalidType (^t: (member ResolvedType: IGraphType) target) then
-        (^t: (member set_ResolvedType: IGraphType -> unit) target, createReference ``type``)
+        (^t: (member set_ResolvedType: IGraphType -> unit) target, infer ``type``)
 
 let inline metadata value = Operation.ConfigureUnit <| fun target ->
     let metadata =

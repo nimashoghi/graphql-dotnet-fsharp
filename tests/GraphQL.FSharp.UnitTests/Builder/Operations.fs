@@ -192,7 +192,7 @@ module ``Field`` =
                 Errors = ExecutionErrors ()
             )
         ctx.Arguments <- Dictionary.ofList ["Name", box input] :?> Dictionary<_, _>
-        let result = (field.Resolver.Resolve ctx :?> string Task).Result
+        let result = (field.Resolver.Resolve ctx :?> obj Task).Result :?> string
         match validator {|Name = input|} with
         | Ok value ->
             result =! value.Name
@@ -246,5 +246,5 @@ module ``Field`` =
             ResolveContext<PropertyType> (
                 Source = {Property = expected}
             )
-        let result = (field.Resolver.Resolve ctx.AsObjectContext :?> string Task).Result
+        let result = (field.Resolver.Resolve ctx.AsObjectContext :?> obj Task).Result :?> string
         result =! expected

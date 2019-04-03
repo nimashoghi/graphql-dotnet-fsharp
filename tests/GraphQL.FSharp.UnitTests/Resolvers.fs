@@ -8,59 +8,58 @@ open FsCheck.NUnit
 open FSharp.Utils
 open FSharp.Utils.Tasks
 open GraphQL.FSharp.Resolvers
-open GraphQL
 open GraphQL.FSharp.Types
 open Newtonsoft.Json
 
-let (=!!) (lhs: _ ValueTask) rhs = lhs.Result =! rhs
+let (=!!) (lhs: _ Task) rhs = lhs.Result =! rhs
 
 module ``resolve`` =
     [<Property>]
     let ``basic test`` () =
-        resolveAsync(fun _ -> vtask { return ValueValue "Hello World" })
+        resolveAsync(fun _ -> vtask { return "Hello World" })
             .Resolver (ResolveContext ())
-        =!! "Hello World"
+        =!! box "Hello World"
 
     [<Property>]
     let ``basic property`` (value: obj) =
-        resolveAsync(fun _ -> vtask { return ValueValue value })
+        resolveAsync(fun _ -> vtask { return value })
             .Resolver (ResolveContext ())
-        =!! value
+        =!! box value
 
     [<Test>]
     let ``option positive test`` () =
-        resolveAsync(fun _ -> vtask { return OptionValue (Some "Hello World") })
+        resolveAsync(fun _ -> vtask { return (Some "Hello World") })
             .Resolver (ResolveContext ())
-        =!! "Hello World"
+        =!! box "Hello World"
 
     [<Property>]
     let ``option positive property`` (value: obj) =
-        resolveAsync(fun _ -> vtask { return OptionValue (Some value) })
+        resolveAsync(fun _ -> vtask { return (Some value) })
             .Resolver (ResolveContext ())
-        =!! value
+        =!! box value
 
     [<Test>]
     let ``option negative test`` () =
-        resolveAsync(fun _ -> vtask { return OptionValue (None: string option) })
+        resolveAsync(fun _ -> vtask { return (None: string option) })
             .Resolver (ResolveContext ())
         =!! null
 
     [<Test>]
     let ``validation result positive test`` () =
-        resolveAsync(fun _ -> vtask { return ResultValue (Ok "Hello World": Result<string, string list>) })
+        resolveAsync(fun _ -> vtask { return (Ok "Hello World": Result<string, string list>) })
             .Resolver (ResolveContext ())
-        =!! "Hello World"
+        =!! box "Hello World"
 
     [<Property>]
     let ``validation result positive property`` (value: obj) =
-        resolveAsync(fun _ -> vtask { return ResultValue (Ok value: Result<obj, string list>) })
+        resolveAsync(fun _ -> vtask { return (Ok value: Result<obj, string list>) })
             .Resolver (ResolveContext ())
-        =!! value
+        =!! box value
 
     [<Test>]
     let ``validation result negative test`` () =
         let ctx = ResolveContext ()
-        resolveAsync(fun _ -> vtask { return ResultValue (Error ["error"]: Result<string, string list>) })
+        resolveAsync(fun _ -> vtask { return (Error ["error"]: Result<string, string list>) })
             .Resolver ctx
         =!! null
         let errors =
@@ -72,7 +71,7 @@ module ``resolve`` =
     [<Property>]
     let ``validation result negative property`` (errors: string list) =
         let ctx = ResolveContext ()
-        resolveAsync(fun _ -> vtask { return ResultValue (Error errors: Result<string, string list>) })
+        resolveAsync(fun _ -> vtask { return (Error errors: Result<string, string list>) })
             .Resolver ctx
         =!! null
         let ctxErr =

@@ -32,7 +32,7 @@ module Object =
                         Name = property.Name,
                         Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue ctx.Source)
                     )
-                field.ResolvedType <- createReferenceForField field property.PropertyType
+                field.ResolvedType <- inferField field property.PropertyType
                 field
         )
         |> Array.iter (object.AddField >> ignore)
@@ -106,7 +106,7 @@ module Union =
                         fun property ->
                             Field (
                                 Name = property.Name,
-                                ResolvedType = createReference property.PropertyType,
+                                ResolvedType = infer property.PropertyType,
                                 Resolver = FuncFieldResolver<obj> (fun ctx -> property.GetValue (reader ctx.Source))
                             )
                     )
