@@ -138,13 +138,14 @@ let internal getValidator (field: Field<'field, 'arguments, 'source>) =
     |> tryUnbox<Validator<'arguments>>
     |> Option.map (fun (Validator validator) -> validator)
 
-let subscribe (resolver: 'arguments -> 'field IObservable ValueTask) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, obj>) ->
+let subscribeContext (resolver: ResolveContext<'source> -> 'arguments -> 'field IObservable ValueTask) = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, obj>) ->
     let fields, constructor = getRecordInfo<'arguments> ()
     let validator = getValidator field
     field.AsyncSubscriber <-
         resolveSubscription (
             fun ctx ->
                 let arguments = makeArguments<'arguments, _> fields constructor ctx
+                let resolver = resolver ctx
                 vtask {
                     match validator with
                     | Some validator ->
@@ -159,6 +160,8 @@ let subscribe (resolver: 'arguments -> 'field IObservable ValueTask) = Operation
                 }
         )
     field.Resolver <- resolve (fun ctx -> ctx.Source)
+
+let subscribe (resolver: 'arguments -> 'field IObservable ValueTask) = subscribeContext (fun _ arguments -> resolver arguments)
 
 let internal setName (|NamePattern|_|) expr = Operation.ConfigureUnit <| fun (field: Field<_, _, _>) ->
     match expr with
@@ -199,13 +202,14 @@ let inline internal resolveHelper (resolver: ResolveContext<'source> -> 'argumen
             )
 
 let inline internal resolveEndpoint resolver = resolveHelper (fun _ arguments -> resolver arguments)
+let inline internal resolveEndpointContext resolver = resolveHelper (fun ctx arguments -> resolver ctx arguments)
 let inline internal resolveMethod resolver = resolveHelper (fun ctx arguments -> resolver ctx.Source arguments)
 let inline internal resolveProperty resolver = resolveHelper (fun ctx _ -> resolver ctx.Source)
 
 type Resolve internal () =
     member __.context (resolver: ResolveContext<'source> -> 'field ValueTask) = resolveHelper (fun ctx _ -> resolver ctx)
-    member __.endpoint (resolver: 'arguments -> 'field ValueTask) =
-        resolveEndpoint resolver
+    member __.endpoint (resolver: 'arguments -> 'field ValueTask) = resolveEndpoint resolver
+    member __.endpointContext (resolver: ResolveContext<'source> -> 'arguments -> 'field ValueTask) = resolveEndpointContext resolver
     member __.method ([<ReflectedDefinition true>] expr: Expr<'source -> 'arguments -> 'field ValueTask>) =
         flatten [
             setName (|MethodName|_|) expr

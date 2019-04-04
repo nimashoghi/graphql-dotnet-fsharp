@@ -399,7 +399,8 @@ module Schema =
 type Startup() =
     member __.ConfigureServices(services: IServiceCollection) =
         services
-            .AddSingleton(Schema.Schema)
+            .AddHttpContextAccessor()
+            .AddScoped<Schema>(implementationFactory = fun _ -> Schema.Schema)
             .AddGraphQL(
                 fun options ->
                     options.ExposeExceptions <- false

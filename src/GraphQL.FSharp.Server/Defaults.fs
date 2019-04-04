@@ -3,6 +3,8 @@ module GraphQL.FSharp.Server.NameConverter
 
 open System.Collections.Generic
 open System.Reactive.Linq
+open System.Threading.Tasks
+open global.FSharp.Utils
 open FSharp.Utils.Tasks
 open GraphQL
 open GraphQL.Conversion
@@ -10,10 +12,14 @@ open GraphQL.Execution
 open GraphQL.Language.AST
 open GraphQL.Server
 open GraphQL.Server.Internal
+open GraphQL.Server.Transports.Subscriptions.Abstractions
 open GraphQL.Types
 open GraphQL.Validation
 open GraphQL.Validation.Complexity
+open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Primitives
+open Newtonsoft.Json.Linq
 
 type GraphQLExecuter<'t when 't :> ISchema> (schema, documentExecutor, options, listeners, validationRules) =
     inherit DefaultGraphQLExecuter<'t> (schema, documentExecutor, options, listeners, validationRules)
@@ -65,7 +71,28 @@ type GraphQLDocumentExecuter (documentBuilder: IDocumentBuilder, documentValidat
         | OperationType.Subscription -> upcast GraphQLSubscriptionExecutionStrategy ()
         | _ -> base.SelectExecutionStrategy ctx
 
+type SubscriptionAuthorizationListener (ctxAccessor: IHttpContextAccessor) =
+    interface IOperationMessageListener with
+        member __.AfterHandleAsync _ = Task.CompletedTask
+        member __.BeforeHandleAsync context =
+            if isNull context.Message || isNull context.Message.Payload then Task.CompletedTask else
+            let jObject = JObject.FromObject context.Message.Payload
+            if not <| jObject.ContainsKey "Authorization" then Task.CompletedTask else
+            let token = StringValues (string jObject.["Authorization"])
+            if ctxAccessor.HttpContext.Request.Headers.ContainsKey "Authorization"
+            then ctxAccessor.HttpContext.Request.Headers.["Authorization"] <- token
+            else ctxAccessor.HttpContext.Request.Headers.Add ("Authorization", token)
+            Task.CompletedTask
+        member __.HandleAsync _ = Task.CompletedTask
+
 type IGraphQLBuilder with
+    member this.AddSubscriptionAuthorizationHandler () =
+        this.Services
+            .AddHttpContextAccessor()
+            .AddScoped<IOperationMessageListener, SubscriptionAuthorizationListener>()
+        |> ignore
+        this
+
     member this.AddDocumentExecutor () =
         this.Services
             .AddSingleton<IDocumentExecuter, GraphQLDocumentExecuter> ()
@@ -83,7 +110,8 @@ type IGraphQLBuilder with
         this
 
 
-    member this.AddFSharpDefaults () =
+    member this.AddFSharp () =
         this
             .AddDocumentExecutor()
             .AddDefaultFieldNameConverter()
+            .AddSubscriptionAuthorizationHandler()
