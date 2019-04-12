@@ -85,7 +85,7 @@ module Union =
             let fields = case.GetFields ()
             assert (Array.length fields = 1)
             let field = fields.[0]
-            assert isAnonymousRecord field.PropertyType
+            assert FSharpType.IsRecord field.PropertyType
             field
 
         let caseObjectTypes =

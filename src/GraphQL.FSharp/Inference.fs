@@ -69,23 +69,31 @@ type IDictionary<'key, 'value> with
         | true, value -> ValueSome value
         | _ -> ValueNone
 
+let internal hasAnonRecordAttribute (``type``: Type) = ``type``.GetCustomAttribute<AnonymousRecordAttribute> () <> Unchecked.defaultof<_>
+
+let internal getName anonymousName ``type`` =
+    match ``type`` with
+    | NormalRecord when hasAnonRecordAttribute ``type`` -> ValueSome ``type``.Name
+    | AnonymousRecord -> anonymousName
+    | _ -> ValueNone
+
 let internal getAnonymousType anonymousName ``type`` =
-    if not <| isAnonymousRecord ``type`` then ValueNone else
-    match anonymousName with
-    | ValueSome name ->
-        let object = Object<obj> (Name = name)
-        FSharpType.GetRecordFields ``type``
-        |> Array.map (
-            fun property ->
-                Field (
-                    Name = property.Name,
-                    ResolvedType = createReference (ValueSome <| sprintf "%s%s" name property.Name) property.PropertyType,
-                    Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+    getName anonymousName ``type``
+    |> ValueOption.map (
+        fun name ->
+            let object = Object<obj> (Name = name)
+            FSharpType.GetRecordFields ``type``
+            |> Array.map (
+                fun property ->
+                    Field (
+                        Name = property.Name,
+                        ResolvedType = createReference (ValueSome <| sprintf "%s%s" name property.Name) property.PropertyType,
+                        Resolver = FuncFieldResolver<_> (fun ctx -> property.GetValue ctx.Source)
+                    )
                 )
-            )
-        |> Array.iter (object.AddField >> ignore)
-        ValueSome (object :> IGraphType)
-    | ValueNone -> ValueNone
+            |> Array.iter (object.AddField >> ignore)
+            object :> IGraphType
+    )
 
 let internal getDefaultTypeOrCreateAnonOrReference anonymousName ``type`` =
     defaultTypes.TryGetValueOption ``type``

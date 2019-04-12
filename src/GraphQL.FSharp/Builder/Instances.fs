@@ -1,10 +1,17 @@
 [<AutoOpen>]
 module GraphQL.FSharp.Builder.Instances
 
+#nowarn "44"
+
+open System
+open System.Reactive.Linq
+open FSharp.Utils.Tasks
+open FSharp.Utils.Tasks.TplPrimitives
 open GraphQL.Conversion
 open GraphQL.Types
 
 open GraphQL.FSharp.Builder.Operations
+open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
 open GraphQL.FSharp.Utils
 
@@ -18,8 +25,6 @@ let argument<'argument> ``type`` parameters =
     |> flattenOperations
     |> reduceWith Argument<'argument>
 
-// TODO: Test subscriptions properly
-// TOOD: Test new anon record stuff properly
 // FIXME: Subscription that return primitives are broken in the current version of GraphQL + GraphQL.Server
 let field<'field,'arguments, 'source> ``type`` parameters =
     graphOrSystemTypeField ``type``
@@ -72,3 +77,20 @@ let schema parameters =
     |> reduce schema
 
 let endpoints (endpoints: Field<obj> list): Endpoints = endpoints
+
+type SubscribeResultBuilder () =
+    inherit AwaitableBuilder ()
+    member inline __.Run (f : unit -> Ply<Result<'value IObservable, 'error list>>) =
+        uvtask {
+            match! run f with
+            | Ok value -> return value
+            | Error errors ->
+                return
+                    seq {
+                        for error in errors do
+                            yield handleError error :> exn
+                    }
+                    |> AggregateException
+                    |> Observable.Throw
+        }
+let subscriptionResult = SubscribeResultBuilder ()

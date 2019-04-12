@@ -12,6 +12,8 @@ open GraphQL.Resolvers
 open GraphQL.Subscription
 open GraphQL.Types
 
+type AnonymousRecordAttribute () = inherit Attribute ()
+
 type EmptyObjectGraphType () as this =
     inherit ScalarGraphType ()
 

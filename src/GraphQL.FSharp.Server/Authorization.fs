@@ -10,8 +10,16 @@ open GraphQL.FSharp
 open GraphQL.FSharp.Builder.Operations
 open GraphQL.Server
 open GraphQL.Server.Authorization.AspNetCore
+open GraphQL.Server.Transports.Subscriptions.Abstractions
 open Microsoft.AspNetCore.Authorization
+open Microsoft.AspNetCore.Authentication
+open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.AspNetCore.Http
+open Microsoft.Extensions.Primitives
+
+[<Literal>]
+let internal SubscriptionName = "graphql-ws"
 
 let mkName name = sprintf "GraphQL.FSharp.Server.Auth.%s" name
 
@@ -70,8 +78,58 @@ let authorize policy = Operation.Configure <| fun (field: Field<'field, 'argumen
     field.Authorize policy
     field
 
+type InitialMessagePayload = {
+    Authorization: string voption
+}
+type SubscriptionAuthorizationListener (contextAccessor: IHttpContextAccessor, schemes) =
+    let authenticationMiddleware = AuthenticationMiddleware (RequestDelegate (fun _ -> Task.CompletedTask), schemes)
+
+    let (|InitialMessage|_|) (message: OperationMessage) =
+        match message.Type with
+        | MessageType.GQL_CONNECTION_INIT ->
+            if isNull message.Payload then Some {Authorization = ValueNone} else
+            Dictionary.ofObj message.Payload
+            |> Option.map (
+                fun dictionary ->
+                    match dictionary.TryGetValue "Authorization" with
+                    | true, (:? string as value) -> {Authorization = ValueSome value}
+                    | _ -> {Authorization = ValueNone}
+            )
+        | _ -> None
+
+    interface IOperationMessageListener with
+        member __.AfterHandleAsync _ = Task.CompletedTask
+        member __.BeforeHandleAsync messageContext =
+            match messageContext.Message with
+            | InitialMessage {Authorization = ValueSome authorization} ->
+                contextAccessor.HttpContext.Request.Headers.["Authorization"] <- StringValues authorization
+            | _ -> ()
+            // contextAccessor.HttpContext.AuthenticateAsync () :> Task
+            authenticationMiddleware.Invoke contextAccessor.HttpContext
+        member __.HandleAsync _ = Task.CompletedTask
+
+type SubscriptionAuthenticationMiddleware (next, schemes) =
+    let authenticationMiddleware = AuthenticationMiddleware (next, schemes)
+
+    member __.Invoke (context: HttpContext) =
+        if List.ofSeq context.WebSockets.WebSocketRequestedProtocols <> [SubscriptionName]
+        then authenticationMiddleware.Invoke context
+        else next.Invoke context
+
+type IApplicationBuilder with
+    member this.UseGraphQLAuthentication () =
+        this.UseMiddleware<SubscriptionAuthenticationMiddleware> Array.empty
+
 type IGraphQLBuilder with
+    member this.AddSubscriptionAuthorizationHandler () =
+        this.Services
+            .AddHttpContextAccessor()
+            .AddScoped<IOperationMessageListener, SubscriptionAuthorizationListener>()
+        |> ignore
+        this
+
     member this.AddAuthorization<'t when 't: equality and 't :> IPolicy> (optionBuilder: AuthorizationSettings<'t> -> AuthorizationSettings<'t>) =
+        this.AddSubscriptionAuthorizationHandler () |> ignore
         this.Services.AddSingleton<IAuthorizationHandler, RequirementHandler> ()
         |> ignore
         this.AddGraphQLAuthorization (
