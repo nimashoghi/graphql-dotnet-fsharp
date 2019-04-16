@@ -2,8 +2,11 @@
 module GraphQL.FSharp.Builder.GraphType
 
 open System
+open System.Collections.Generic
+open System.Reflection
 open FSharp.Reflection
 open FSharp.Utils
+open GraphQL
 open GraphQL.Resolvers
 open GraphQL.Types
 
@@ -73,9 +76,38 @@ module Union =
         cases
         |> List.fold (fun union case -> case.Init union) union
 
-    let auto<'union> (_: _ list) = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
-        let ``type`` = typeof<'union>
+    let (|RecordUnion|NormalUnion|) ``type`` =
         assert (FSharpType.IsUnion ``type`` && not ``type``.IsGenericType)
+        let fields =
+            FSharpType.GetUnionCases ``type``
+            |> Array.map (fun case -> case.GetFields ())
+
+        let isRecordUnion =
+            fields
+            |> Array.forall (
+                fun fields ->
+                    Array.length fields = 1
+                    && FSharpType.IsRecord fields.[0].PropertyType
+            )
+
+        if isRecordUnion
+        then RecordUnion
+        else NormalUnion
+
+    let addTag (tag: int) (object: Object<obj>) =
+        object.AddField (
+            Field (
+                Name = "_Tag",
+                ResolvedType = NonNullGraphType (IntGraphType ()),
+                Resolver = FuncFieldResolver<obj> (fun _ -> box tag)
+            )
+        )
+        |> ignore
+
+    let getCaseName (case: UnionCaseInfo) = sprintf "%s%s" case.DeclaringType.Name case.Name
+
+    let autoRecord<'union> (_: _ list) = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
+        let ``type`` = typeof<'union>
 
         let cases = FSharpType.GetUnionCases ``type``
 
@@ -94,7 +126,7 @@ module Union =
                 fun case ->
                     let object =
                         Object<obj> (
-                            Name = case.Name
+                            Name = getCaseName case
                         )
 
                     let reader = FSharpValue.PreComputeUnionReader case
@@ -112,10 +144,11 @@ module Union =
                     )
                     |> Array.iter (object.AddField >> ignore)
 
+                    // addTag case.Tag object
                     object
             )
 
-        caseObjectTypes |> Array.iter (union.AddPossibleType)
+        for object in caseObjectTypes do union.AddPossibleType object
 
         let caseTypes =
             cases
@@ -133,6 +166,102 @@ module Union =
                 match typeMapping.TryGetValue (tagReader object) with
                 | true, graph -> upcast graph
                 | false, _ -> null
+
+    let autoNormal<'union> (_: _ list) = Operation.ConfigureUnit <| fun (union: Union<'union>) ->
+        let ``type`` = typeof<'union>
+
+        if isNull union.Name then union.Name <- ``type``.Name
+
+        let cases = FSharpType.GetUnionCases ``type``
+        let tagReader = FSharpValue.PreComputeUnionTagReader ``type``
+
+        let getItemName names (property: PropertyInfo) =
+            let getName (names: string HashSet) baseName =
+                let rec run (names: string HashSet) baseName i =
+                    let name = sprintf "%s%i" baseName i
+
+                    if names.Add name
+                    then i + 1 |> run names baseName
+                    else name
+
+                if names.Add baseName
+                then baseName
+                else run names baseName 1
+
+            let getName baseName = getName names baseName
+
+            if not <| property.Name.StartsWith "Item"
+            then getName property.Name
+            else getName property.PropertyType.Name
+
+        let caseObjectTypes =
+            cases
+            |> Array.map (
+                fun case ->
+                    let object =
+                        Object<obj> (
+                            Name = getCaseName case
+                        )
+
+                    let reader = FSharpValue.PreComputeUnionReader case
+                    let reader i object = Array.get (reader object) i
+                    let isValidUnion object = tagReader object = case.Tag
+
+                    case.GetFields ()
+                    |> Array.mapi (
+                        fun i property ->
+                            let reader object = reader i object
+                            let names = HashSet []
+
+                            Field (
+                                Name = getItemName names property,
+                                ResolvedType = infer property.PropertyType,
+                                Resolver =
+                                    FuncFieldResolver<obj> (
+                                        fun ctx ->
+                                            if isValidUnion ctx.Source then reader ctx.Source else
+                                                if isNull ctx.Errors
+                                                then ctx.Errors <- ExecutionErrors ()
+
+                                                sprintf "Field %s does not exist on this union case!" property.Name
+                                                |> ExecutionError
+                                                |> ctx.Errors.Add
+
+                                                null
+                                    )
+                            )
+                    )
+                    |> Array.iter (object.AddField >> ignore)
+
+                    addTag case.Tag object
+                    object
+            )
+
+        for object in caseObjectTypes do union.AddPossibleType object
+
+        let caseTypes =
+            cases
+            |> Array.map (fun case -> case.Tag)
+
+        let typeMapping =
+            (caseTypes, caseObjectTypes)
+            ||> Array.zip
+            |> dict
+
+        union.ResolveType <-
+            fun object ->
+                match object with
+                | :? 'union as union ->
+                    match typeMapping.TryGetValue (tagReader union) with
+                    | true, graph -> upcast graph
+                    | false, _ -> null
+                | _ -> null
+
+    let auto<'union> (args: _ list) = flatten [
+        match typeof<'union> with
+        | NormalUnion -> yield autoNormal<'union> args
+        | RecordUnion -> yield autoRecord<'union> args
+    ]
 
 //#endregion
 

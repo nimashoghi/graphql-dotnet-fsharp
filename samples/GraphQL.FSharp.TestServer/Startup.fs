@@ -37,6 +37,10 @@ module Model =
     | FirstUnion of MyUnionFirst
     | SecondUnion of MyUnionSecond
 
+    type NormalUnion =
+    | First of First: int * Second: int
+    | HelloWorld of Hello: float * World: System.Guid
+
     type MyEnum =
     | First
     | Second
@@ -197,6 +201,11 @@ module Schema =
             Union.auto []
         ]
 
+    let NormalUnionGraph =
+        union<NormalUnion> [
+            Union.auto []
+        ]
+
     let AutoRecordGraph =
         object<AutoRecord> [
             Object.auto []
@@ -204,6 +213,10 @@ module Schema =
 
     let Query =
         query [
+            field __ [
+                name "GetNormalUnion"
+                resolve.method (fun _ _ -> vtask { return NormalUnion.HelloWorld (Hello = 1.5, World = System.Guid.NewGuid ()) })
+            ]
             field __ [
                 name "GetMyEnum"
                 resolve.method (fun _ _ -> vtask { return MyEnum.Third })
@@ -393,6 +406,7 @@ module Schema =
                 MyEnumUnionGraph
                 MyEnumEnumGraph
                 MyAutoUnionGraph
+                NormalUnionGraph
             ]
         ]
 
@@ -400,7 +414,7 @@ type Startup() =
     member __.ConfigureServices(services: IServiceCollection) =
         services
             .AddHttpContextAccessor()
-            .AddScoped<Schema>(implementationFactory = fun _ -> Schema.Schema)
+            .AddSingleton(Schema.Schema)
             .AddGraphQL(
                 fun options ->
                     options.ExposeExceptions <- false
