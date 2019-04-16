@@ -144,7 +144,7 @@ module Union =
                     )
                     |> Array.iter (object.AddField >> ignore)
 
-                    // addTag case.Tag object
+                    addTag case.Tag object
                     object
             )
 
