@@ -11,16 +11,7 @@
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GraphQL" Version="2.4.0" />
-    <PackageReference Include="GraphQL.Server.Authorization.AspNetCore" Version="3.4.0" />
-    <PackageReference Include="GraphQL.Server.Core" Version="3.4.0" />
-    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="3.4.0" />
-    <PackageReference Include="GraphQL.Server.Transports.WebSockets" Version="3.4.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Abstractions" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\GraphQL.FSharp\GraphQL.FSharp.fsproj" />
   </ItemGroup>
+  <Import Project="../../.paket/Paket.Restore.targets" />
 </Project>

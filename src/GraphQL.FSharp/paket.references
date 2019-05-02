@@ -1,0 +1,6 @@
+FSharp.Core
+FSharp.Utils
+FSValidation
+GraphQL
+System.Reactive
+System.Threading.Tasks.Extensions

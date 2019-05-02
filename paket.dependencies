@@ -1,0 +1,36 @@
+source https://www.nuget.org/api/v2
+
+nuget FSharp.Core
+nuget FSharp.Utils
+nuget FSValidation
+nuget GraphQL
+nuget System.Reactive
+nuget System.Threading.Tasks.Extensions
+
+group Server
+    source https://www.nuget.org/api/v2
+
+    nuget GraphQL.Server.Authorization.AspNetCore
+    nuget GraphQL.Server.Core
+    nuget GraphQL.Server.Transports.AspNetCore
+    nuget GraphQL.Server.Transports.WebSockets
+    nuget Microsoft.AspNetCore.Authentication.Abstractions
+    nuget Microsoft.AspNetCore.Authentication.JwtBearer
+    nuget Microsoft.AspNetCore.Http
+
+group Build
+    source https://nuget.org/api/v2
+
+    nuget Fake.Core.Target
+    nuget Fake.DotNet.Cli
+
+group Test
+    source https://nuget.org/api/v2
+
+    nuget NUnit
+    nuget NUnit3TestAdapter
+    nuget Unquote
+    nuget FsCheck
+    nuget FsCheck.NUnit
+    nuget Microsoft.NET.Test.Sdk
+    nuget JsonDiffPatch.NET

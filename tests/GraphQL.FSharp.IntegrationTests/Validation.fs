@@ -1,6 +1,5 @@
 module GraphQL.FSharp.IntegrationTests.Validation
 
-open System.Threading.Tasks
 open NUnit.Framework
 open FSharp.Utils.Tasks
 open GraphQL.FSharp.Builder

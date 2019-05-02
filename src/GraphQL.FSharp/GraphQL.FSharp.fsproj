@@ -20,12 +20,7 @@
     <Compile Include="Builder/Documentation.fs" />
     <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
-    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Utils" Version="0.0.13" />
-    <PackageReference Include="FSValidation" Version="0.0.7" />
-    <PackageReference Include="GraphQL" Version="2.4.0" />
-    <PackageReference Include="System.Reactive" Version="4.1.3" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.2" />
+    <None Include="../../LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
+  <Import Project="../../.paket/Paket.Restore.targets" />
 </Project>
