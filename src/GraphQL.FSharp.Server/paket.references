@@ -1,3 +1,5 @@
+FSharp.Core
+
 group Server
     GraphQL.Server.Authorization.AspNetCore
     GraphQL.Server.Core

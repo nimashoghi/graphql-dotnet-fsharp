@@ -1,3 +1,5 @@
+FSharp.Core
+
 group Test
     FsCheck
     FsCheck.Nunit
