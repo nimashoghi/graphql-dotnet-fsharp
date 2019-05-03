@@ -1,2 +1,4 @@
 type project
+id GraphQL.FSharp.Server
+title GraphQL.FSharp.Server
 licenseUrl http://opensource.org/licenses/MIT
