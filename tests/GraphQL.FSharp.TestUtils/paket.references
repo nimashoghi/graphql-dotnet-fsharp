@@ -1,6 +1,4 @@
-FSharp.Core
-
 group Test
-    JsonDiffPatch.NET
-    nunit
-    Unquote
+JsonDiffPatch.NET
+nunit
+Unquote

@@ -78,33 +78,30 @@ let authorize policy = Operation.Configure <| fun (field: Field<'field, 'argumen
     field.Authorize policy
     field
 
-type InitialMessagePayload = {
-    Authorization: string voption
-}
 type SubscriptionAuthorizationListener (contextAccessor: IHttpContextAccessor, schemes) =
     let authenticationMiddleware = AuthenticationMiddleware (RequestDelegate (fun _ -> Task.CompletedTask), schemes)
 
-    let (|InitialMessage|_|) (message: OperationMessage) =
+    let (|AuthorizationMessage|_|) (message: OperationMessage) =
         match message.Type with
         | MessageType.GQL_CONNECTION_INIT ->
-            if isNull message.Payload then Some {Authorization = ValueNone} else
-            Dictionary.ofObj message.Payload
-            |> Option.map (
+            message.Payload
+            |> Option.ofObj
+            |> Option.bind Dictionary.ofObj
+            |> Option.bind (
                 fun dictionary ->
                     match dictionary.TryGetValue "Authorization" with
-                    | true, (:? string as value) -> {Authorization = ValueSome value}
-                    | _ -> {Authorization = ValueNone}
+                    | true, (:? string as value) -> Some value
+                    | _ -> None
             )
         | _ -> None
 
     interface IOperationMessageListener with
         member __.AfterHandleAsync _ = Task.CompletedTask
-        member __.BeforeHandleAsync messageContext =
-            match messageContext.Message with
-            | InitialMessage {Authorization = ValueSome authorization} ->
+        member __.BeforeHandleAsync context =
+            match context.Message with
+            | AuthorizationMessage authorization ->
                 contextAccessor.HttpContext.Request.Headers.["Authorization"] <- StringValues authorization
             | _ -> ()
-            // contextAccessor.HttpContext.AuthenticateAsync () :> Task
             authenticationMiddleware.Invoke contextAccessor.HttpContext
         member __.HandleAsync _ = Task.CompletedTask
 
@@ -124,7 +121,7 @@ type IGraphQLBuilder with
     member this.AddSubscriptionAuthorizationHandler () =
         this.Services
             .AddHttpContextAccessor()
-            .AddScoped<IOperationMessageListener, SubscriptionAuthorizationListener>()
+            .AddTransient<IOperationMessageListener, SubscriptionAuthorizationListener>()
         |> ignore
         this
 

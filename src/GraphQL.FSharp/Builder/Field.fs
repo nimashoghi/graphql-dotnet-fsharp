@@ -2,6 +2,7 @@
 module GraphQL.FSharp.Builder.Field
 
 open System
+open System.Collections.Generic
 open System.Reactive.Linq
 open System.Reflection
 open System.Threading.Tasks
@@ -15,7 +16,7 @@ open GraphQL.Types
 open GraphQL.FSharp.Inference
 open GraphQL.FSharp.Resolvers
 open GraphQL.FSharp.Types
-open GraphQL.FSharp.Utils.Quotations
+open GraphQL.FSharp.Utils
 
 (*
     TODO: Watch out for this case:
@@ -67,9 +68,32 @@ let validate (validator: 'arguments -> Result<'arguments, 'error list> ValueTask
             )
         )
 
+open GraphQL.Resolvers
+
 [<AutoOpen>]
 module internal Arguments =
-    // TODO: What about nested objects? e.g. {|Prop = {|Name = "hi"}|}
+    let rec makeAnonymousType name (``type``: Type) =
+        let obj =
+            InputObject<obj> (
+                Name = name
+            )
+
+        for prop in FSharpType.GetRecordFields ``type`` do
+            Field<obj> (
+                Name = prop.Name,
+                ResolvedType = makeTypeOf (sprintf "%s%s" name prop.Name) prop.PropertyType,
+                Resolver = FuncFieldResolver<obj> (fun ctx -> prop.GetValue ctx.Source)
+            )
+            |> obj.AddField
+            |> ignore
+
+        obj
+
+    and makeTypeOf name (``type``: Type) =
+        if isAnonymous ``type``
+        then makeAnonymousType name ``type`` :> IGraphType
+        else infer ``type``
+
     let addArguments () = Operation.ConfigureUnit <| fun (field: Field<'field, 'arguments, 'source>) ->
         if typeof<'arguments> = typeof<obj> then () else
 
@@ -86,34 +110,66 @@ module internal Arguments =
         |> Array.map (
             fun field ->
                 Argument (
-                    ResolvedType = infer field.PropertyType,
+                    ResolvedType = makeTypeOf field.Name field.PropertyType,
                     Name = field.Name
                 )
         )
         |> Array.iter field.Arguments.Add
+
+    let internal (|Dict|_|) (object: obj) =
+        match object with
+        | :? Dictionary<string, obj> as dictionary when (not << isNull) dictionary -> Some dictionary
+        | _ -> None
+
+    exception NoArgumentFieldFoundException of Argument: string * Field: string
+
+    // TODO: Change logic to use precomputaed stuff
+    let rec internal getArgumentAnonymousRecord (dictionary: Dictionary<string, obj>) ``type`` =
+        assert FSharpType.IsRecord ``type``
+
+        let values =
+            FSharpType.GetRecordFields ``type``
+            |> Array.map (
+                fun field ->
+                    match dictionary.TryGetValue field.Name, field.PropertyType with
+                    | (true, Dict value), (AnonymousRecord as ``type``) -> getArgumentAnonymousRecord value ``type``
+                    | (true, value), _ -> value
+                    | _ -> raise (NoArgumentFieldFoundException (``type``.Name, field.Name))
+            )
+
+        FSharpValue.MakeRecord (``type``, values)
+
+    let internal getArgument (ctx: ResolveContext<'source>) name ``type`` =
+        match ``type`` with
+        | AnonymousRecord ->
+            match ctx.GetArgument (typeof<Dictionary<string, obj>>, name, null) with
+            | Dict dictionary -> getArgumentAnonymousRecord dictionary ``type``
+            | _ -> ctx.GetArgument (``type``, name)
+        | _ -> ctx.GetArgument (``type``, name)
 
     let makeArgumentArray<'arguments, 'source> (fields: PropertyInfo [] Lazy) (ctx: ResolveContext<'source>) =
         if typeof<'arguments> = typeof<obj> then [||] else
 
         let (Lazy fields) = fields
         fields
-        |> Array.map (fun field ->
-            ctx.GetArgument (
-                argumentType = field.PropertyType,
-                name = field.Name
+        |> Array.map (
+            fun field ->
+                getArgument ctx field.Name field.PropertyType
+                // ctx.GetArgument (
+                //     argumentType = field.PropertyType,
+                //     name = field.Name
+                // )
+                // |> Option.ofObj
+                // |> Option.orElseWith (fun () ->
+                //     if not <| ctx.HasArgument field.Name
+                //     then None
+                //     else Some ctx.Arguments.[field.Name]
+                // )
+                // |> Option.toObj
             )
-            |> Option.ofObj
-            |> Option.orElseWith (fun () ->
-                if not <| ctx.HasArgument field.Name
-                then None
-                else Some ctx.Arguments.[field.Name]
-            )
-            |> Option.toObj
-        )
 
-    // TODO: Take a look at null (which leads to unbox throwing)
     let makeArgumentRecord<'arguments> (constructor: (obj [] -> obj) Lazy) (arguments: obj [])  =
-        if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
+        if typeof<'arguments> = typeof<obj> then Unchecked.unbox<'arguments> null else
 
         let (Lazy constructor) = constructor
 
@@ -122,7 +178,7 @@ module internal Arguments =
         |> unbox<'arguments>
 
     let makeArguments<'arguments, 'source> fields constructor ctx =
-        if typeof<'arguments> = typeof<obj> then unbox<'arguments> null else
+        if typeof<'arguments> = typeof<obj> then Unchecked.unbox<'arguments> null else
 
         makeArgumentArray<'arguments, 'source> fields ctx
         |> makeArgumentRecord<'arguments> constructor
@@ -134,6 +190,7 @@ module internal Arguments =
 
 let internal getValidator (field: Field<'field, 'arguments, 'source>) =
     if not <| field.HasMetadata "Validator" then None else
+
     field.Metadata.["Validator"]
     |> tryUnbox<Validator<'arguments>>
     |> Option.map (fun (Validator validator) -> validator)

@@ -1,10 +1,5 @@
 FSharp.Core
-
-group Server
-    GraphQL.Server.Authorization.AspNetCore
-    GraphQL.Server.Core
-    GraphQL.Server.Transports.AspNetCore
-    GraphQL.Server.Transports.WebSockets
-    Microsoft.AspNetCore.Authentication.Abstractions
-    Microsoft.AspNetCore.Authentication.JwtBearer
-    Microsoft.AspNetCore.Http
+GraphQL.Server.Authorization.AspNetCore
+GraphQL.Server.Transports.AspNetCore
+GraphQL.Server.Transports.WebSockets
+Microsoft.AspNetCore.Authentication.JwtBearer

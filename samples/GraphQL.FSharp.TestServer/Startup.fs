@@ -268,7 +268,7 @@ module Schema =
             field __ [
                 name "Validate"
                 validate (
-                    fun (args: {|Age: int; Height: float; Name: string; AsyncName: string|}) -> validation {
+                    fun (args: {|Age: int; Height: float; Name: string; AsyncName: string; SomeOtherThing: {|Name: {|Name: string|}|}|}) -> validation {
                         validate age in validateAge args.Age
                         validate height in validateHeight args.Height
                         validate name in validateName args.Name
@@ -283,7 +283,7 @@ module Schema =
                             |}
                     }
                 )
-                resolve.method (fun _ args -> vtask { return sprintf "%s_%s_%i_%.0f" args.Name args.AsyncName args.Age args.Height })
+                resolve.method (fun _ args -> vtask { return sprintf "%A %s_%s_%i_%.0f" args.SomeOtherThing args.Name args.AsyncName args.Age args.Height })
             ]
         ]
 
