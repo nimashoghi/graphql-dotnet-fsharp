@@ -21,5 +21,8 @@
     <Compile Include="Builder/Instances.fs" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <ItemGroup>
+    <PackageReference Include="FSValidation" Version="0.0.10" />
+    <PackageReference Include="GraphQL" Version="2.4.0" />
+  </ItemGroup>
 </Project>

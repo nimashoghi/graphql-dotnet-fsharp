@@ -1,5 +1,0 @@
-FSharp.Core
-GraphQL.Server.Authorization.AspNetCore
-GraphQL.Server.Transports.AspNetCore
-GraphQL.Server.Transports.WebSockets
-Microsoft.AspNetCore.Authentication.JwtBearer

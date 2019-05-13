@@ -1,5 +1,0 @@
-group Test
-FsCheck.Nunit
-Microsoft.NET.Test.Sdk
-NUnit3TestAdapter
-Unquote

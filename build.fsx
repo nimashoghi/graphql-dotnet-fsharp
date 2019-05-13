@@ -1,4 +1,7 @@
-#r "paket: groupref Build //"
+#r "paket:
+nuget FSharp.Core ~> 4.6
+nuget Fake.Core.Target ~> 5
+nuget Fake.DotNet.Cli ~> 5 //"
 #load "./.fake/build.fsx/intellisense.fsx"
 
 open System.IO

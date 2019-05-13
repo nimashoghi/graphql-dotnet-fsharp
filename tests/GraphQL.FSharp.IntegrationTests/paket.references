@@ -1,5 +1,0 @@
-group Test
-Microsoft.NET.Test.Sdk
-nunit
-NUnit3TestAdapter
-Unquote
